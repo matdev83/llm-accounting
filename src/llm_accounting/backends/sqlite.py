@@ -23,7 +23,23 @@ DEFAULT_DB_PATH = "data/accounting.sqlite"
 
 
 class SQLiteBackend(BaseBackend):
-    """SQLite implementation of the usage tracking backend"""
+    """SQLite implementation of the usage tracking backend
+    
+    This class provides a concrete implementation of the BaseBackend using SQLite
+    for persistent storage of LLM usage tracking data. It handles database schema
+    initialization, connection management, and implements all required operations
+    for usage tracking including insertion, querying, and aggregation of usage data.
+    
+    Key Features:
+    - Uses SQLite for persistent storage with configurable database path
+    - Automatically creates database schema on initialization
+    - Supports raw SQL query execution for advanced analytics
+    - Implements usage limits and quota tracking capabilities
+    - Handles connection lifecycle management
+    
+    The backend is designed to be used within the LLMAccounting context manager
+    to ensure proper connection handling and resource cleanup.
+    """
 
     def __init__(self, db_path: Optional[str] = None):
         actual_db_path = db_path if db_path is not None else DEFAULT_DB_PATH

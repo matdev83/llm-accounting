@@ -63,7 +63,12 @@ class BaseBackend(ABC):
 
     @abstractmethod
     def initialize(self) -> None:
-        """Initialize the backend (create tables, etc.)"""
+        """Initialize the backend (create tables, etc.)
+        
+        This method should be called before any other operations to ensure the backend
+        is properly set up. It's typically called automatically when entering the
+        LLMAccounting context.
+        """
         pass
 
     @abstractmethod

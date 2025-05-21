@@ -1,0 +1,1 @@
+Run tests and linters to ensure code quality and consistency. Fix the FIRST issue found. Not more.

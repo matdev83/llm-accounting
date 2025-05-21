@@ -1,3 +1,8 @@
+"""Main package initialization for LLM Accounting system.
+
+This package provides core functionality for tracking and managing API usage quotas
+and rate limits across multiple services.
+"""
 import logging
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
