@@ -4,24 +4,22 @@ from pathlib import Path
 import time
 from typing import Dict, List, Tuple, Optional
 
-from .base import BaseBackend, UsageEntry, UsageStats
+from .base import BaseBackend, UsageEntry, UsageStats, LimitScope, LimitType
 from .sqlite_utils import validate_db_filename, initialize_db_schema
 from .sqlite_queries import get_period_stats_query, get_model_stats_query, get_model_rankings_query, tail_query, insert_usage_query
+from llm_accounting.models import UsageLimit, APIRequest
 
 import logging
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_DB_PATH = 'data/accounting.sqlite'
 
 class SQLiteBackend(BaseBackend):
     """SQLite implementation of the usage tracking backend"""
 
-    def __new__(cls, *args, **kwargs):
-        # Explicitly call the superclass's __new__ method
-        return super().__new__(cls)
-
     def __init__(self, db_path: Optional[str] = None):
-        actual_db_path = db_path if db_path is not None else 'data/accounting.sqlite'
+        actual_db_path = db_path if db_path is not None else DEFAULT_DB_PATH
         validate_db_filename(actual_db_path)
         self.db_path = actual_db_path  # Store as string
         if not self.db_path.startswith("file:"):
@@ -80,7 +78,12 @@ class SQLiteBackend(BaseBackend):
             logger.info(f"No sqlite connection to close for {self.db_path}")
 
     def execute_query(self, query: str) -> List[Dict]:
-        """Execute a raw SQL SELECT query and return results"""
+        """
+        Execute a raw SQL SELECT query and return results.
+        If the connection is not already open, it will be initialized.
+        It is recommended to use this method within the LLMAccounting context manager
+        to ensure proper connection management (opening and closing).
+        """
         if not query.strip().upper().startswith("SELECT"):
             raise ValueError("Only SELECT queries are allowed.")
 
@@ -98,3 +101,105 @@ class SQLiteBackend(BaseBackend):
             return results
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error: {e}") from e
+
+    def insert_api_request(self, request: APIRequest) -> None:
+        """Insert a new API request entry into the database"""
+        assert self.conn is not None
+        self.conn.execute(
+            """
+            INSERT INTO api_requests (model, username, caller_name, input_tokens, output_tokens, cost, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                request.model,
+                request.username,
+                request.caller_name,
+                request.input_tokens,
+                request.output_tokens,
+                request.cost,
+                request.timestamp.isoformat(),
+            ),
+        )
+        self.conn.commit()
+
+    def get_usage_limits(
+        self,
+        scope: Optional[LimitScope] = None,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None
+    ) -> List[UsageLimit]:
+        assert self.conn is not None
+        query = "SELECT id, scope, limit_type, model, username, caller_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits WHERE 1=1"
+        params = []
+
+        if scope:
+            query += " AND scope = ?"
+            params.append(scope.value)
+        if model:
+            query += " AND model = ?"
+            params.append(model)
+        if username:
+            query += " AND username = ?"
+            params.append(username)
+        if caller_name:
+            query += " AND caller_name = ?"
+            params.append(caller_name)
+
+        cursor = self.conn.execute(query, params)
+        limits = []
+        for row in cursor.fetchall():
+            limits.append(
+                UsageLimit(
+                    id=row[0],
+                    scope=row[1],
+                    limit_type=row[2],
+                    model=row[3],
+                    username=row[4],
+                    caller_name=row[5],
+                    max_value=row[6],
+                    interval_unit=row[7],
+                    interval_value=row[8],
+                    created_at=datetime.fromisoformat(row[9]) if row[9] else None,
+                    updated_at=datetime.fromisoformat(row[10]) if row[10] else None,
+                )
+            )
+        return limits
+
+    def get_api_requests_for_quota(
+        self,
+        start_time: datetime,
+        limit_type: LimitType,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None
+    ) -> float:
+        assert self.conn is not None
+        
+        if limit_type == LimitType.REQUESTS:
+            select_clause = "COUNT(*)"
+        elif limit_type == LimitType.INPUT_TOKENS:
+            select_clause = "SUM(input_tokens)"
+        elif limit_type == LimitType.OUTPUT_TOKENS:
+            select_clause = "SUM(output_tokens)"
+        elif limit_type == LimitType.COST:
+            select_clause = "SUM(cost)"
+        else:
+            raise ValueError(f"Unknown limit type: {limit_type}")
+
+        query = f"SELECT {select_clause} FROM api_requests WHERE timestamp >= ?"
+        params = [start_time.isoformat()]
+
+        if model:
+            query += " AND model = ?"
+            params.append(model)
+        if username:
+            query += " AND username = ?"
+            params.append(username)
+        if caller_name:
+            query += " AND caller_name = ?"
+            params.append(caller_name)
+        
+        cursor = self.conn.execute(query, params)
+        result = cursor.fetchone()[0]
+        return float(result) if result is not None else 0.0

@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 
+from llm_accounting.models import APIRequest, UsageLimit, LimitScope, LimitType
+
 @dataclass
 class UsageEntry:
     """Represents a single LLM usage entry"""
@@ -51,25 +53,6 @@ class UsageStats:
 class BaseBackend(ABC):
     """Base class for all usage tracking backends"""
     
-    def _validate_db_path(self, db_path: str) -> None:
-        """Validate the database path is accessible and has correct extension"""
-        import os
-        import pathlib
-        
-        # Check file extension
-        if not db_path.lower().endswith(('.db', '.sqlite')):
-            raise ValueError(f"Invalid database file extension: {db_path}")
-            
-        # Check path accessibility
-        try:
-            path = pathlib.Path(db_path)
-            if path.is_absolute() and path.drive == 'C:' and path.parts[1].lower() in ('windows', 'program files'):
-                raise PermissionError(f"Access denied: {db_path} is in protected system directory")
-            if not path.parent.exists():
-                path.parent.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            raise ValueError(f"Invalid database path: {db_path}") from e
-    
     @abstractmethod
     def initialize(self) -> None:
         """Initialize the backend (create tables, etc.)"""
@@ -113,4 +96,36 @@ class BaseBackend(ABC):
     @abstractmethod
     def execute_query(self, query: str) -> list[dict]:
         """Execute a raw SQL SELECT query and return results"""
+        pass
+
+    @abstractmethod
+    def get_usage_limits(
+        self,
+        scope: Optional[LimitScope] = None,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None
+    ) -> List[UsageLimit]:
+        """Retrieve usage limits based on specified filters."""
+        pass
+
+    @abstractmethod
+    def get_api_requests_for_quota(
+        self,
+        start_time: datetime,
+        limit_type: LimitType,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None
+    ) -> float:
+        """
+        Retrieve aggregated API request data for quota calculation.
+        Returns the sum of the specified limit_type (e.g., input_tokens, cost)
+        or the count of requests.
+        """
+        pass
+
+    @abstractmethod
+    def insert_api_request(self, request: APIRequest) -> None:
+        """Insert a new API request entry for quota tracking."""
         pass

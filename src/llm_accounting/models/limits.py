@@ -1,9 +1,7 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Numeric
-from sqlalchemy.orm import Mapped, mapped_column
-from llm_accounting.models import Base
 
 class LimitScope(Enum):
     GLOBAL = "global"
@@ -25,26 +23,27 @@ class TimeInterval(Enum):
     WEEK = "week"
     MONTH = "month"
 
-class UsageLimit(Base):
-    __tablename__ = "usage_limits"
-    
-    id: Mapped[int] = mapped_column(primary_key=True)
-    scope: Mapped[str] = mapped_column(String(20))
-    limit_type: Mapped[str] = mapped_column(String(20))
-    model: Mapped[Optional[str]] = mapped_column(String(50))
-    username: Mapped[Optional[str]] = mapped_column(String(50))
-    caller_name: Mapped[Optional[str]] = mapped_column(String(50))
-    max_value: Mapped[float] = mapped_column(Numeric(15, 6))
-    interval_unit: Mapped[str] = mapped_column(String(10))
-    interval_value: Mapped[int] = mapped_column(Integer())
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc)
-    )
+@dataclass
+class UsageLimit:
+    scope: str
+    limit_type: str
+    max_value: float
+    interval_unit: str
+    interval_value: int
+    model: Optional[str] = None
+    username: Optional[str] = None
+    caller_name: Optional[str] = None
+    id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    def __post_init__(self):
+        if self.created_at is None:
+            self.created_at = datetime.now(timezone.utc)
+        if self.updated_at is None:
+            self.updated_at = datetime.now(timezone.utc)
 
     def time_delta(self) -> timedelta:
-        # Get the integer value from the SQLAlchemy column
         interval = int(self.interval_value)
         return {
             TimeInterval.SECOND: timedelta(seconds=interval),

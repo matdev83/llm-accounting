@@ -4,7 +4,9 @@ from typing import Optional, Type, Dict, List, Tuple
 
 from .backends.base import BaseBackend, UsageEntry, UsageStats
 from .backends.sqlite import SQLiteBackend
-from .backends.mock_backend import MockBackend # Import MockBackend
+from .backends.mock_backend import MockBackend
+from .services.quota_service import QuotaService
+from .models import APIRequest
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +16,7 @@ class LLMAccounting:
     def __init__(self, backend: Optional[BaseBackend] = None):
         """Initialize with an optional backend. If none provided, uses SQLiteBackend."""
         self.backend = backend or SQLiteBackend()
+        self.quota_service = QuotaService(self.backend)
         
     def __enter__(self):
         """Initialize the backend when entering context"""
@@ -45,7 +48,7 @@ class LLMAccounting:
         cached_tokens: int = 0,
         reasoning_tokens: int = 0
     ) -> None:
-        """Track a new LLM usage entry"""
+        """Track a new LLM usage entry and an API request entry"""
         entry = UsageEntry(
             model=model,
             prompt_tokens=prompt_tokens,
@@ -63,7 +66,26 @@ class LLMAccounting:
             reasoning_tokens=reasoning_tokens
         )
         self.backend.insert_usage(entry)
+
+        # Also insert an APIRequest entry for quota tracking
+        api_request_entry = APIRequest(
+            model=model,
+            username=username,
+            caller_name=caller_name,
+            input_tokens=prompt_tokens if prompt_tokens is not None else 0,
+            output_tokens=completion_tokens if completion_tokens is not None else 0,
+            cost=cost,
+            timestamp=timestamp if timestamp is not None else datetime.now()
+        )
+        self.insert_api_request(api_request_entry)
         
+    def insert_api_request(self, request: APIRequest) -> None:
+        """Insert a new API request entry for quota tracking"""
+        # This method will need to be implemented in the backend
+        # For now, we'll assume the backend has a method for this
+        # This will be added to BaseBackend and SQLiteBackend next
+        self.backend.insert_api_request(request)
+
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """Get aggregated statistics for a time period"""
         return self.backend.get_period_stats(start, end)
@@ -84,5 +106,16 @@ class LLMAccounting:
         """Get the n most recent usage entries"""
         return self.backend.tail(n)
 
+    def check_quota(
+        self,
+        model: str,
+        username: str,
+        caller_name: str,
+        input_tokens: int,
+        cost: float = 0.0
+    ) -> Tuple[bool, Optional[str]]:
+        """Check if the current request exceeds any defined quotas."""
+        return self.quota_service.check_quota(model, username, caller_name, input_tokens, cost)
+
 # Export commonly used classes
-__all__ = ['LLMAccounting', 'BaseBackend', 'UsageEntry', 'UsageStats', 'SQLiteBackend', 'MockBackend']
+__all__ = ['LLMAccounting', 'BaseBackend', 'UsageEntry', 'UsageStats', 'SQLiteBackend', 'MockBackend', 'APIRequest']

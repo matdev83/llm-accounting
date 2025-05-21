@@ -1,15 +1,14 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, DateTime, Numeric
-from llm_accounting.models import Base
+from typing import Optional
 
-class APIRequest(Base):
-    __tablename__ = "api_requests"
-    
-    id = Column(Integer, primary_key=True)
-    model = Column(String(50), nullable=False)
-    username = Column(String(50), nullable=False)
-    caller_name = Column(String(50), nullable=False)
-    input_tokens = Column(Integer, nullable=False)
-    output_tokens = Column(Integer, nullable=False)
-    cost = Column(Numeric(15, 6), nullable=False)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+@dataclass
+class APIRequest:
+    model: str
+    username: str
+    caller_name: str
+    input_tokens: int
+    output_tokens: int
+    cost: float
+    timestamp: datetime
+    id: Optional[int] = None # ID is optional for new requests, will be assigned by DB
