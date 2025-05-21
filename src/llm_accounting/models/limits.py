@@ -51,5 +51,5 @@ class UsageLimit:
             TimeInterval.HOUR: timedelta(hours=interval),
             TimeInterval.DAY: timedelta(days=interval),
             TimeInterval.WEEK: timedelta(weeks=interval),
-            TimeInterval.MONTH: timedelta(days=30*interval),
+            TimeInterval.MONTH: NotImplementedError("TimeDelta for month is not supported. Use QuotaService.get_period_start instead."),
         }[TimeInterval(self.interval_unit)]
