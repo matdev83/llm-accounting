@@ -1,0 +1,2 @@
+Make this code as modular as possible to ease out maintenance and testing. Split the code into smaller, more manageable pieces.
+Best if each separate functionality from the perspective of domain is each in separate file. But keep closely coupled or related code should be in the same files

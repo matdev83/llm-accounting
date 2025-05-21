@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llm-accounting"
+version = "0.1.0"
+description = "A package for tracking LLM usage and costs"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+dependencies = [
+    "click>=8.0.0",
+    "rich>=10.0.0",
+]
+
+[project.optional-dependencies]
+sqlite = ["aiosqlite>=0.17.0"]
+mysql = ["aiomysql>=0.1.1"]
+postgresql = ["asyncpg>=0.25.0"]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+]
+
+[project.scripts]
+llm-accounting = "llm_accounting.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llm_accounting"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "--cov=llm_accounting --cov-report=term-missing" 
