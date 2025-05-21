@@ -7,6 +7,7 @@ from llm_accounting.models.base import Base
 
 # Removed: from sqlalchemy.ext.declarative import declarative_base # Redundant
 
+
 class APIRequest(Base):
     __tablename__ = "api_requests"
 

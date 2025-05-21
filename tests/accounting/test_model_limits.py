@@ -4,10 +4,8 @@ import pytest
 
 from llm_accounting import LLMAccounting
 from llm_accounting.backends.sqlite import SQLiteBackend
-from llm_accounting.models.base import Base
 from llm_accounting.models.limits import (LimitScope, LimitType, TimeInterval,
                                           UsageLimit)
-from llm_accounting.models.request import APIRequest
 
 
 @pytest.fixture

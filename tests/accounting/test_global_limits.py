@@ -1,8 +1,6 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from llm_accounting import LLMAccounting
 from llm_accounting.backends.sqlite import SQLiteBackend
