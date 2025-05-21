@@ -5,7 +5,7 @@ from llm_accounting import LLMAccounting, UsageEntry, UsageStats
 def test_track_usage_empty_model(accounting):
     """Test tracking usage with empty model name"""
     with accounting:
-        with pytest.raises(ValueError, match="Model name is required"):
+        with pytest.raises(ValueError, match="Model name must be a non-empty string"):
             accounting.track_usage(
                 model="",
                 prompt_tokens=100,
@@ -16,7 +16,7 @@ def test_track_usage_empty_model(accounting):
 def test_track_usage_none_model(accounting):
     """Test tracking usage with None model name"""
     with accounting:
-        with pytest.raises(ValueError, match="Model name is required"):
+        with pytest.raises(ValueError, match="Model name must be a non-empty string"):
             accounting.track_usage(
                 model=None,
                 prompt_tokens=100,
