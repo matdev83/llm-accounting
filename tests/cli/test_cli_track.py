@@ -1,12 +1,14 @@
-import pytest
 import os
-from datetime import datetime
-from unittest.mock import patch, MagicMock
 import sys
+from datetime import datetime
 from io import StringIO
+from unittest.mock import MagicMock, patch
 
-from llm_accounting.cli.main import main as cli_main
+import pytest
+
 from llm_accounting import LLMAccounting
+from llm_accounting.cli.main import main as cli_main
+
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_track_usage(mock_get_accounting):
@@ -19,6 +21,7 @@ def test_track_usage(mock_get_accounting):
         cli_main()
 
     mock_backend_instance.insert_usage.assert_called_once()
+
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_track_usage_with_timestamp(mock_get_accounting):
@@ -34,6 +37,7 @@ def test_track_usage_with_timestamp(mock_get_accounting):
 
     mock_backend_instance.insert_usage.assert_called_once()
 
+
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_track_usage_with_caller_name(mock_get_accounting):
     """Test tracking a new usage entry with a caller name"""
@@ -45,6 +49,7 @@ def test_track_usage_with_caller_name(mock_get_accounting):
         cli_main()
 
     mock_backend_instance.insert_usage.assert_called_once()
+
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_track_usage_with_username(mock_get_accounting):
@@ -58,6 +63,7 @@ def test_track_usage_with_username(mock_get_accounting):
 
     mock_backend_instance.insert_usage.assert_called_once()
 
+
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_track_usage_with_cached_tokens(mock_get_accounting):
     """Test tracking a new usage entry with cached tokens"""
@@ -69,6 +75,7 @@ def test_track_usage_with_cached_tokens(mock_get_accounting):
         cli_main()
 
     mock_backend_instance.insert_usage.assert_called_once()
+
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_track_usage_with_reasoning_tokens(mock_get_accounting):

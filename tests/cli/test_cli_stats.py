@@ -1,11 +1,13 @@
-import pytest
-from datetime import datetime
-from unittest.mock import patch, Mock, MagicMock
 import sys
+from datetime import datetime
 from io import StringIO
+from unittest.mock import MagicMock, Mock, patch
 
-from llm_accounting.cli.main import main as cli_main
+import pytest
+
 from llm_accounting.backends.sqlite import SQLiteBackend
+from llm_accounting.cli.main import main as cli_main
+
 
 def make_stats(**kwargs):
     # Minimal UsageStats mock
@@ -22,13 +24,15 @@ def make_stats(**kwargs):
     stats.avg_execution_time = kwargs.get("avg_execution_time", 0.0)
     return stats
 
+
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_stats_no_period(mock_get_accounting):
     with patch.object(sys, 'argv', ['cli_main', "stats"]):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             cli_main()
     assert pytest_wrapped_e.type == SystemExit
-    assert pytest_wrapped_e.value.code == 1 # Expect exit code 1 for error
+    assert pytest_wrapped_e.value.code == 1  # Expect exit code 1 for error
+
 
 @patch("llm_accounting.cli.utils.get_accounting")
 @pytest.mark.parametrize("period_args, expected_title", [
@@ -89,6 +93,7 @@ def test_stats_custom_period(mock_get_accounting, capsys):
     assert "$0.5000" in captured.out
     mock_accounting_instance.__exit__.assert_called_once()
 
+
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_custom_db_file_usage(mock_get_accounting, capsys):
     mock_accounting_instance = MagicMock()
@@ -109,6 +114,7 @@ def test_custom_db_file_usage(mock_get_accounting, capsys):
     assert "$1.2300" in captured.out
     mock_get_accounting.assert_called_once_with(db_file="custom_test_db.sqlite")
     mock_accounting_instance.__exit__.assert_called_once()
+
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_default_db_file_usage(mock_get_accounting, capsys):
@@ -131,6 +137,7 @@ def test_default_db_file_usage(mock_get_accounting, capsys):
     mock_get_accounting.assert_called_once_with(db_file=None)
     mock_accounting_instance.__exit__.assert_called_once()
 
+
 @patch("llm_accounting.cli.utils.SQLiteBackend")
 def test_db_file_validation_error(mock_sqlite_backend, capsys):
     mock_sqlite_backend.side_effect = ValueError("Invalid database filename")
@@ -142,6 +149,7 @@ def test_db_file_validation_error(mock_sqlite_backend, capsys):
     assert pytest_wrapped_e.value.code == 1
     captured = capsys.readouterr()
     assert "Error: Invalid database filename" in captured.out
+
 
 @patch("llm_accounting.cli.utils.SQLiteBackend")
 def test_db_file_permission_error(mock_sqlite_backend, capsys):

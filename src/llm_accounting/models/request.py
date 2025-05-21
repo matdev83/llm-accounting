@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
 from typing import Optional
-from sqlalchemy import Column, Integer, String, Float, DateTime
-# Removed: from sqlalchemy.ext.declarative import declarative_base # Redundant
+
+from sqlalchemy import Column, DateTime, Float, Integer, String
 
 from llm_accounting.models.base import Base
 
+# Removed: from sqlalchemy.ext.declarative import declarative_base # Redundant
 
 class APIRequest(Base):
     __tablename__ = "api_requests"

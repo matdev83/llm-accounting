@@ -1,9 +1,11 @@
-import pytest
 import sys
 from io import StringIO
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from llm_accounting.cli.main import main as cli_main
+
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_select_output_formatting(mock_get_accounting, test_db, capsys):

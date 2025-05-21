@@ -1,10 +1,14 @@
-import pytest
 from datetime import datetime, timedelta, timezone
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from llm_accounting.models import Base
-from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
+from llm_accounting.models.limits import (LimitScope, LimitType, TimeInterval,
+                                          UsageLimit)
 from llm_accounting.services.quota_service import QuotaService
+
 
 @pytest.fixture
 def db_session():
@@ -15,6 +19,7 @@ def db_session():
     session = Session()
     yield session
     session.close()
+
 
 @pytest.fixture
 def quota_service(db_session):

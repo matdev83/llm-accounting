@@ -1,24 +1,24 @@
-import pytest
+import logging
+import os
+import sys
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-import tempfile
+from unittest.mock import MagicMock
 
-import sys
-from pathlib import Path
+import pytest
+
+from llm_accounting import LLMAccounting, UsageEntry, UsageStats
+from llm_accounting.backends.sqlite import SQLiteBackend
+from tests.backends.mock_backends import MockBackend
 
 # Add src directory to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from llm_accounting import LLMAccounting, UsageEntry, UsageStats
-from llm_accounting.backends.sqlite import SQLiteBackend
-from unittest.mock import MagicMock
-from tests.backends.mock_backends import MockBackend
-
-import logging
-import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 @pytest.fixture
 def temp_db_path(request):
@@ -39,6 +39,7 @@ def temp_db_path(request):
     request.addfinalizer(cleanup)
     return db_path
 
+
 @pytest.fixture
 def sqlite_backend(temp_db_path):
     """Create and initialize a SQLite backend with a temporary database"""
@@ -49,13 +50,15 @@ def sqlite_backend(temp_db_path):
     yield backend
     backend.close()
 
+
 @pytest.fixture
 def accounting(sqlite_backend):
     """Create an LLMAccounting instance with a temporary SQLite backend"""
     acc = LLMAccounting(backend=sqlite_backend)
-    acc.__enter__() # Manually enter the context
+    acc.__enter__()  # Manually enter the context
     yield acc
-    acc.__exit__(None, None, None) # Manually exit the context
+    acc.__exit__(None, None, None)  # Manually exit the context
+
 
 @pytest.fixture
 def sample_entries():
@@ -90,6 +93,7 @@ def sample_entries():
             timestamp=now
         )
     ]
+
 
 @pytest.fixture
 def mock_backend():

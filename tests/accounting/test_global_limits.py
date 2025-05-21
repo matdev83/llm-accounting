@@ -1,13 +1,14 @@
-import pytest
 from datetime import datetime, timedelta, timezone
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from llm_accounting.models.base import Base
-from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
-from llm_accounting.models.request import APIRequest
-from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
-from llm_accounting.backends.sqlite import SQLiteBackend
+
 from llm_accounting import LLMAccounting
+from llm_accounting.backends.sqlite import SQLiteBackend
+from llm_accounting.models.limits import (LimitScope, LimitType, TimeInterval,
+                                          UsageLimit)
+
 
 @pytest.fixture
 def sqlite_backend_for_accounting(temp_db_path):
@@ -16,6 +17,7 @@ def sqlite_backend_for_accounting(temp_db_path):
     backend.initialize()
     yield backend
     backend.close()
+
 
 @pytest.fixture
 def accounting_instance(sqlite_backend_for_accounting):
@@ -26,6 +28,7 @@ def accounting_instance(sqlite_backend_for_accounting):
     yield acc
     acc.__exit__(None, None, None)
 
+
 def test_global_limit(accounting_instance, sqlite_backend_for_accounting):
     # Use the backend directly to add UsageLimit for setup
     sqlite_backend_for_accounting.insert_usage_limit(UsageLimit(
@@ -35,7 +38,7 @@ def test_global_limit(accounting_instance, sqlite_backend_for_accounting):
         interval_unit=TimeInterval.MINUTE.value,
         interval_value=1
     ))
-    
+
     # Check and add requests sequentially using accounting_instance
     for _ in range(10):
         allowed, _ = accounting_instance.check_quota("gpt-4", "user1", "app1", 1000, 0.25)
@@ -49,7 +52,7 @@ def test_global_limit(accounting_instance, sqlite_backend_for_accounting):
             cost=0.25,
             timestamp=datetime.now(timezone.utc)
         )
-    
+
     # Add 11th request to exceed limit
     allowed, message = accounting_instance.check_quota("gpt-4", "user1", "app1", 1000, 0.25)
     assert not allowed

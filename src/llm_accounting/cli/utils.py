@@ -1,6 +1,7 @@
 from rich.console import Console
 
 from llm_accounting import LLMAccounting
+
 from ..backends.sqlite import SQLiteBackend
 
 console = Console()

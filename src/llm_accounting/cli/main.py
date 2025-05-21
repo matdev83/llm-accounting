@@ -1,14 +1,9 @@
 import argparse
 import sys
 
+from .parsers import (add_purge_parser, add_select_parser, add_stats_parser,
+                      add_tail_parser, add_track_parser)
 from .utils import console
-from .parsers import (
-    add_stats_parser,
-    add_purge_parser,
-    add_tail_parser,
-    add_select_parser,
-    add_track_parser,
-)
 
 
 def main():

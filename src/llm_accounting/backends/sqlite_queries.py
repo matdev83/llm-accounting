@@ -1,7 +1,8 @@
 import sqlite3
 from datetime import datetime
 from typing import Dict, List, Tuple
-from llm_accounting.backends.base import UsageStats, UsageEntry
+
+from llm_accounting.backends.base import UsageEntry, UsageStats
 
 
 def insert_usage_query(conn: sqlite3.Connection, entry: UsageEntry) -> None:

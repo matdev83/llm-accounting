@@ -1,6 +1,8 @@
 import pytest
+
 from llm_accounting.backends.base import BaseBackend, UsageEntry
-from tests.backends.mock_backends import MockBackend, IncompleteBackend
+from tests.backends.mock_backends import IncompleteBackend, MockBackend
+
 
 def test_backend_interface():
     """Test that UsageBackend properly enforces its interface"""
@@ -11,6 +13,7 @@ def test_backend_interface():
     # Test that an incomplete implementation raises TypeError
     with pytest.raises(TypeError):
         IncompleteBackend()
+
 
 def test_backend_abstract_methods():
     """Test that all abstract methods are properly defined"""

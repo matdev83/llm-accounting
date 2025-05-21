@@ -1,12 +1,16 @@
-import pytest
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+import pytest
+
 from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats
-from typing import List, Tuple, Dict, Any, Optional
+from llm_accounting.models.limits import LimitScope, LimitType, UsageLimit
 from llm_accounting.models.request import APIRequest
-from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType
+
 
 class MockBackend(BaseBackend):
     """A mock backend that implements all required methods"""
+
     def initialize(self) -> None:
         pass
 
@@ -14,13 +18,13 @@ class MockBackend(BaseBackend):
         pass
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
-        return UsageStats() # Return a default UsageStats object
+        return UsageStats()  # Return a default UsageStats object
 
     def get_model_stats(self, start: datetime, end: datetime) -> List[Tuple[str, UsageStats]]:
-        return [] # Return an empty list
+        return []  # Return an empty list
 
     def get_model_rankings(self, start: datetime, end: datetime) -> Dict[str, List[Tuple[str, Any]]]:
-        return {} # Return an empty dictionary
+        return {}  # Return an empty dictionary
 
     def purge(self) -> None:
         pass  # pragma: no cover
@@ -60,7 +64,9 @@ class MockBackend(BaseBackend):
     def insert_usage_limit(self, limit: UsageLimit) -> None:
         pass
 
+
 class IncompleteBackend(BaseBackend):
     """A mock backend that doesn't implement all required methods"""
+
     def initialize(self) -> None:
         pass

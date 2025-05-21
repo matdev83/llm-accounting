@@ -1,21 +1,17 @@
+import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
-from .base import BaseBackend, UsageEntry, UsageStats, LimitScope, LimitType
-from .sqlite_utils import validate_db_filename, initialize_db_schema
-from .sqlite_queries import (
-    get_period_stats_query,
-    get_model_stats_query,
-    get_model_rankings_query,
-    tail_query,
-    insert_usage_query,
-)
-from llm_accounting.models.request import APIRequest
 from llm_accounting.models.limits import UsageLimit
+from llm_accounting.models.request import APIRequest
 
-import logging
+from .base import BaseBackend, LimitScope, LimitType, UsageEntry, UsageStats
+from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
+                             get_period_stats_query, insert_usage_query,
+                             tail_query)
+from .sqlite_utils import initialize_db_schema, validate_db_filename
 
 logger = logging.getLogger(__name__)
 
@@ -24,19 +20,19 @@ DEFAULT_DB_PATH = "data/accounting.sqlite"
 
 class SQLiteBackend(BaseBackend):
     """SQLite implementation of the usage tracking backend
-    
+
     This class provides a concrete implementation of the BaseBackend using SQLite
     for persistent storage of LLM usage tracking data. It handles database schema
     initialization, connection management, and implements all required operations
     for usage tracking including insertion, querying, and aggregation of usage data.
-    
+
     Key Features:
     - Uses SQLite for persistent storage with configurable database path
     - Automatically creates database schema on initialization
     - Supports raw SQL query execution for advanced analytics
     - Implements usage limits and quota tracking capabilities
     - Handles connection lifecycle management
-    
+
     The backend is designed to be used within the LLMAccounting context manager
     to ensure proper connection handling and resource cleanup.
     """

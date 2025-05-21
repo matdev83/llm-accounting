@@ -1,20 +1,15 @@
-import pytest
+import logging
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from llm_accounting.backends.sqlite import SQLiteBackend
-from llm_accounting.backends.base import UsageEntry
-
-import logging
 import pytest
-from datetime import datetime, timedelta
-from pathlib import Path
 
-from llm_accounting.backends.sqlite import SQLiteBackend
 from llm_accounting.backends.base import UsageEntry
+from llm_accounting.backends.sqlite import SQLiteBackend
 
 logger = logging.getLogger(__name__)
+
 
 def test_initialize(sqlite_backend):
     """Test database initialization"""
@@ -38,6 +33,7 @@ def test_initialize(sqlite_backend):
         assert required_columns.issubset(columns)
 
     # The backend is closed by the fixture teardown
+
 
 def test_insert_usage(sqlite_backend):
     """Test inserting usage entries"""
@@ -69,6 +65,7 @@ def test_insert_usage(sqlite_backend):
         assert row[10] == 1.5  # execution_time
 
     # The backend is closed by the fixture teardown
+
 
 def test_get_period_stats(sqlite_backend):
     """Test getting period statistics"""
@@ -114,6 +111,7 @@ def test_get_period_stats(sqlite_backend):
     assert stats.sum_execution_time == 2.3  # 1.5 + 0.8
 
     # The backend is closed by the fixture teardown
+
 
 def test_get_model_stats(sqlite_backend):
     """Test getting model-specific statistics"""
@@ -181,6 +179,7 @@ def test_get_model_stats(sqlite_backend):
 
     # The backend is closed by the fixture teardown
 
+
 def test_get_model_rankings(sqlite_backend):
     """Test getting model rankings"""
     backend = sqlite_backend
@@ -242,6 +241,7 @@ def test_get_model_rankings(sqlite_backend):
 
     # The backend is closed by the fixture teardown
 
+
 def test_purge(sqlite_backend):
     """Test purging all entries from the database"""
     backend = sqlite_backend
@@ -291,6 +291,7 @@ def test_purge(sqlite_backend):
         assert count == 0
 
     # The backend is closed by the fixture teardown
+
 
 def test_purge_empty_database(sqlite_backend):
     """Test purging an empty database"""

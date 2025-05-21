@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple
 
+from llm_accounting.models.limits import LimitScope, LimitType, UsageLimit
 from llm_accounting.models.request import APIRequest
-from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType
 
 
 @dataclass
@@ -64,7 +64,7 @@ class BaseBackend(ABC):
     @abstractmethod
     def initialize(self) -> None:
         """Initialize the backend (create tables, etc.)
-        
+
         This method should be called before any other operations to ensure the backend
         is properly set up. It's typically called automatically when entering the
         LLMAccounting context.

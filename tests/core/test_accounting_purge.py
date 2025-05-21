@@ -2,6 +2,7 @@ from unittest.mock import Mock
 
 from llm_accounting import LLMAccounting
 
+
 def test_purge(mock_backend, monkeypatch):
     """Test purging all usage entries"""
     # Inject mock backend

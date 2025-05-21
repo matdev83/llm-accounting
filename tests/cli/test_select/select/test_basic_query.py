@@ -1,12 +1,14 @@
-import pytest
 import importlib
 import sys
 from io import StringIO
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from llm_accounting.cli.main import main as cli_main
-from llm_accounting import backends
+import pytest
+
 import llm_accounting.backends.sqlite as sqlite_backend_module
+from llm_accounting import backends
+from llm_accounting.cli.main import main as cli_main
+
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_select_basic_query(mock_get_accounting, test_db, capsys):
@@ -22,7 +24,7 @@ def test_select_basic_query(mock_get_accounting, test_db, capsys):
 
     with patch.object(sys, 'argv', ['cli_main', "select", "--query", "SELECT model, prompt_tokens, completion_tokens FROM accounting_entries WHERE username = 'user1'"]):
         cli_main()
-    
+
     captured = capsys.readouterr()
     assert "gpt-4" in captured.out
     assert "gpt-3.5" in captured.out

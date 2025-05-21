@@ -1,7 +1,7 @@
-from llm_accounting.cli.commands.stats import run_stats
 from llm_accounting.cli.commands.purge import run_purge
-from llm_accounting.cli.commands.tail import run_tail
 from llm_accounting.cli.commands.select import run_select
+from llm_accounting.cli.commands.stats import run_stats
+from llm_accounting.cli.commands.tail import run_tail
 from llm_accounting.cli.commands.track import run_track
 
 

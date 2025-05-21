@@ -1,10 +1,14 @@
-import pytest
 from datetime import datetime, timezone
-from llm_accounting.models.base import Base
-from llm_accounting.models.request import APIRequest
-from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
-from llm_accounting.backends.sqlite import SQLiteBackend
+
+import pytest
+
 from llm_accounting import LLMAccounting
+from llm_accounting.backends.sqlite import SQLiteBackend
+from llm_accounting.models.base import Base
+from llm_accounting.models.limits import (LimitScope, LimitType, TimeInterval,
+                                          UsageLimit)
+from llm_accounting.models.request import APIRequest
+
 
 @pytest.fixture
 def sqlite_backend_for_accounting(temp_db_path):
@@ -14,6 +18,7 @@ def sqlite_backend_for_accounting(temp_db_path):
     yield backend
     backend.close()
 
+
 @pytest.fixture
 def accounting_instance(sqlite_backend_for_accounting):
     """Create an LLMAccounting instance with a temporary SQLite backend"""
@@ -22,6 +27,7 @@ def accounting_instance(sqlite_backend_for_accounting):
     acc.__enter__()
     yield acc
     acc.__exit__(None, None, None)
+
 
 def test_model_limit_priority(accounting_instance, sqlite_backend_for_accounting):
     sqlite_backend_for_accounting.insert_usage_limit(
@@ -43,7 +49,7 @@ def test_model_limit_priority(accounting_instance, sqlite_backend_for_accounting
             interval_value=1
         )
     )
-    
+
     # Make 5 requests that should be allowed
     for _ in range(5):
         allowed, _ = accounting_instance.check_quota("gpt-4", "user1", "app1", 1000, 0.25)
@@ -57,7 +63,7 @@ def test_model_limit_priority(accounting_instance, sqlite_backend_for_accounting
             cost=0.25,
             timestamp=datetime.now(timezone.utc)
         )
-    
+
     # Check 6th request should be blocked
     allowed, message = accounting_instance.check_quota("gpt-4", "user1", "app1", 1000, 0.25)
     assert not allowed

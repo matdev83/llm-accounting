@@ -1,7 +1,8 @@
 from rich.table import Table
 
 from llm_accounting import LLMAccounting
-from ..utils import console, format_tokens, format_float, format_time
+
+from ..utils import console, format_float, format_time, format_tokens
 
 
 def run_tail(args, accounting: LLMAccounting):

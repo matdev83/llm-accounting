@@ -1,6 +1,9 @@
-import pytest
 from datetime import datetime
+
+import pytest
+
 from llm_accounting.backends.base import UsageEntry, UsageStats
+
 
 def test_usage_entry_creation():
     """Test UsageEntry creation with various parameters"""
@@ -17,7 +20,7 @@ def test_usage_entry_creation():
         execution_time=1.5,
         timestamp=datetime(2024, 1, 1, 12, 0)
     )
-    
+
     assert entry.model == "test-model"
     assert entry.prompt_tokens == 100
     assert entry.completion_tokens == 50
@@ -28,14 +31,14 @@ def test_usage_entry_creation():
     assert entry.cost == 0.002
     assert entry.execution_time == 1.5
     assert entry.timestamp == datetime(2024, 1, 1, 12, 0)
-    
+
     # Test with minimal parameters
     entry = UsageEntry(
         model="test-model",
         cost=0.002,
         execution_time=1.5
     )
-    
+
     assert entry.model == "test-model"
     assert entry.prompt_tokens is None
     assert entry.completion_tokens is None
@@ -46,6 +49,7 @@ def test_usage_entry_creation():
     assert entry.cost == 0.002
     assert entry.execution_time == 1.5
     assert isinstance(entry.timestamp, datetime)
+
 
 def test_usage_stats_creation():
     """Test UsageStats creation with various parameters"""
@@ -68,7 +72,7 @@ def test_usage_stats_creation():
         avg_cost=0.002,
         avg_execution_time=1.5
     )
-    
+
     assert stats.sum_prompt_tokens == 100
     assert stats.sum_completion_tokens == 50
     assert stats.sum_total_tokens == 150
@@ -85,10 +89,10 @@ def test_usage_stats_creation():
     assert stats.avg_local_total_tokens == 120
     assert stats.avg_cost == 0.002
     assert stats.avg_execution_time == 1.5
-    
+
     # Test with default values
     stats = UsageStats()
-    
+
     assert stats.sum_prompt_tokens == 0
     assert stats.sum_completion_tokens == 0
     assert stats.sum_total_tokens == 0
@@ -104,4 +108,4 @@ def test_usage_stats_creation():
     assert stats.avg_local_completion_tokens == 0.0
     assert stats.avg_local_total_tokens == 0.0
     assert stats.avg_cost == 0.0
-    assert stats.avg_execution_time == 0.0 
+    assert stats.avg_execution_time == 0.0

@@ -1,8 +1,11 @@
-import pytest
-from llm_accounting.backends.sqlite import SQLiteBackend
 import sqlite3
 import typing
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from llm_accounting.backends.sqlite import SQLiteBackend
+
 
 @pytest.fixture
 def test_db():
@@ -32,17 +35,18 @@ def test_db():
         );
     """)
     conn.executemany(
-            "INSERT INTO accounting_entries (model, username, datetime, prompt_tokens, completion_tokens, total_tokens, cost, execution_time, cached_tokens, reasoning_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [
-                ("gpt-4", "user1", "2024-01-01 10:00", 100, 150, 250, 0.06, 1.5, 0, 0),
-                ("gpt-4", "user2", "2024-01-01 11:00", 150, 100, 250, 0.09, 2.1, 0, 0),
-                ("gpt-3.5", "user1", "2024-01-01 12:00", 50, 75, 125, 0.002, 0.8, 0, 0),
-                ("gpt-3.5", "user3", "2024-01-01 13:00", 75, 50, 125, 0.003, 1.2, 0, 0),
-            ]
+        "INSERT INTO accounting_entries (model, username, datetime, prompt_tokens, completion_tokens, total_tokens, cost, execution_time, cached_tokens, reasoning_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            ("gpt-4", "user1", "2024-01-01 10:00", 100, 150, 250, 0.06, 1.5, 0, 0),
+            ("gpt-4", "user2", "2024-01-01 11:00", 150, 100, 250, 0.09, 2.1, 0, 0),
+            ("gpt-3.5", "user1", "2024-01-01 12:00", 50, 75, 125, 0.002, 0.8, 0, 0),
+            ("gpt-3.5", "user3", "2024-01-01 13:00", 75, 50, 125, 0.003, 1.2, 0, 0),
+        ]
     )
     conn.commit()
     print(f"Data inserted. Rows in accounting_entries: {conn.execute('SELECT COUNT(*) FROM accounting_entries').fetchone()[0]}")
     return backend
+
 
 @pytest.fixture(autouse=True)
 def mock_get_accounting(test_db):
@@ -55,7 +59,7 @@ def mock_get_accounting(test_db):
         mock_accounting_instance = MagicMock()
         mock_accounting_instance.backend = test_db
         mock_accounting_instance.__enter__.return_value = mock_accounting_instance
-        mock_accounting_instance.__exit__.return_value = None # Ensure __exit__ is callable and returns None
+        mock_accounting_instance.__exit__.return_value = None  # Ensure __exit__ is callable and returns None
 
         # Explicitly mock methods that are called on the LLMAccounting instance
         # and delegate them to the test_db backend
@@ -64,8 +68,7 @@ def mock_get_accounting(test_db):
         mock_accounting_instance.get_model_rankings.side_effect = test_db.get_model_rankings
         mock_accounting_instance.purge.side_effect = test_db.purge
         mock_accounting_instance.tail.side_effect = test_db.tail
-        mock_accounting_instance.track_usage.side_effect = test_db.insert_usage # LLMAccounting.track_usage calls backend.insert_usage
-
+        mock_accounting_instance.track_usage.side_effect = test_db.insert_usage  # LLMAccounting.track_usage calls backend.insert_usage
 
         mock_get_acc.return_value = mock_accounting_instance
-        yield mock_get_acc # Yield the mock object for further assertions in tests
+        yield mock_get_acc  # Yield the mock object for further assertions in tests

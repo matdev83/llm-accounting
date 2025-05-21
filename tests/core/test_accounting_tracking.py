@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from llm_accounting import LLMAccounting, UsageEntry, UsageStats
 
+
 def test_track_usage(accounting, sample_entries):
     """Test tracking usage entries"""
     with accounting:
@@ -15,6 +16,7 @@ def test_track_usage(accounting, sample_entries):
                 execution_time=entry.execution_time,
                 timestamp=entry.timestamp
             )
+
 
 def test_tail(accounting, sample_entries):
     """Test getting recent usage entries"""
@@ -30,14 +32,14 @@ def test_tail(accounting, sample_entries):
                 execution_time=entry.execution_time,
                 timestamp=entry.timestamp
             )
-        
+
         # Get last 2 entries
         entries = accounting.tail(2)
         assert len(entries) == 2
-        
+
         # Verify entries are in correct order (most recent first)
         assert entries[0].timestamp > entries[1].timestamp
-        
+
         # Verify entry contents
         assert entries[0].model == "gpt-4"
         assert entries[0].prompt_tokens == 150
@@ -45,7 +47,7 @@ def test_tail(accounting, sample_entries):
         assert entries[0].total_tokens == 225
         assert entries[0].cost == 0.003
         assert entries[0].execution_time == 2.0
-        
+
         assert entries[1].model == "gpt-3.5-turbo"
         assert entries[1].prompt_tokens == 200
         assert entries[1].completion_tokens == 100
@@ -53,11 +55,13 @@ def test_tail(accounting, sample_entries):
         assert entries[1].cost == 0.001
         assert entries[1].execution_time == 0.8
 
+
 def test_tail_empty(accounting):
     """Test getting recent entries from empty database"""
     with accounting:
         entries = accounting.tail()
         assert len(entries) == 0
+
 
 def test_tail_default_limit(accounting, sample_entries):
     """Test default limit for tail command"""
@@ -82,14 +86,15 @@ def test_tail_default_limit(accounting, sample_entries):
                 execution_time=entry.execution_time,
                 timestamp=entry.timestamp
             )
-        
+
         # Get entries with default limit
         entries = accounting.tail()
         assert len(entries) == 10  # Default limit
-        
+
         # Verify entries are in correct order
         for i in range(len(entries) - 1):
-            assert entries[i].timestamp > entries[i + 1].timestamp 
+            assert entries[i].timestamp > entries[i + 1].timestamp
+
 
 def test_track_usage_with_caller_and_user(accounting):
     """Test tracking usage entries with caller name and username"""
@@ -105,7 +110,7 @@ def test_track_usage_with_caller_and_user(accounting):
             caller_name="test_app",
             username="test_user"
         )
-        
+
         # Test with empty fields
         accounting.track_usage(
             model="gpt-3.5-turbo",
@@ -115,20 +120,21 @@ def test_track_usage_with_caller_and_user(accounting):
             cost=0.001,
             execution_time=0.8
         )
-        
+
         # Verify entries
         entries = accounting.tail(2)
         assert len(entries) == 2
-        
+
         # Check first entry (most recent)
         assert entries[0].model == "gpt-3.5-turbo"
         assert entries[0].caller_name == ""
         assert entries[0].username == ""
-        
+
         # Check second entry
         assert entries[1].model == "gpt-4"
         assert entries[1].caller_name == "test_app"
         assert entries[1].username == "test_user"
+
 
 def test_tail_with_caller_and_user(accounting):
     """Test tail command with caller name and username fields"""
@@ -144,11 +150,11 @@ def test_tail_with_caller_and_user(accounting):
             caller_name="test_app",
             username="test_user"
         )
-        
+
         # Get entries
         entries = accounting.tail(1)
         assert len(entries) == 1
-        
+
         # Verify fields
         entry = entries[0]
         assert entry.model == "gpt-4"

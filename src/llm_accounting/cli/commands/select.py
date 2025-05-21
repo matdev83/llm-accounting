@@ -1,6 +1,7 @@
 from rich.table import Table
 
 from llm_accounting import LLMAccounting
+
 from ..utils import console
 
 

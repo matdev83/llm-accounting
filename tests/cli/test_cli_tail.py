@@ -1,11 +1,10 @@
-import pytest
-from datetime import datetime
-from unittest.mock import patch, Mock, MagicMock
 import sys
-from io import StringIO
+from datetime import datetime
+from unittest.mock import patch, MagicMock
 
-from llm_accounting.cli.main import main as cli_main
 from llm_accounting import LLMAccounting
+from llm_accounting.cli.main import main as cli_main
+
 
 def make_entry(**kwargs):
     entry = MagicMock()
@@ -19,6 +18,7 @@ def make_entry(**kwargs):
     entry.caller_name = kwargs.get("caller_name", "")
     entry.username = kwargs.get("username", "")
     return entry
+
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_tail_default(mock_get_accounting, capsys):
@@ -49,6 +49,7 @@ def test_tail_default(mock_get_accounting, capsys):
     assert "$0.0" in captured.out
     assert "2.00s" in captured.out
 
+
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_tail_custom_number(mock_get_accounting, capsys):
     mock_backend_instance = MagicMock()
@@ -69,6 +70,7 @@ def test_tail_custom_number(mock_get_accounting, capsys):
     assert "150" in captured.out
     assert "$0.0" in captured.out
     assert "1.50s" in captured.out
+
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_tail_empty(mock_get_accounting, capsys):
