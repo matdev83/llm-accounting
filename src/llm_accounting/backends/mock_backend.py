@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple, Any
 
 from .base import BaseBackend, UsageEntry, UsageStats
 
+
 class MockBackend(BaseBackend):
     """
     A mock implementation of the BaseBackend for testing purposes.
@@ -38,25 +39,29 @@ class MockBackend(BaseBackend):
             avg_completion_tokens=50.0,
             avg_total_tokens=150.0,
             avg_cost=1.5,
-            avg_execution_time=0.15
+            avg_execution_time=0.15,
         )
 
-    def get_model_stats(self, start: datetime, end: datetime) -> List[Tuple[str, UsageStats]]:
+    def get_model_stats(
+        self, start: datetime, end: datetime
+    ) -> List[Tuple[str, UsageStats]]:
         """Mocks getting statistics grouped by model for a time period."""
         print(f"MockBackend: Getting model stats from {start} to {end}")
         # Return dummy model stats
         return [
             ("model_A", UsageStats(sum_total_tokens=1000, sum_cost=10.0)),
-            ("model_B", UsageStats(sum_total_tokens=500, sum_cost=5.0))
+            ("model_B", UsageStats(sum_total_tokens=500, sum_cost=5.0)),
         ]
 
-    def get_model_rankings(self, start: datetime, end: datetime) -> Dict[str, List[Tuple[str, Any]]]:
+    def get_model_rankings(
+        self, start: datetime, end: datetime
+    ) -> Dict[str, List[Tuple[str, Any]]]:
         """Mocks getting model rankings by different metrics."""
         print(f"MockBackend: Getting model rankings from {start} to {end}")
         # Return dummy rankings
         return {
             "total_tokens": [("model_A", 1000), ("model_B", 500)],
-            "cost": [("model_A", 10.0), ("model_B", 5.0)]
+            "cost": [("model_A", 10.0), ("model_B", 5.0)],
         }
 
     def purge(self) -> None:
@@ -70,8 +75,20 @@ class MockBackend(BaseBackend):
         # Return dummy entries or a subset of self.entries
         if not self.entries:
             return [
-                UsageEntry(model="mock_model_1", prompt_tokens=10, completion_tokens=20, cost=0.01, execution_time=0.05),
-                UsageEntry(model="mock_model_2", prompt_tokens=15, completion_tokens=25, cost=0.02, execution_time=0.08)
+                UsageEntry(
+                    model="mock_model_1",
+                    prompt_tokens=10,
+                    completion_tokens=20,
+                    cost=0.01,
+                    execution_time=0.05,
+                ),
+                UsageEntry(
+                    model="mock_model_2",
+                    prompt_tokens=15,
+                    completion_tokens=25,
+                    cost=0.02,
+                    execution_time=0.08,
+                ),
             ][:n]
         return self.entries[-n:]
 
@@ -87,6 +104,6 @@ class MockBackend(BaseBackend):
         if query.strip().upper().startswith("SELECT"):
             return [
                 {"id": 1, "model": "mock_model_A", "tokens": 100},
-                {"id": 2, "model": "mock_model_B", "tokens": 200}
+                {"id": 2, "model": "mock_model_B", "tokens": 200},
             ]
         raise ValueError("MockBackend only supports SELECT queries for execute_query.")

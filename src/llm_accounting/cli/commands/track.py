@@ -1,8 +1,9 @@
 from datetime import datetime
 import sys
 
-from ... import LLMAccounting
+from llm_accounting import LLMAccounting
 from ..utils import console
+
 
 def run_track(args, accounting: LLMAccounting):
     """Track a new LLM usage entry"""
@@ -11,7 +12,9 @@ def run_track(args, accounting: LLMAccounting):
         try:
             timestamp = datetime.strptime(args.timestamp, "%Y-%m-%d %H:%M:%S")
         except ValueError:
-            console.print("[red]Error: Invalid timestamp format. Use YYYY-MM-DD HH:MM:SS.[/red]")
+            console.print(
+                "[red]Error: Invalid timestamp format. Use YYYY-MM-DD HH:MM:SS.[/red]"
+            )
             sys.exit(1)
 
     accounting.track_usage(
@@ -28,6 +31,6 @@ def run_track(args, accounting: LLMAccounting):
         caller_name=args.caller_name or "",
         username=args.username or "",
         cached_tokens=args.cached_tokens,
-        reasoning_tokens=args.reasoning_tokens
+        reasoning_tokens=args.reasoning_tokens,
     )
     console.print("[green]Usage entry tracked successfully[/green]")

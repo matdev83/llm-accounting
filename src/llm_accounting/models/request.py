@@ -5,8 +5,9 @@ from sqlalchemy import Column, Integer, String, Float, DateTime
 
 from llm_accounting.models.base import Base
 
+
 class APIRequest(Base):
-    __tablename__ = 'api_requests'
+    __tablename__ = "api_requests"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     model = Column(String, nullable=False)
@@ -17,14 +18,26 @@ class APIRequest(Base):
     cost = Column(Float, nullable=False)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    def __init__(self, model: str, username: str, caller_name: str, input_tokens: int, output_tokens: int, cost: float, timestamp: Optional[datetime] = None, id: Optional[int] = None):
+    def __init__(
+        self,
+        model: str,
+        username: str,
+        caller_name: str,
+        input_tokens: int,
+        output_tokens: int,
+        cost: float,
+        timestamp: Optional[datetime] = None,
+        id: Optional[int] = None,
+    ):
         self.model = model
         self.username = username
         self.caller_name = caller_name
         self.input_tokens = input_tokens
         self.output_tokens = output_tokens
         self.cost = cost
-        self.timestamp = timestamp if timestamp is not None else datetime.now(timezone.utc)
+        self.timestamp = (
+            timestamp if timestamp is not None else datetime.now(timezone.utc)
+        )
         self.id = id
 
     def __repr__(self):

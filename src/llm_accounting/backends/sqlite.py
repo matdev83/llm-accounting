@@ -5,14 +5,22 @@ from typing import Dict, List, Tuple, Optional
 
 from .base import BaseBackend, UsageEntry, UsageStats, LimitScope, LimitType
 from .sqlite_utils import validate_db_filename, initialize_db_schema
-from .sqlite_queries import get_period_stats_query, get_model_stats_query, get_model_rankings_query, tail_query, insert_usage_query
-from llm_accounting.models import UsageLimit, APIRequest
+from .sqlite_queries import (
+    get_period_stats_query,
+    get_model_stats_query,
+    get_model_rankings_query,
+    tail_query,
+    insert_usage_query,
+)
+from llm_accounting.models.request import APIRequest
+from llm_accounting.models.limits import UsageLimit
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_DB_PATH = 'data/accounting.sqlite'
+DEFAULT_DB_PATH = "data/accounting.sqlite"
+
 
 class SQLiteBackend(BaseBackend):
     """SQLite implementation of the usage tracking backend"""
@@ -44,12 +52,16 @@ class SQLiteBackend(BaseBackend):
         assert self.conn is not None
         return get_period_stats_query(self.conn, start, end)
 
-    def get_model_stats(self, start: datetime, end: datetime) -> List[Tuple[str, UsageStats]]:
+    def get_model_stats(
+        self, start: datetime, end: datetime
+    ) -> List[Tuple[str, UsageStats]]:
         """Get statistics grouped by model for a time period"""
         assert self.conn is not None
         return get_model_stats_query(self.conn, start, end)
 
-    def get_model_rankings(self, start: datetime, end: datetime) -> Dict[str, List[Tuple[str, float]]]:
+    def get_model_rankings(
+        self, start: datetime, end: datetime
+    ) -> Dict[str, List[Tuple[str, float]]]:
         """Get model rankings based on different metrics"""
         assert self.conn is not None
         return get_model_rankings_query(self.conn, start, end)
@@ -111,7 +123,7 @@ class SQLiteBackend(BaseBackend):
 
         if not self.conn:
             self.initialize()
-            
+
         assert self.conn is not None  # For type checking
         try:
             # Set row_factory to sqlite3.Row to access columns by name
@@ -149,7 +161,7 @@ class SQLiteBackend(BaseBackend):
         scope: Optional[LimitScope] = None,
         model: Optional[str] = None,
         username: Optional[str] = None,
-        caller_name: Optional[str] = None
+        caller_name: Optional[str] = None,
     ) -> List[UsageLimit]:
         assert self.conn is not None
         query = "SELECT id, scope, limit_type, model, username, caller_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits WHERE 1=1"
@@ -194,10 +206,10 @@ class SQLiteBackend(BaseBackend):
         limit_type: LimitType,
         model: Optional[str] = None,
         username: Optional[str] = None,
-        caller_name: Optional[str] = None
+        caller_name: Optional[str] = None,
     ) -> float:
         assert self.conn is not None
-        
+
         if limit_type == LimitType.REQUESTS:
             select_clause = "COUNT(*)"
         elif limit_type == LimitType.INPUT_TOKENS:
@@ -221,7 +233,7 @@ class SQLiteBackend(BaseBackend):
         if caller_name:
             query += " AND caller_name = ?"
             params.append(caller_name)
-        
+
         cursor = self.conn.execute(query, params)
         result = cursor.fetchone()[0]
         return float(result) if result is not None else 0.0

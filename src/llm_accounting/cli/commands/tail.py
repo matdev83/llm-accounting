@@ -1,7 +1,8 @@
 from rich.table import Table
 
-from ... import LLMAccounting
+from llm_accounting import LLMAccounting
 from ..utils import console, format_tokens, format_float, format_time
+
 
 def run_tail(args, accounting: LLMAccounting):
     """Show the most recent usage entries"""
@@ -29,11 +30,15 @@ def run_tail(args, accounting: LLMAccounting):
             entry.model,
             entry.caller_name or "-",
             entry.username or "-",
-            format_tokens(entry.prompt_tokens if entry.prompt_tokens is not None else 0),
-            format_tokens(entry.completion_tokens if entry.completion_tokens is not None else 0),
+            format_tokens(
+                entry.prompt_tokens if entry.prompt_tokens is not None else 0
+            ),
+            format_tokens(
+                entry.completion_tokens if entry.completion_tokens is not None else 0
+            ),
             format_tokens(entry.total_tokens if entry.total_tokens is not None else 0),
             f"${format_float(entry.cost)}",
-            format_time(entry.execution_time)
+            format_time(entry.execution_time),
         )
 
     console.print(table)

@@ -2,7 +2,8 @@ import pytest
 from datetime import datetime
 from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats
 from typing import List, Tuple, Dict, Any, Optional
-from llm_accounting.models import APIRequest, UsageLimit, LimitScope, LimitType
+from llm_accounting.models.request import APIRequest
+from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType
 
 class MockBackend(BaseBackend):
     """A mock backend that implements all required methods"""

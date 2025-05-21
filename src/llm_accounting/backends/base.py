@@ -3,12 +3,17 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 
-from llm_accounting.models import APIRequest, UsageLimit, LimitScope, LimitType
+from llm_accounting.models.request import APIRequest
+from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType
+
 
 @dataclass
 class UsageEntry:
     """Represents a single LLM usage entry"""
-    model: Optional[str]  # Type matches validation logic but remains required at runtime
+
+    model: Optional[
+        str
+    ]  # Type matches validation logic but remains required at runtime
     prompt_tokens: Optional[int] = None
     completion_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
@@ -30,9 +35,11 @@ class UsageEntry:
         if self.timestamp is None:
             self.timestamp = datetime.now()
 
+
 @dataclass
 class UsageStats:
     """Represents aggregated usage statistics"""
+
     sum_prompt_tokens: int = 0
     sum_completion_tokens: int = 0
     sum_total_tokens: int = 0
@@ -50,9 +57,10 @@ class UsageStats:
     avg_cost: float = 0.0
     avg_execution_time: float = 0.0
 
+
 class BaseBackend(ABC):
     """Base class for all usage tracking backends"""
-    
+
     @abstractmethod
     def initialize(self) -> None:
         """Initialize the backend (create tables, etc.)"""
@@ -69,12 +77,16 @@ class BaseBackend(ABC):
         pass
 
     @abstractmethod
-    def get_model_stats(self, start: datetime, end: datetime) -> List[Tuple[str, UsageStats]]:
+    def get_model_stats(
+        self, start: datetime, end: datetime
+    ) -> List[Tuple[str, UsageStats]]:
         """Get statistics grouped by model for a time period"""
         pass
 
     @abstractmethod
-    def get_model_rankings(self, start: datetime, end: datetime) -> Dict[str, List[Tuple[str, Any]]]:
+    def get_model_rankings(
+        self, start: datetime, end: datetime
+    ) -> Dict[str, List[Tuple[str, Any]]]:
         """Get model rankings by different metrics"""
         pass
 
@@ -104,7 +116,7 @@ class BaseBackend(ABC):
         scope: Optional[LimitScope] = None,
         model: Optional[str] = None,
         username: Optional[str] = None,
-        caller_name: Optional[str] = None
+        caller_name: Optional[str] = None,
     ) -> List[UsageLimit]:
         """Retrieve usage limits based on specified filters."""
         pass
@@ -116,7 +128,7 @@ class BaseBackend(ABC):
         limit_type: LimitType,
         model: Optional[str] = None,
         username: Optional[str] = None,
-        caller_name: Optional[str] = None
+        caller_name: Optional[str] = None,
     ) -> float:
         """
         Retrieve aggregated API request data for quota calculation.

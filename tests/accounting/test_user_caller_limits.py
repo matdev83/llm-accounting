@@ -1,6 +1,7 @@
 import pytest
 from datetime import datetime, timezone
-from llm_accounting.models import Base, APIRequest
+from llm_accounting.models.base import Base
+from llm_accounting.models.request import APIRequest
 from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
 from llm_accounting.backends.sqlite import SQLiteBackend
 from llm_accounting import LLMAccounting
