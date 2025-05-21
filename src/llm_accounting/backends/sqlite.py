@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 class SQLiteBackend(BaseBackend):
     """SQLite implementation of the usage tracking backend"""
 
+    def __new__(cls, *args, **kwargs):
+        # Explicitly call the superclass's __new__ method
+        return super().__new__(cls)
+
     def __init__(self, db_path: Optional[str] = None):
         actual_db_path = db_path if db_path is not None else 'data/accounting.sqlite'
         validate_db_filename(actual_db_path)
@@ -26,6 +30,7 @@ class SQLiteBackend(BaseBackend):
 
     def initialize(self) -> None:
         """Initialize the SQLite database"""
+        print(f"Initializing database at {self.db_path}")
         if str(self.db_path).startswith("file:"):
             self.conn = sqlite3.connect(self.db_path, uri=True)
         else:
@@ -71,19 +76,25 @@ class SQLiteBackend(BaseBackend):
             logger.info(f"sqlite connection closed for {self.db_path}")
             self.conn = None
             logger.info(f"self.conn set to None for {self.db_path}")
-            # Add a small delay to allow the OS to release the file handle
-            time.sleep(0.01)
         else:
             logger.info(f"No sqlite connection to close for {self.db_path}")
 
     def execute_query(self, query: str) -> List[Dict]:
         """Execute a raw SQL SELECT query and return results"""
+        if not query.strip().upper().startswith("SELECT"):
+            raise ValueError("Only SELECT queries are allowed.")
+
         if not self.conn:
             self.initialize()
             
         assert self.conn is not None  # For type checking
         try:
+            # Set row_factory to sqlite3.Row to access columns by name
+            original_row_factory = self.conn.row_factory
+            self.conn.row_factory = sqlite3.Row
             cursor = self.conn.execute(query)
-            return [dict(row) for row in cursor.fetchall()]
+            results = [dict(row) for row in cursor.fetchall()]
+            self.conn.row_factory = original_row_factory  # Restore original row_factory
+            return results
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error: {e}") from e

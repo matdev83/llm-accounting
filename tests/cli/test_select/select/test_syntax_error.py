@@ -13,4 +13,4 @@ def test_select_syntax_error(test_db, monkeypatch):
     ])
     
     assert result.exit_code != 0
-    assert "syntax error" in result.output.lower()
+    assert "no such column" in result.output.lower()

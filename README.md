@@ -242,6 +242,91 @@ backend = PostgreSQLBackend(
 accounting = LLMAccounting(backend=backend)
 ```
 
+### Custom Backend Implementation
+
+The `llm-accounting` library is designed with a pluggable backend system, allowing you to integrate with any database or data storage solution by implementing the `BaseBackend` abstract class. This is particularly useful for integrating with existing infrastructure or custom data handling requirements.
+
+Here's how you can implement your own custom backend, using the `MockBackend` as a simplified example:
+
+1.  **Define your Backend Class**: Create a new class that inherits from `llm_accounting.backends.base.BaseBackend`. You will need to implement all abstract methods defined in `BaseBackend`.
+
+    ```python
+    # my_custom_backend.py
+    from datetime import datetime
+    from typing import Dict, List, Tuple, Any, Optional
+
+    from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats
+
+    class MyCustomBackend(BaseBackend):
+        def __init__(self):
+            self.my_storage = [] # Example: a list to store UsageEntry objects
+
+        def initialize(self) -> None:
+            print("MyCustomBackend: Initializing connection/resources...")
+            # Implement your database connection or resource setup here
+
+        def insert_usage(self, entry: UsageEntry) -> None:
+            print(f"MyCustomBackend: Inserting usage for model {entry.model}")
+            self.my_storage.append(entry)
+            # Implement logic to save 'entry' to your database
+
+        def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
+            print(f"MyCustomBackend: Getting period stats from {start} to {end}")
+            # Implement logic to query and aggregate stats from your database
+            return UsageStats() # Return actual aggregated stats
+
+        def get_model_stats(self, start: datetime, end: datetime) -> List[Tuple[str, UsageStats]]:
+            print(f"MyCustomBackend: Getting model stats from {start} to {end}")
+            # Implement logic to query and aggregate model-specific stats
+            return [] # Return actual model stats
+
+        def get_model_rankings(self, start: datetime, end: datetime) -> Dict[str, List[Tuple[str, Any]]]:
+            print(f"MyCustomBackend: Getting model rankings from {start} to {end}")
+            # Implement logic to query and rank models
+            return {} # Return actual rankings
+
+        def purge(self) -> None:
+            print("MyCustomBackend: Purging all entries...")
+            self.my_storage = []
+            # Implement logic to delete all entries from your database
+
+        def tail(self, n: int = 10) -> List[UsageEntry]:
+            print(f"MyCustomBackend: Getting last {n} entries...")
+            # Implement logic to retrieve the most recent 'n' entries
+            return self.my_storage[-n:] # Return actual recent entries
+
+        def close(self) -> None:
+            print("MyCustomBackend: Closing connection/resources...")
+            # Implement logic to close database connections or release resources
+
+        def execute_query(self, query: str) -> list[dict]:
+            print(f"MyCustomBackend: Executing custom query: {query}")
+            # Implement logic to execute raw queries (e.g., for reporting)
+            # Ensure proper validation and security for raw query execution
+            return [] # Return query results
+    ```
+
+2.  **Integrate with `LLMAccounting`**: Once your custom backend is implemented, you can pass an instance of it to the `LLMAccounting` constructor:
+
+    ```python
+    from llm_accounting import LLMAccounting
+    from my_custom_backend import MyCustomBackend # Import your custom backend
+
+    # Instantiate your custom backend
+    custom_backend = MyCustomBackend()
+
+    # Pass it to LLMAccounting
+    accounting = LLMAccounting(backend=custom_backend)
+
+    # Now, all accounting operations will use your custom backend
+    with accounting:
+        accounting.track_usage(model="custom_model", prompt_tokens=10, cost=0.001, execution_time=0.1)
+        stats = accounting.get_period_stats(datetime.now(), datetime.now())
+        # ... and so on
+    ```
+
+By following this pattern, you can extend `llm-accounting` to work seamlessly with virtually any data storage solution, providing maximum flexibility for your application's needs.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

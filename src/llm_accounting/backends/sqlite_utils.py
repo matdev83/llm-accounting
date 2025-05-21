@@ -7,6 +7,10 @@ def validate_db_filename(filename: str):
     clean_name = filename.split("?")[0].replace("file:", "")
     db_path = Path(clean_name)
 
+    # Allow in-memory databases
+    if clean_name == ":memory:":
+        return
+
     # Check for valid extensions
     if not any(clean_name.lower().endswith(ext) for ext in ('.sqlite', '.sqlite3', '.db')):
         raise ValueError(

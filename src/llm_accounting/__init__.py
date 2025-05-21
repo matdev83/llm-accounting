@@ -4,6 +4,7 @@ from typing import Optional, Type, Dict, List, Tuple
 
 from .backends.base import BaseBackend, UsageEntry, UsageStats
 from .backends.sqlite import SQLiteBackend
+from .backends.mock_backend import MockBackend # Import MockBackend
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +46,6 @@ class LLMAccounting:
         reasoning_tokens: int = 0
     ) -> None:
         """Track a new LLM usage entry"""
-        if not model:
-            raise ValueError("Model name is required")
-
         entry = UsageEntry(
             model=model,
             prompt_tokens=prompt_tokens,
@@ -87,4 +85,4 @@ class LLMAccounting:
         return self.backend.tail(n)
 
 # Export commonly used classes
-__all__ = ['LLMAccounting', 'BaseBackend', 'UsageEntry', 'UsageStats', 'SQLiteBackend']
+__all__ = ['LLMAccounting', 'BaseBackend', 'UsageEntry', 'UsageStats', 'SQLiteBackend', 'MockBackend']

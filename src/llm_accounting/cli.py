@@ -248,29 +248,36 @@ def tail(ctx, number):
 
 
 @cli.command()
-@click.option('--select', 'query', required=True, help='Custom SQL SELECT query to execute')
+@click.option('--query', 'query', required=True, help='Custom SQL SELECT query to execute')
+@click.option('--format', 'output_format', type=click.Choice(['table', 'csv']), default='table', help='Output format')
 @click.pass_context
-def select(ctx, query):
+def select(ctx, query, output_format):
     """Execute a custom SELECT query on the database"""
     accounting = None
     try:
         accounting = get_accounting(db_file=ctx.obj.get('db_file'))
         results = accounting.backend.execute_query(query)
         
-
         if not results:
             console.print("[yellow]No results found[/yellow]")
             return
-            
-        # Create table for results
-        table = Table(title="Query Results")
-        for col in results[0].keys():
-            table.add_column(col, style="cyan")
-            
-        for row in results:
-            table.add_row(*[str(value) for value in row.values()])
-            
-        console.print(table)
+
+        if output_format == 'table':
+            # Create table for results
+            table = Table(title="Query Results")
+            for col in results[0].keys():
+                table.add_column(col, style="cyan")
+
+            for row in results:
+                table.add_row(*[str(value) for value in row.values()])
+
+            console.print(table)
+        elif output_format == 'csv':
+            # Print CSV header
+            print(",".join(results[0].keys()))
+            # Print CSV rows
+            for row in results:
+                print(",".join([str(value) for value in row.values()]))
         
     except Exception as e:
         console.print(f"[red]Error executing query: {e}[/red]")
@@ -298,10 +305,6 @@ def select(ctx, query):
 def track(ctx, model, prompt_tokens, completion_tokens, total_tokens, local_prompt_tokens, local_completion_tokens,
           local_total_tokens, cost, execution_time, timestamp, caller_name, username, cached_tokens, reasoning_tokens):
     """Track a new LLM usage entry"""
-    if not model:
-        console.print("[red]Model name is required[/red]")
-        ctx.exit(1)
-
     accounting = None
     try:
         accounting = get_accounting(db_file=ctx.obj.get('db_file'))
