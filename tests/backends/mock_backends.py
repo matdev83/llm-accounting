@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-import pytest
 
 from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats
 from llm_accounting.models.limits import LimitScope, LimitType, UsageLimit
