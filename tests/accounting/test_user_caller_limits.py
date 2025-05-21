@@ -1,66 +1,57 @@
 import pytest
 from datetime import datetime, timezone
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from llm_accounting.models import Base, APIRequest
 from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
-from llm_accounting.services.quota_service import QuotaService
+from llm_accounting.backends.sqlite import SQLiteBackend
+from llm_accounting import LLMAccounting
 
 @pytest.fixture
-def db_session():
-    engine = create_engine("sqlite:///:memory:")
-    Session = sessionmaker(bind=engine)
-    Base.metadata.create_all(engine)
-    session = Session()
-    yield session
-    session.close()
+def sqlite_backend_for_accounting(temp_db_path):
+    """Create and initialize a SQLite backend for LLMAccounting"""
+    backend = SQLiteBackend(db_path=temp_db_path)
+    backend.initialize()
+    yield backend
+    backend.close()
 
 @pytest.fixture
-def quota_service(db_session):
-    return QuotaService(db_session)
+def accounting_instance(sqlite_backend_for_accounting):
+    """Create an LLMAccounting instance with a temporary SQLite backend"""
+    acc = LLMAccounting(backend=sqlite_backend_for_accounting)
+    # Manually enter and exit context for testing purposes
+    acc.__enter__()
+    yield acc
+    acc.__exit__(None, None, None)
 
-def test_user_caller_combination(quota_service, db_session):
-    db_session.add(UsageLimit(
-        scope=LimitScope.CALLER.value,
-        username="user1",
-        caller_name="app1",
-        limit_type=LimitType.REQUESTS.value,
-        max_value=3,
-        interval_unit=TimeInterval.DAY.value,
-        interval_value=1
-    ))
-    db_session.commit()
-
-    from llm_accounting.models import APIRequest
+def test_user_caller_combination(accounting_instance, sqlite_backend_for_accounting):
+    sqlite_backend_for_accounting.insert_usage_limit(
+        UsageLimit(
+            scope=LimitScope.CALLER.value,
+            username="user1",
+            caller_name="app1",
+            limit_type=LimitType.REQUESTS.value,
+            max_value=3,
+            interval_unit=TimeInterval.DAY.value,
+            interval_value=1
+        )
+    )
     
     # Make 3 allowed requests
     for _ in range(3):
         # Check quota before adding request
-        allowed, _ = quota_service.check_quota("gpt-3", "user1", "app1", 1000, 0.25)
+        allowed, _ = accounting_instance.check_quota("gpt-3", "user1", "app1", 1000, 0.25)
         assert allowed
         # Track the allowed request
-        db_session.add(APIRequest(
+        accounting_instance.track_usage(
             model="gpt-3",
             username="user1",
             caller_name="app1",
-            input_tokens=1000,
-            output_tokens=500,
+            prompt_tokens=1000,
+            completion_tokens=500,
             cost=0.25,
             timestamp=datetime.now(timezone.utc)
-        ))
-        db_session.commit()
+        )
     
     # Make 4th request that should be blocked
-    db_session.add(APIRequest(
-        model="gpt-3",
-        username="user1",
-        caller_name="app1",
-        input_tokens=1000,
-        output_tokens=500,
-        cost=0.25,
-        timestamp=datetime.now(timezone.utc)
-    ))
-    db_session.commit()
-    allowed, message = quota_service.check_quota("gpt-3", "user1", "app1", 1000, 0.25)
+    allowed, message = accounting_instance.check_quota("gpt-3", "user1", "app1", 1000, 0.25)
     assert not allowed
     assert "CALLER limit: 3.00 requests per 1 day" in message

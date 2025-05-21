@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional, Tuple
-from ..models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
+from ..models.limits import LimitScope, LimitType
 from ..backends.base import BaseBackend
 
 class QuotaService:

@@ -1,7 +1,6 @@
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-import time
 from typing import Dict, List, Tuple, Optional
 
 from .base import BaseBackend, UsageEntry, UsageStats, LimitScope, LimitType
@@ -59,6 +58,29 @@ class SQLiteBackend(BaseBackend):
         """Delete all usage entries from the database"""
         assert self.conn is not None
         self.conn.execute("DELETE FROM accounting_entries")
+        self.conn.commit()
+
+    def insert_usage_limit(self, limit: UsageLimit) -> None:
+        """Insert a new usage limit entry into the database."""
+        assert self.conn is not None
+        self.conn.execute(
+            """
+            INSERT INTO usage_limits (scope, limit_type, max_value, interval_unit, interval_value, model, username, caller_name, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                limit.scope,
+                limit.limit_type,
+                limit.max_value,
+                limit.interval_unit,
+                limit.interval_value,
+                limit.model,
+                limit.username,
+                limit.caller_name,
+                limit.created_at.isoformat(),
+                limit.updated_at.isoformat(),
+            ),
+        )
         self.conn.commit()
 
     def tail(self, n: int = 10) -> List[UsageEntry]:

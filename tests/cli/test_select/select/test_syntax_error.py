@@ -1,16 +1,24 @@
 import pytest
-from click.testing import CliRunner
-from llm_accounting.cli import cli
+import sys
+from io import StringIO
+from unittest.mock import patch, MagicMock
 
-def test_select_syntax_error(test_db, monkeypatch):
+from llm_accounting.cli.main import main as cli_main
+from llm_accounting import LLMAccounting
+
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_select_syntax_error(mock_get_accounting, test_db, capsys):
     """Test handling of SQL syntax errors"""
-    monkeypatch.setattr("llm_accounting.backends.get_backend", lambda: test_db)
-    runner = CliRunner()
-    result = runner.invoke(cli, [
-        "select",
-        "--query",
-        "SELECT model FROM accounting_entries WHERE invalid_syntax"
-    ])
+    mock_backend_instance = MagicMock()
+    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
+    mock_get_accounting.return_value = real_accounting_instance
+    mock_backend_instance.execute_query.side_effect = Exception("no such column: invalid_syntax")
+
+    with patch.object(sys, 'argv', ['cli_main', "select", "--query", "SELECT model FROM accounting_entries WHERE invalid_syntax"]):
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            cli_main()
     
-    assert result.exit_code != 0
-    assert "no such column" in result.output.lower()
+    assert pytest_wrapped_e.type == SystemExit
+    assert pytest_wrapped_e.value.code == 1
+    captured = capsys.readouterr()
+    assert "no such column: invalid_syntax" in captured.out.lower()

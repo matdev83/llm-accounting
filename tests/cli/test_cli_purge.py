@@ -1,63 +1,57 @@
 import pytest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, MagicMock
+import sys
+from io import StringIO
 
-from llm_accounting.cli import cli
+from llm_accounting.cli.main import main as cli_main
+from llm_accounting import LLMAccounting
 
-@pytest.fixture
-def runner():
-    from click.testing import CliRunner
-    return CliRunner()
-
-from unittest.mock import patch, Mock
-
-@patch("llm_accounting.cli.get_accounting")
-def test_purge_with_confirmation(mock_get_accounting, runner):
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_purge_with_confirmation(mock_get_accounting):
     """Test purge command with confirmation by checking accounting calls"""
-    mock_accounting_instance = MagicMock()
-    mock_get_accounting.return_value = mock_accounting_instance
-    mock_accounting_instance.__enter__.return_value = mock_accounting_instance
-    mock_accounting_instance.__exit__.return_value = None # Ensure __exit__ returns None
+    mock_backend_instance = MagicMock()
+    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
+    mock_get_accounting.return_value = real_accounting_instance
 
-    result = runner.invoke(cli, ["purge"], input="y\n")
-    assert result.exit_code == 0
-    mock_accounting_instance.purge.assert_called_once()
-    mock_accounting_instance.__exit__.assert_called_once()
+    # Simulate user input 'y'
+    with patch('sys.stdin', StringIO('y\n')), patch.object(sys, 'argv', ['cli_main', 'purge']):
+        cli_main()
+    
+    mock_backend_instance.purge.assert_called_once()
 
-@patch("llm_accounting.cli.get_accounting")
-def test_purge_without_confirmation(mock_get_accounting, runner):
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_purge_without_confirmation(mock_get_accounting):
     """Test purge command without confirmation"""
-    mock_accounting_instance = MagicMock()
-    mock_get_accounting.return_value = mock_accounting_instance
-    mock_accounting_instance.__enter__.return_value = mock_accounting_instance
-    mock_accounting_instance.__exit__.return_value = None
+    mock_backend_instance = MagicMock()
+    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
+    mock_get_accounting.return_value = real_accounting_instance
 
-    result = runner.invoke(cli, ["purge"], input="n\n")
-    assert result.exit_code == 0
-    mock_accounting_instance.purge.assert_not_called()
-    mock_accounting_instance.__exit__.assert_not_called() # Should not exit if cancelled
+    # Simulate user input 'n'
+    with patch('sys.stdin', StringIO('n\n')), patch.object(sys, 'argv', ['cli_main', 'purge']):
+        cli_main()
+    
+    mock_backend_instance.purge.assert_not_called()
 
-@patch("llm_accounting.cli.get_accounting")
-def test_purge_with_yes_flag(mock_get_accounting, runner):
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_purge_with_yes_flag(mock_get_accounting):
     """Test purge command with -y flag by checking accounting calls"""
-    mock_accounting_instance = MagicMock()
-    mock_get_accounting.return_value = mock_accounting_instance
-    mock_accounting_instance.__enter__.return_value = mock_accounting_instance
-    mock_accounting_instance.__exit__.return_value = None
+    mock_backend_instance = MagicMock()
+    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
+    mock_get_accounting.return_value = real_accounting_instance
 
-    result = runner.invoke(cli, ["purge", "-y"])
-    assert result.exit_code == 0
-    mock_accounting_instance.purge.assert_called_once()
-    mock_accounting_instance.__exit__.assert_called_once()
+    with patch.object(sys, 'argv', ['cli_main', 'purge', '-y']):
+        cli_main()
+    
+    mock_backend_instance.purge.assert_called_once()
 
-@patch("llm_accounting.cli.get_accounting")
-def test_purge_with_yes_flag_long(mock_get_accounting, runner):
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_purge_with_yes_flag_long(mock_get_accounting):
     """Test purge command with --yes flag by checking accounting calls"""
-    mock_accounting_instance = MagicMock()
-    mock_get_accounting.return_value = mock_accounting_instance
-    mock_accounting_instance.__enter__.return_value = mock_accounting_instance
-    mock_accounting_instance.__exit__.return_value = None
+    mock_backend_instance = MagicMock()
+    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
+    mock_get_accounting.return_value = real_accounting_instance
 
-    result = runner.invoke(cli, ["purge", "--yes"])
-    assert result.exit_code == 0
-    mock_accounting_instance.purge.assert_called_once()
-    mock_accounting_instance.__exit__.assert_called_once()
+    with patch.object(sys, 'argv', ['cli_main', 'purge', '--yes']):
+        cli_main()
+    
+    mock_backend_instance.purge.assert_called_once()

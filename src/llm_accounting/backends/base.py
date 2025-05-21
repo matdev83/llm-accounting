@@ -129,3 +129,8 @@ class BaseBackend(ABC):
     def insert_api_request(self, request: APIRequest) -> None:
         """Insert a new API request entry for quota tracking."""
         pass
+
+    @abstractmethod
+    def insert_usage_limit(self, limit: UsageLimit) -> None:
+        """Insert a new usage limit entry."""
+        pass

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Optional, Type, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple
 
 from .backends.base import BaseBackend, UsageEntry, UsageStats
 from .backends.sqlite import SQLiteBackend

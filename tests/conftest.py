@@ -2,14 +2,16 @@ import pytest
 from datetime import datetime, timedelta
 from pathlib import Path
 import tempfile
+
 import sys
 from pathlib import Path
 
-# Add test directory to Python path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add src directory to Python path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from llm_accounting import LLMAccounting, UsageEntry, UsageStats
 from llm_accounting.backends.sqlite import SQLiteBackend
+from unittest.mock import MagicMock
 from tests.backends.mock_backends import MockBackend
 
 import logging
@@ -92,7 +94,8 @@ def sample_entries():
 @pytest.fixture
 def mock_backend():
     """Create a mock backend instance"""
-    backend = MockBackend()
-    backend.initialize()
-    yield backend
-    backend.close()
+    mock_backend_instance = MagicMock()
+    # Mock initialize and close methods if they are called
+    mock_backend_instance.initialize.return_value = None
+    mock_backend_instance.close.return_value = None
+    yield mock_backend_instance

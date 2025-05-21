@@ -1,20 +1,26 @@
 import pytest
-from click.testing import CliRunner
-import importlib
-from llm_accounting.cli import cli as cli_command
-from llm_accounting import backends
-import llm_accounting.backends.sqlite as sqlite_backend_module
+import sys
+from io import StringIO
+from unittest.mock import patch, MagicMock
 
-def test_select_output_formatting(test_db, monkeypatch):
+from llm_accounting.cli.main import main as cli_main
+
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_select_output_formatting(mock_get_accounting, test_db, capsys):
     """Test table formatting of results"""
-    runner = CliRunner()
-    result = runner.invoke(cli_command, [
-        "select",
-        "--query",
-        "SELECT model, username FROM accounting_entries LIMIT 1"
-    ])
+    mock_accounting_instance = MagicMock()
+    mock_get_accounting.return_value = mock_accounting_instance
+    mock_accounting_instance.__enter__.return_value = mock_accounting_instance
+    mock_accounting_instance.__exit__.return_value = None
+    mock_accounting_instance.backend.execute_query.return_value = [
+        {'model': 'gpt-4', 'username': 'user1'}
+    ]
 
-    assert result.exit_code == 0
-    assert "┌───────┬──────────┐" in result.output  # Table borders
-    assert "│ model │ username │" in result.output  # Header
-    assert "│ gpt-4 │ user1    │" in result.output  # First row
+    with patch.object(sys, 'argv', ['cli_main', "select", "--query", "SELECT model, username FROM accounting_entries LIMIT 1"]):
+        cli_main()
+
+    captured = capsys.readouterr()
+    assert "┌───────┬──────────┐" in captured.out  # Table borders
+    assert "│ model │ username │" in captured.out  # Header
+    assert "│ gpt-4 │ user1    │" in captured.out  # First row
+    mock_accounting_instance.__exit__.assert_called_once()

@@ -1,7 +1,8 @@
 import pytest
 from datetime import datetime
 from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Optional
+from llm_accounting.models import APIRequest, UsageLimit, LimitScope, LimitType
 
 class MockBackend(BaseBackend):
     """A mock backend that implements all required methods"""
@@ -32,6 +33,31 @@ class MockBackend(BaseBackend):
     def execute_query(self, query: str) -> List[Dict[str, Any]]:
         """Mock implementation of execute_query"""
         return [{}]  # Return list of empty dicts to match SQLite format
+
+    def get_usage_limits(
+        self,
+        scope: Optional[LimitScope] = None,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None
+    ) -> List[UsageLimit]:
+        return []
+
+    def get_api_requests_for_quota(
+        self,
+        start_time: datetime,
+        limit_type: LimitType,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None
+    ) -> float:
+        return 0.0
+
+    def insert_api_request(self, request: APIRequest) -> None:
+        pass
+
+    def insert_usage_limit(self, limit: UsageLimit) -> None:
+        pass
 
 class IncompleteBackend(BaseBackend):
     """A mock backend that doesn't implement all required methods"""

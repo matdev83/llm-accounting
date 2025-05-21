@@ -1,13 +1,11 @@
 import pytest
 from datetime import datetime
 from unittest.mock import patch, Mock, MagicMock
-from click.testing import CliRunner
+import sys
+from io import StringIO
 
-from llm_accounting.cli import cli
-
-@pytest.fixture
-def runner():
-    return CliRunner()
+from llm_accounting.cli.main import main as cli_main
+from llm_accounting import LLMAccounting
 
 def make_entry(**kwargs):
     entry = MagicMock()
@@ -22,69 +20,64 @@ def make_entry(**kwargs):
     entry.username = kwargs.get("username", "")
     return entry
 
-@patch("llm_accounting.cli.get_accounting")
-def test_tail_default(mock_get_accounting, runner):
-    mock_accounting_instance = MagicMock()
-    mock_get_accounting.return_value = mock_accounting_instance
-    mock_accounting_instance.__enter__.return_value = mock_accounting_instance
-    mock_accounting_instance.__exit__.return_value = None
-    mock_accounting_instance.tail.return_value = [
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_tail_default(mock_get_accounting, capsys):
+    mock_backend_instance = MagicMock()
+    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
+    mock_get_accounting.return_value = real_accounting_instance
+    mock_backend_instance.tail.return_value = [
         make_entry(model="gpt-4", prompt_tokens=100, completion_tokens=50, total_tokens=150, cost=0.002, execution_time=1.5, caller_name="test_app", username="test_user"),
         make_entry(model="gpt-3.5-turbo", prompt_tokens=200, completion_tokens=100, total_tokens=300, cost=0.003, execution_time=2.0)
     ]
 
-    result = runner.invoke(cli, ["tail"])
-    assert result.exit_code == 0
-    assert "Last 2 Usage Entries" in result.output
-    assert "gpt-4" in result.output
-    # Rich may truncate "test_app" and "test_user" to "test_…" or similar, so check for "test"
-    assert "test" in result.output
-    assert "100" in result.output
-    assert "50" in result.output
-    assert "150" in result.output
-    assert "$0.0" in result.output  # Rich may truncate cost to "$0.0…"
-    assert "1.50s" in result.output
-    assert "gpt-3" in result.output  # Rich may truncate model name to "gpt-3…"
-    assert "-" in result.output
-    assert "200" in result.output
-    assert "100" in result.output
-    assert "300" in result.output
-    assert "$0.0" in result.output  # Rich may truncate cost to "$0.0…"
-    assert "2.00s" in result.output
-    mock_accounting_instance.__exit__.assert_called_once()
+    with patch.object(sys, 'argv', ['cli_main', "tail"]):
+        cli_main()
+    captured = capsys.readouterr()
+    assert "Last 2 Usage Entries" in captured.out
+    assert "gpt-4" in captured.out
+    assert "test" in captured.out
+    assert "100" in captured.out
+    assert "50" in captured.out
+    assert "150" in captured.out
+    assert "$0.0" in captured.out
+    assert "1.50s" in captured.out
+    assert "gpt-3" in captured.out
+    assert "-" in captured.out
+    assert "200" in captured.out
+    assert "100" in captured.out
+    assert "300" in captured.out
+    assert "$0.0" in captured.out
+    assert "2.00s" in captured.out
 
-@patch("llm_accounting.cli.get_accounting")
-def test_tail_custom_number(mock_get_accounting, runner):
-    mock_accounting_instance = MagicMock()
-    mock_get_accounting.return_value = mock_accounting_instance
-    mock_accounting_instance.__enter__.return_value = mock_accounting_instance
-    mock_accounting_instance.__exit__.return_value = None
-    mock_accounting_instance.tail.return_value = [
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_tail_custom_number(mock_get_accounting, capsys):
+    mock_backend_instance = MagicMock()
+    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
+    mock_get_accounting.return_value = real_accounting_instance
+    mock_backend_instance.tail.return_value = [
         make_entry(model="gpt-4", prompt_tokens=100, completion_tokens=50, total_tokens=150, cost=0.002, execution_time=1.5, caller_name="test_app", username="test_user")
     ]
 
-    result = runner.invoke(cli, ["tail", "-n", "5"])
-    assert result.exit_code == 0
-    assert "Last 1 Usage Entry" in result.output or "Last 1 Usage Entries" in result.output
-    assert "gpt-4" in result.output
-    # Rich may truncate "test_app" and "test_user" to "test_…" or similar, so check for "test"
-    assert "test" in result.output
-    assert "100" in result.output
-    assert "50" in result.output
-    assert "150" in result.output
-    assert "$0.0" in result.output  # Rich may truncate cost to "$0.0…"
-    assert "1.50s" in result.output
-    mock_accounting_instance.__exit__.assert_called_once()
+    with patch.object(sys, 'argv', ['cli_main', "tail", "-n", "5"]):
+        cli_main()
+    captured = capsys.readouterr()
+    assert "Last 1 Usage Entry" in captured.out or "Last 1 Usage Entries" in captured.out
+    assert "gpt-4" in captured.out
+    assert "test" in captured.out
+    assert "100" in captured.out
+    assert "50" in captured.out
+    assert "150" in captured.out
+    assert "$0.0" in captured.out
+    assert "1.50s" in captured.out
 
-@patch("llm_accounting.cli.get_accounting")
-def test_tail_empty(mock_get_accounting, runner):
-    mock_accounting_instance = MagicMock()
-    mock_get_accounting.return_value = mock_accounting_instance
-    mock_accounting_instance.__enter__.return_value = mock_accounting_instance
-    mock_accounting_instance.__exit__.return_value = None
-    mock_accounting_instance.tail.return_value = []
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_tail_empty(mock_get_accounting, capsys):
+    mock_backend_instance = MagicMock()
+    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
+    mock_get_accounting.return_value = real_accounting_instance
+    mock_backend_instance.tail.return_value = []
 
-    result = runner.invoke(cli, ["tail"])
-    assert result.exit_code == 0
-    assert "No usage entries found" in result.output
-    mock_accounting_instance.__exit__.assert_called_once()
+    with patch.object(sys, 'argv', ['cli_main', "tail"]):
+        cli_main()
+    captured = capsys.readouterr()
+    assert "No usage entries found" in captured.out

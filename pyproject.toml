@@ -13,7 +13,6 @@ authors = [
     { name = "Your Name", email = "your.email@example.com" }
 ]
 dependencies = [
-    "click>=8.0.0",
     "rich>=10.0.0",
 ]
 
@@ -28,7 +27,7 @@ test = [
 ]
 
 [project.scripts]
-llm-accounting = "llm_accounting.cli:main"
+llm-accounting = "llm_accounting.cli.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/llm_accounting"]
@@ -37,4 +36,4 @@ packages = ["src/llm_accounting"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "--cov=llm_accounting --cov-report=term-missing" 
+addopts = "--cov=llm_accounting --cov-report=term-missing"

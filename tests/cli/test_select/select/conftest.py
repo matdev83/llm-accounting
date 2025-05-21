@@ -2,7 +2,7 @@ import pytest
 from llm_accounting.backends.sqlite import SQLiteBackend
 import sqlite3
 import typing
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 @pytest.fixture
 def test_db():
@@ -47,21 +47,25 @@ def test_db():
 @pytest.fixture(autouse=True)
 def mock_get_accounting(test_db):
     """
-    Fixture to patch llm_accounting.cli.get_accounting to return our test_db backend.
-    This ensures that CLI commands use the in-memory database.
+    Fixture to patch llm_accounting.cli.get_accounting to return a mock LLMAccounting
+    instance that uses our test_db backend. This ensures that CLI commands use the
+    in-memory database and that mock calls are properly tracked.
     """
-    with patch('llm_accounting.cli.get_accounting') as mock_get_acc:
-        # Create a mock LLMAccounting instance that uses our test_db as its backend
-        mock_accounting_instance = type('MockLLMAccounting', (object,), {
-            'backend': test_db,
-            '__enter__': lambda self: self,
-            '__exit__': lambda self, exc_type, exc_val, exc_tb: None,
-            'get_period_stats': test_db.get_period_stats,
-            'get_model_stats': test_db.get_model_stats,
-            'get_model_rankings': test_db.get_model_rankings,
-            'purge': test_db.purge,
-            'tail': test_db.tail,
-            'track_usage': test_db.insert_usage, # Assuming track_usage maps to insert_usage for testing
-        })()
+    with patch('llm_accounting.cli.utils.get_accounting') as mock_get_acc:
+        mock_accounting_instance = MagicMock()
+        mock_accounting_instance.backend = test_db
+        mock_accounting_instance.__enter__.return_value = mock_accounting_instance
+        mock_accounting_instance.__exit__.return_value = None # Ensure __exit__ is callable and returns None
+
+        # Explicitly mock methods that are called on the LLMAccounting instance
+        # and delegate them to the test_db backend
+        mock_accounting_instance.get_period_stats.side_effect = test_db.get_period_stats
+        mock_accounting_instance.get_model_stats.side_effect = test_db.get_model_stats
+        mock_accounting_instance.get_model_rankings.side_effect = test_db.get_model_rankings
+        mock_accounting_instance.purge.side_effect = test_db.purge
+        mock_accounting_instance.tail.side_effect = test_db.tail
+        mock_accounting_instance.track_usage.side_effect = test_db.insert_usage # LLMAccounting.track_usage calls backend.insert_usage
+
+
         mock_get_acc.return_value = mock_accounting_instance
-        yield
+        yield mock_get_acc # Yield the mock object for further assertions in tests

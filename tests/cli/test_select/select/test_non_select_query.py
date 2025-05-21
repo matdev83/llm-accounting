@@ -1,16 +1,24 @@
 import pytest
-from click.testing import CliRunner
-from llm_accounting.cli import cli
+import sys
+from io import StringIO
+from unittest.mock import patch, MagicMock
 
-def test_select_non_select_query(test_db, monkeypatch):
+from llm_accounting.cli.main import main as cli_main
+from llm_accounting import LLMAccounting
+
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_select_non_select_query(mock_get_accounting, test_db, capsys):
     """Test rejection of non-SELECT queries"""
-    monkeypatch.setattr("llm_accounting.backends.get_backend", lambda: test_db)
-    runner = CliRunner()
-    result = runner.invoke(cli, [
-        "select",
-        "--query",
-        "INSERT INTO accounting_entries (model) VALUES ('gpt-4')"
-    ])
+    mock_backend_instance = MagicMock()
+    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
+    mock_get_accounting.return_value = real_accounting_instance
+    mock_backend_instance.execute_query.side_effect = ValueError("Only SELECT queries are allowed")
+
+    with patch.object(sys, 'argv', ['cli_main', "select", "--query", "INSERT INTO accounting_entries (model) VALUES ('gpt-4')"]):
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            cli_main()
     
-    assert result.exit_code != 0
-    assert "Only SELECT queries are allowed" in result.output
+    assert pytest_wrapped_e.type == SystemExit
+    assert pytest_wrapped_e.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error: Only SELECT queries are allowed" in captured.out
