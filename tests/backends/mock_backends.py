@@ -63,6 +63,9 @@ class MockBackend(BaseBackend):
     def insert_usage_limit(self, limit: UsageLimit) -> None:
         pass
 
+    def delete_usage_limit(self, limit_id: int) -> None:
+        pass
+
 
 class IncompleteBackend(BaseBackend):
     """A mock backend that doesn't implement all required methods"""

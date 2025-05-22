@@ -200,9 +200,9 @@ class SQLiteBackend(BaseBackend):
                     id=row[0],
                     scope=row[1],
                     limit_type=row[2],
-                    model=row[3],
-                    username=row[4],
-                    caller_name=row[5],
+                    model=str(row[3]) if row[3] is not None else None,
+                    username=str(row[4]) if row[4] is not None else None,
+                    caller_name=str(row[5]) if row[5] is not None else None,
                     max_value=row[6],
                     interval_unit=row[7],
                     interval_value=row[8],
@@ -249,3 +249,9 @@ class SQLiteBackend(BaseBackend):
         cursor = self.conn.execute(query, params)
         result = cursor.fetchone()[0]
         return float(result) if result is not None else 0.0
+
+    def delete_usage_limit(self, limit_id: int) -> None:
+        """Delete a usage limit entry by its ID."""
+        assert self.conn is not None
+        self.conn.execute("DELETE FROM usage_limits WHERE id = ?", (limit_id,))
+        self.conn.commit()

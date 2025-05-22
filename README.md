@@ -105,6 +105,63 @@ llm-accounting purge
 # Execute custom SQL queries (if backend supports it and it's enabled)
 # llm-accounting select --query "SELECT model, COUNT(*) as count FROM accounting_entries GROUP BY model"
 
+### Usage Limits
+
+The `llm-accounting limits` command allows you to manage usage limits for your LLM interactions. You can set, list, and delete limits based on various scopes (global, model, user, caller) and types (requests, input tokens, output tokens, cost) over specified time intervals.
+
+#### Set a Usage Limit
+
+Set a new usage limit. For example, to set a global limit of 1000 requests per day:
+
+```bash
+llm-accounting limits set \
+    --scope GLOBAL \
+    --limit-type requests \
+    --max-value 1000 \
+    --interval-unit day \
+    --interval-value 1
+```
+
+To set a cost limit of $5.00 per hour for a specific user:
+
+```bash
+llm-accounting limits set \
+    --scope USER \
+    --username john_doe \
+    --limit-type cost \
+    --max-value 5.00 \
+    --interval-unit hour \
+    --interval-value 1
+```
+
+To set an input token limit of 50000 tokens per week for a specific model:
+
+```bash
+llm-accounting limits set \
+    --scope MODEL \
+    --model gpt-4 \
+    --limit-type input_tokens \
+    --max-value 50000 \
+    --interval-unit week \
+    --interval-value 1
+```
+
+#### List Usage Limits
+
+List all configured usage limits:
+
+```bash
+llm-accounting limits list
+```
+
+#### Delete a Usage Limit
+
+Delete a usage limit by its ID (you can find the ID using `llm-accounting limits list`):
+
+```bash
+llm-accounting limits delete --id 1
+```
+
 ### Database Backend Selection via CLI
 
 You can specify the database backend directly via the CLI using the `--db-backend` option. This allows you to switch between `sqlite` (default) and `neon` without modifying code.

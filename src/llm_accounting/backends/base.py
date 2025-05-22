@@ -151,3 +151,8 @@ class BaseBackend(ABC):
     def insert_usage_limit(self, limit: UsageLimit) -> None:
         """Insert a new usage limit entry."""
         pass
+
+    @abstractmethod
+    def delete_usage_limit(self, limit_id: int) -> None:
+        """Delete a usage limit entry by its ID."""
+        pass

@@ -318,6 +318,39 @@ class NeonBackend(BaseBackend):
                 self.conn.rollback()
             raise
 
+    def delete_usage_limit(self, limit_id: int) -> None:
+        """
+        Deletes a usage limit entry by its ID from the usage_limits table.
+
+        Args:
+            limit_id: The ID of the usage limit to delete.
+
+        Raises:
+            ConnectionError: If the database connection is not active.
+            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
+            Exception: For any other unexpected errors (and is re-raised).
+        """
+        if not self.conn or self.conn.closed:
+            logger.error("Cannot delete usage limit, database connection is not active.")
+            raise ConnectionError("Database connection is not active. Call initialize() first.")
+
+        sql = "DELETE FROM usage_limits WHERE id = %s;"
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(sql, (limit_id,))
+                self.conn.commit()
+            logger.info(f"Successfully deleted usage limit with ID: {limit_id}.")
+        except psycopg2.Error as e:
+            logger.error(f"Error deleting usage limit: {e}")
+            if self.conn and not self.conn.closed:
+                self.conn.rollback()
+            raise
+        except Exception as e:
+            logger.error(f"An unexpected error occurred deleting usage limit: {e}")
+            if self.conn and not self.conn.closed:
+                self.conn.rollback()
+            raise
+
     # --- Implemented methods as per subtask ---
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:

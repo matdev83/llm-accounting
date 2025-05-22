@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Tuple
 from .backends.base import BaseBackend, UsageEntry, UsageStats
 from .backends.mock_backend import MockBackend
 from .backends.sqlite import SQLiteBackend
+from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimit
 from .models.request import APIRequest
 from .services.quota_service import QuotaService
 from .audit_log import AuditLogger
@@ -130,6 +131,44 @@ class LLMAccounting:
             model, username, caller_name, input_tokens, cost
         )
 
+    def set_usage_limit(
+        self,
+        scope: LimitScope,
+        limit_type: LimitType,
+        max_value: float,
+        interval_unit: TimeInterval,
+        interval_value: int,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None,
+    ) -> None:
+        """Sets a new usage limit."""
+        limit = UsageLimit(
+            scope=scope.value,
+            limit_type=limit_type.value,
+            max_value=max_value,
+            interval_unit=interval_unit.value,
+            interval_value=interval_value,
+            model=model,
+            username=username,
+            caller_name=caller_name,
+        )
+        self.backend.insert_usage_limit(limit)
+
+    def get_usage_limits(
+        self,
+        scope: Optional[LimitScope] = None,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None,
+    ) -> List[UsageLimit]:
+        """Retrieves configured usage limits."""
+        return self.backend.get_usage_limits(scope, model, username, caller_name)
+
+    def delete_usage_limit(self, limit_id: int) -> None:
+        """Deletes a usage limit by its ID."""
+        self.backend.delete_usage_limit(limit_id)
+
 
 # Export commonly used classes
 __all__ = [
@@ -141,4 +180,8 @@ __all__ = [
     "MockBackend",
     "APIRequest",
     "AuditLogger",
+    "LimitScope",
+    "LimitType",
+    "TimeInterval",
+    "UsageLimit",
 ]

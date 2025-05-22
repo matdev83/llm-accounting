@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from .parsers import (add_purge_parser, add_select_parser, add_stats_parser,
-                      add_tail_parser, add_track_parser)
+                      add_tail_parser, add_track_parser, add_limits_parser)
 from .utils import console
 
 
@@ -39,6 +39,7 @@ def main():
     add_tail_parser(subparsers)
     add_select_parser(subparsers)
     add_track_parser(subparsers)
+    add_limits_parser(subparsers)
 
     args = parser.parse_args()
 

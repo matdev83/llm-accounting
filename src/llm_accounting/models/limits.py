@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import Column, DateTime, Float, Integer, String
 from sqlalchemy.schema import UniqueConstraint
@@ -61,10 +61,10 @@ class UsageLimit(Base):
 
     def __init__(
         self,
-        scope: str,
-        limit_type: str,
+        scope: Any,  # Can be str or LimitScope enum
+        limit_type: Any,  # Can be str or LimitType enum
         max_value: float,
-        interval_unit: str,
+        interval_unit: Any,  # Can be str or TimeInterval enum
         interval_value: int,
         model: Optional[str] = None,
         username: Optional[str] = None,
@@ -73,14 +73,14 @@ class UsageLimit(Base):
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None,
     ):
-        self.scope = scope
-        self.limit_type = limit_type
+        self.scope = scope.value if isinstance(scope, LimitScope) else scope
+        self.limit_type = limit_type.value if isinstance(limit_type, LimitType) else limit_type
         self.max_value = max_value
-        self._interval_unit = interval_unit
+        self._interval_unit = interval_unit.value if isinstance(interval_unit, TimeInterval) else interval_unit
         self._interval_value = interval_value
         # SQLAlchemy column mappings
-        self.interval_unit = interval_unit  
-        self.interval_value = interval_value  
+        self.interval_unit = self._interval_unit
+        self.interval_value = self._interval_value
         self.model = model
         self.username = username
         self.caller_name = caller_name

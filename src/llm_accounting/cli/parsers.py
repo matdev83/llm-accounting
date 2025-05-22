@@ -3,6 +3,8 @@ from llm_accounting.cli.commands.select import run_select
 from llm_accounting.cli.commands.stats import run_stats
 from llm_accounting.cli.commands.tail import run_tail
 from llm_accounting.cli.commands.track import run_track
+from llm_accounting.cli.commands.limits import set_limit, list_limits, delete_limit
+from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval
 
 
 def add_stats_parser(subparsers):
@@ -112,3 +114,66 @@ def add_track_parser(subparsers):
         help="Number of tokens used for model reasoning",
     )
     track_parser.set_defaults(func=run_track)
+
+
+def add_limits_parser(subparsers):
+    limits_parser = subparsers.add_parser(
+        "limits", help="Manage usage limits (set, list, delete)"
+    )
+    limits_subparsers = limits_parser.add_subparsers(
+        dest="limits_command", help="Limits commands"
+    )
+
+    # Set limit subparser
+    set_parser = limits_subparsers.add_parser("set", help="Set a new usage limit")
+    set_parser.add_argument(
+        "--scope",
+        type=str,
+        choices=[e.value for e in LimitScope],
+        required=True,
+        help="Scope of the limit (GLOBAL, MODEL, USER, CALLER)",
+    )
+    set_parser.add_argument(
+        "--limit-type",
+        type=str,
+        choices=[e.value for e in LimitType],
+        required=True,
+        help="Type of the limit (requests, input_tokens, output_tokens, cost)",
+    )
+    set_parser.add_argument(
+        "--max-value", type=float, required=True, help="Maximum value for the limit"
+    )
+    set_parser.add_argument(
+        "--interval-unit",
+        type=str,
+        choices=[e.value for e in TimeInterval],
+        required=True,
+        help="Unit of the time interval (second, minute, hour, day, week, monthly)",
+    )
+    set_parser.add_argument(
+        "--interval-value",
+        type=int,
+        required=True,
+        help="Value of the time interval (e.g., 1 for '1 day')",
+    )
+    set_parser.add_argument(
+        "--model", type=str, help="Model name for MODEL scope limits"
+    )
+    set_parser.add_argument(
+        "--username", type=str, help="Username for USER scope limits"
+    )
+    set_parser.add_argument(
+        "--caller-name", type=str, help="Caller name for CALLER scope limits"
+    )
+    set_parser.set_defaults(func=set_limit)
+
+    # List limits subparser
+    list_parser = limits_subparsers.add_parser("list", help="List all usage limits")
+    list_parser.set_defaults(func=list_limits)
+
+    # Delete limit subparser
+    delete_parser = limits_subparsers.add_parser("delete", help="Delete a usage limit")
+    delete_parser.add_argument(
+        "--id", type=int, required=True, help="ID of the limit to delete"
+    )
+    delete_parser.set_defaults(func=delete_limit)

@@ -498,7 +498,7 @@ class TestNeonBackend(unittest.TestCase):
 
         self.assertEqual(len(limits), 1)
         self.assertIsInstance(limits[0], UsageLimit)
-        self.assertEqual(limits[0].scope, LimitScope.USER)
+        self.assertEqual(limits[0].scope, LimitScope.USER.value)
         self.assertEqual(limits[0].model, 'gpt-4') # Check model_name mapping
         self.assertEqual(limits[0].username, 'test_user')
 
