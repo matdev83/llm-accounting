@@ -12,7 +12,7 @@ from .backends.mock_backend import MockBackend
 from .backends.sqlite import SQLiteBackend
 from .models.request import APIRequest
 from .services.quota_service import QuotaService
-from .audit_log import AuditLogger # Added import
+from .audit_log import AuditLogger  # Added import
 
 logger = logging.getLogger(__name__)
 
@@ -140,5 +140,5 @@ __all__ = [
     "SQLiteBackend",
     "MockBackend",
     "APIRequest",
-    "AuditLogger", # Added AuditLogger to __all__
+    "AuditLogger",  # Added AuditLogger to __all__
 ]

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Optional
+from typing import Optional, cast
 
 from sqlalchemy import Column, DateTime, Float, Integer, String
 from sqlalchemy.schema import UniqueConstraint
@@ -92,7 +92,7 @@ class UsageLimit(Base):
         return f"<UsageLimit(id={self.id}, scope='{self.scope}', type='{self.limit_type}', max_value={self.max_value})>"
 
     def time_delta(self) -> timedelta:
-        interval = int(self.interval_value)
+        interval = cast(int, self.interval_value)
         return {
             TimeInterval.SECOND.value: timedelta(seconds=interval),
             TimeInterval.MINUTE.value: timedelta(minutes=interval),
@@ -102,4 +102,4 @@ class UsageLimit(Base):
             TimeInterval.MONTH.value: NotImplementedError(
                 "TimeDelta for month is not supported. Use QuotaService.get_period_start instead."
             ),
-        }[self.interval_unit]
+        }[cast(str, self.interval_unit)]
