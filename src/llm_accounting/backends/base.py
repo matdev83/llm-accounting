@@ -112,12 +112,18 @@ class BaseBackend(ABC):
 
 
     @abstractmethod
-    def add_limit(self, limit: UsageLimit) -> None:
+    def add_limit(self, limit: UsageLimit) -> UsageLimit:
         """Add a new usage limit."""
         pass
 
     @abstractmethod
-    def get_limits(self) -> List[UsageLimit]:
+    def get_limits(
+        self,
+        scope: Optional[LimitScope] = None,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None
+    ) -> List[UsageLimit]:
         """Get all defined usage limits."""
         pass
 

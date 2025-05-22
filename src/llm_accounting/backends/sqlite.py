@@ -8,6 +8,7 @@ from llm_accounting.models.limits import UsageLimit
 from llm_accounting.models.request import APIRequest
 
 from .base import BaseBackend, LimitScope, LimitType, UsageEntry, UsageStats
+from ..models.limits import TimeInterval
 from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
                              get_period_stats_query, insert_usage_query,
                              tail_query)
@@ -84,19 +85,19 @@ class SQLiteBackend(BaseBackend):
         self.conn.execute("DELETE FROM accounting_entries")
         self.conn.commit()
 
-    def add_limit(self, limit: UsageLimit) -> None:
-        """Add a new usage limit entry into the database."""
+    def add_limit(self, limit: UsageLimit) -> UsageLimit:
+        """Add a new usage limit entry into the database and return the complete object."""
         assert self.conn is not None
-        self.conn.execute(
+        cursor = self.conn.execute(
             """
             INSERT INTO usage_limits (scope, limit_type, max_value, interval_unit, interval_value, model, username, caller_name, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
             """,
             (
-                limit.scope,
-                limit.limit_type,
+                str(limit.scope.value if isinstance(limit.scope, LimitScope) else limit.scope),
+                str(limit.limit_type.value if isinstance(limit.limit_type, LimitType) else limit.limit_type),
                 limit.max_value,
-                limit.interval_unit,
+                str(limit.interval_unit.value if isinstance(limit.interval_unit, TimeInterval) else limit.interval_unit),
                 limit.interval_value,
                 limit.model,
                 limit.username,
@@ -104,6 +105,14 @@ class SQLiteBackend(BaseBackend):
             ),
         )
         self.conn.commit()
+        new_id = cursor.lastrowid
+        if new_id is None:
+            raise RuntimeError("Failed to get limit ID after insertion")
+        # Retrieve the newly inserted limit to get its ID and timestamps
+        new_limit = self.get_limit(new_id)
+        if not new_limit:
+            raise RuntimeError("Failed to retrieve newly added limit.")
+        return new_limit
 
     def get_limit(self, limit_id: int) -> Optional[UsageLimit]:
         """Get a single usage limit by ID."""
@@ -130,13 +139,36 @@ class SQLiteBackend(BaseBackend):
             updated_at=datetime.fromisoformat(row[10]) if row[10] else None,
         )
 
-    def get_limits(self) -> List[UsageLimit]:
+    def get_limits(
+        self,
+        scope: Optional[LimitScope] = None,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None,
+        limit_type: Optional[LimitType] = None
+    ) -> List[UsageLimit]:
         """Get all defined usage limits."""
         assert self.conn is not None
-        cursor = self.conn.execute(
-            "SELECT id, scope, limit_type, model, username, caller_name, max_value, interval_unit, interval_value, created_at, updated_at "
-            "FROM usage_limits"
-        )
+        query = "SELECT id, scope, limit_type, model, username, caller_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits WHERE 1=1"
+        params = []
+
+        if scope:
+            query += " AND scope = ?"
+            params.append(scope.value)
+        if model:
+            query += " AND model = ?"
+            params.append(model)
+        if username:
+            query += " AND username = ?"
+            params.append(username)
+        if caller_name:
+            query += " AND caller_name = ?"
+            params.append(caller_name)
+        if limit_type:
+            query += " AND limit_type = ?"
+            params.append(limit_type.value)
+
+        cursor = self.conn.execute(query, params)
         return [
             UsageLimit(
                 id=row[0],

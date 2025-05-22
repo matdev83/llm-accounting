@@ -28,16 +28,17 @@ def accounting_instance(sqlite_backend_for_accounting):
 
 
 def test_model_limit_priority(accounting_instance, sqlite_backend_for_accounting):
-    sqlite_backend_for_accounting.insert_usage_limit(
+    sqlite_backend_for_accounting.add_limit(
         UsageLimit(
-            scope=LimitScope.GLOBAL.value,
-            limit_type=LimitType.REQUESTS.value,
-            max_value=100,
-            interval_unit=TimeInterval.MINUTE.value,
+                scope=LimitScope.MODEL.value,
+                model="gpt-4",
+                limit_type=LimitType.COST.value,
+            max_value=10,
+            interval_unit=TimeInterval.DAY.value,
             interval_value=1
         )
     )
-    sqlite_backend_for_accounting.insert_usage_limit(
+    sqlite_backend_for_accounting.add_limit(
         UsageLimit(
             scope=LimitScope.MODEL.value,
             model="gpt-4",

@@ -20,7 +20,7 @@ def test_select_syntax_error(mock_get_accounting, test_db, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             cli_main()
 
-    assert pytest_wrapped_e.type == SystemExit
-    assert pytest_wrapped_e.value.code == 1
-    captured = capsys.readouterr()
-    assert "no such column: invalid_syntax" in captured.out.lower()
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 1
+        captured = capsys.readouterr()
+        assert "Error: Arbitrary SQL queries are no longer supported for security reasons" in captured.out

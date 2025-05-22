@@ -161,14 +161,36 @@ class LLMAccounting:
         )
         self.backend.add_limit(limit)  # type: ignore[attr-defined]
         # Refresh the instance to get database-generated timestamps
-        if isinstance(self.backend, SQLiteBackend):
-            cast(SQLiteBackend, self.backend).session.refresh(limit)  # type: ignore[attr-defined]
-        else:
-            # Fallback for backends that don't support direct session access
-            refreshed_limit = self.backend.get_limit(limit.id)  # type: ignore[attr-defined]
-            if refreshed_limit:
+        # Refresh the limit object with database-generated timestamps/IDs
+        # This assumes the backend's add_limit method handles ID assignment
+        # and that get_limits can retrieve by ID.
+        # If the backend doesn't support retrieving by ID, this might need
+        # a different approach or be removed if timestamps aren't critical
+        # immediately after adding.
+        refreshed_limits = self.backend.get_limits(
+            scope=LimitScope(limit.scope),
+            model=limit.model,
+            username=limit.username,
+            caller_name=limit.caller_name,
+        )
+        # Find the newly added limit (assuming it's unique based on its properties)
+        # This is a simplified approach; a more robust solution might involve
+        # the backend returning the full UsageLimit object with its ID after insertion.
+        for refreshed_limit in refreshed_limits:
+            if (
+                refreshed_limit.scope == limit.scope
+                and refreshed_limit.limit_type == limit.limit_type
+                and refreshed_limit.max_value == limit.max_value
+                and refreshed_limit.interval_unit == limit.interval_unit
+                and refreshed_limit.interval_value == limit.interval_value
+                and refreshed_limit.model == limit.model
+                and refreshed_limit.username == limit.username
+                and refreshed_limit.caller_name == limit.caller_name
+            ):
+                limit.id = refreshed_limit.id
                 limit.created_at = refreshed_limit.created_at
                 limit.updated_at = refreshed_limit.updated_at
+                break
 
     def get_limits(self) -> List[UsageLimit]:
         """Get all defined usage limits."""

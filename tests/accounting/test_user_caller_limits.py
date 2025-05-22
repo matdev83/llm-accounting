@@ -28,16 +28,16 @@ def accounting_instance(sqlite_backend_for_accounting):
 
 
 def test_user_caller_combination(accounting_instance, sqlite_backend_for_accounting):
-    sqlite_backend_for_accounting.insert_usage_limit(
-        UsageLimit(
-            scope=LimitScope.CALLER.value,
-            username="user1",
-            caller_name="app1",
-            limit_type=LimitType.REQUESTS.value,
-            max_value=3,
-            interval_unit=TimeInterval.DAY.value,
-            interval_value=1
-        )
+    sqlite_backend_for_accounting.add_limit(
+            UsageLimit(
+                scope=LimitScope.CALLER,
+                username="user1",
+                caller_name="app1",
+                limit_type=LimitType.REQUESTS,
+                max_value=3,
+                interval_unit=TimeInterval.DAY,
+                interval_value=1
+            )
     )
 
     # Make 3 allowed requests
