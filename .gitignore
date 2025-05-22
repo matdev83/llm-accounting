@@ -45,4 +45,6 @@ build/
 
 # Custom
 data/
+.clinerules/
+htmlcov/
 logs/
