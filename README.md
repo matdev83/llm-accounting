@@ -1,6 +1,8 @@
 # LLM Accounting
 
-A Python package for tracking and analyzing LLM usage across different models and applications.
+A Python package for tracking and analyzing LLM usage across different models and applications. It is primarily designed as a library for integration into development process of LLM-based agentic workflow tooling, providing robust tracking capabilities. While its main use is as a library, it also provides a powerful CLI for scripting and batch workloads.
+
+**Keywords**: LLM, accounting, usage tracking, cost management, token counting, agentic workflows, AI, Python
 
 ## Features
 
@@ -27,11 +29,6 @@ For specific database backends, install the corresponding optional dependencies:
 # For SQLite (default)
 pip install llm-accounting[sqlite]
 
-# For MySQL
-pip install llm-accounting[mysql]
-
-# For PostgreSQL
-pip install llm-accounting[postgresql]
 ```
 
 ## Usage
@@ -135,47 +132,6 @@ llm-accounting track \
 llm-accounting stats --daily
 ```
 
-## Usage Limits and Quotas
-
-The limits system allows configuring various usage constraints through a YAML configuration file (`limits.yaml`):
-
-```yaml
-# Global daily token limit
-global:
-  daily_tokens: 100000
-
-# Per-model limits
-models:
-  gpt-4:
-    hourly_requests: 50
-    daily_tokens: 50000
-  claude-2:
-    concurrent_requests: 5
-
-# User-specific limits  
-users:
-  john_doe:
-    daily_requests: 200
-```
-
-CLI commands for managing limits:
-```bash
-# Check current usage against limits
-llm-accounting limits check
-
-# View limit configurations
-llm-accounting limits show
-
-# Force reset limits (admin only)
-llm-accounting limits reset --model gpt-4
-llm-accounting limits reset --user john_doe
-
-# Example combining multiple limits
-llm-accounting limits set \
-  --global daily_tokens=150000 \
-  --model gpt-4 hourly_requests=75 \
-  --user jane_doe daily_requests=300
-```
 
 ## Database Schema
 
@@ -210,37 +166,6 @@ backend = SQLiteBackend(db_path='path/to/database.sqlite')
 accounting = LLMAccounting(backend=backend)
 ```
 
-### MySQL
-
-```python
-from llm_accounting import LLMAccounting
-from llm_accounting.backends.mysql import MySQLBackend
-
-backend = MySQLBackend(
-    host='localhost',
-    port=3306,
-    user='user',
-    password='password',
-    database='llm_accounting'
-)
-accounting = LLMAccounting(backend=backend)
-```
-
-### PostgreSQL
-
-```python
-from llm_accounting import LLMAccounting
-from llm_accounting.backends.postgresql import PostgreSQLBackend
-
-backend = PostgreSQLBackend(
-    host='localhost',
-    port=5432,
-    user='user',
-    password='password',
-    database='llm_accounting'
-)
-accounting = LLMAccounting(backend=backend)
-```
 
 ### Custom Backend Implementation
 
@@ -326,6 +251,10 @@ Here's how you can implement your own custom backend, using the `MockBackend` as
     ```
 
 By following this pattern, you can extend `llm-accounting` to work seamlessly with virtually any data storage solution, providing maximum flexibility for your application's needs.
+
+## Projects Utilizing LLM Accounting
+
+We will be adding examples of projects that utilize `llm-accounting` in the nearest future to demonstrate reference usage.
 
 ## Contributing
 
