@@ -1,2 +1,0 @@
-*Please stop executing current task. User text below overrides all previous instructions*
-We are running out of context. Please generate precise instructions for yourself  to resume work on this taks in a new session from where we ended. Include all the necessary information to reproduce the situation and what remains to be done.

@@ -1,9 +1,0 @@
-.pytest_cache
-.ruff_cache
-htmlcov/
-__pycache__/
-__pycache__
-.coverage
-src/__pycache__/
-tests/__pycache__/
-run_tests_individually.py
