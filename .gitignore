@@ -48,3 +48,4 @@ data/
 .clinerules/
 htmlcov/
 logs/
+.ruff_cache/
