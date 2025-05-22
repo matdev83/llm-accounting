@@ -10,12 +10,13 @@ A Python package for tracking and analyzing LLM usage across different models an
 - Record token counts (prompt, completion, total)
 - Track costs and execution times
 - Support for local token counting
-- Pluggable backend system (SQLite included, Neon/PostgreSQL example)
+- Pluggable backend system (SQLite included, Neon/PostgreSQL fully supported)
 - CLI interface for viewing and tracking usage statistics
 - Support for tracking caller application and username
 - Automatic database schema migration (for supported backends)
 - Strict model name validation
 - Automatic timestamp handling
+- Comprehensive audit logging for all LLM interactions
 
 ## Installation
 
@@ -103,6 +104,27 @@ llm-accounting purge
 
 # Execute custom SQL queries (if backend supports it and it's enabled)
 # llm-accounting select --query "SELECT model, COUNT(*) as count FROM accounting_entries GROUP BY model"
+
+### Database Backend Selection via CLI
+
+You can specify the database backend directly via the CLI using the `--db-backend` option. This allows you to switch between `sqlite` (default) and `neon` without modifying code.
+
+```bash
+# Use SQLite backend (default behavior, --db-backend can be omitted)
+llm-accounting --db-backend sqlite --db-file my_sqlite_db.sqlite stats --daily
+
+# Use Neon backend
+# Requires NEON_CONNECTION_STRING environment variable to be set, or provide it directly
+llm-accounting --db-backend neon --neon-connection-string "postgresql://user:pass@host.neon.tech/dbname?sslmode=require" stats --daily
+
+# Example: Track usage with Neon backend
+llm-accounting --db-backend neon \
+    --neon-connection-string "postgresql://user:pass@host.neon.tech/dbname?sslmode=require" \
+    track \
+    --model gpt-4 \
+    --prompt-tokens 10 \
+    --cost 0.0001
+```
 ```
 
 ### Shell Script Integration

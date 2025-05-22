@@ -3,6 +3,7 @@ from rich.console import Console
 from llm_accounting import LLMAccounting
 
 from ..backends.sqlite import SQLiteBackend
+from ..backends.neon import NeonBackend
 
 console = Console()
 
@@ -22,11 +23,23 @@ def format_tokens(value: int) -> str:
     return f"{value:,}" if value else "0"
 
 
-def get_accounting(db_file=None):
-    """Get an LLMAccounting instance with SQLite backend"""
-    backend = SQLiteBackend(db_path=db_file)
+def get_accounting(db_backend: str, db_file: str = None, neon_connection_string: str = None):
+    """Get an LLMAccounting instance with the specified backend"""
+    if db_backend == "sqlite":
+        if not db_file:
+            console.print("[red]Error: --db-file is required for sqlite backend.[/red]")
+            raise SystemExit(1)
+        backend = SQLiteBackend(db_path=db_file)
+    elif db_backend == "neon":
+        if not neon_connection_string:
+            console.print("[red]Error: --neon-connection-string is required for neon backend.[/red]")
+            raise SystemExit(1)
+        backend = NeonBackend(neon_connection_string=neon_connection_string)
+    else:
+        console.print(f"[red]Error: Unknown database backend '{db_backend}'.[/red]")
+        raise SystemExit(1)
+
     acc = LLMAccounting(backend=backend)
-    # The context manager will handle __enter__ and __exit__
     return acc
 
 
