@@ -5,15 +5,14 @@ and rate limits across multiple services.
 """
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, cast
+from typing import Dict, List, Optional, Tuple
 
 from .backends.base import BaseBackend, UsageEntry, UsageStats
 from .backends.mock_backend import MockBackend
 from .backends.sqlite import SQLiteBackend
-from .models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
 from .models.request import APIRequest
 from .services.quota_service import QuotaService
-from .audit_log import AuditLogger  # Added import
+from .audit_log import AuditLogger
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ class LLMAccounting:
     def __init__(self, backend: Optional[BaseBackend] = None):
         """Initialize with an optional backend. If none provided, uses SQLiteBackend."""
         self.backend = backend or SQLiteBackend()
-        self.quota_service = QuotaService(cast(BaseBackend, self.backend))
+        self.quota_service = QuotaService(self.backend)
 
     def __enter__(self):
         """Initialize the backend when entering context"""
@@ -38,8 +37,7 @@ class LLMAccounting:
         self.backend.close()
         if exc_type:
             logger.error(
-                "LLMAccounting context exited with exception: "
-                f"{exc_type.__name__}: {exc_val}"
+                f"LLMAccounting context exited with exception: {exc_type.__name__}: {exc_val}"
             )
 
     def track_usage(
@@ -83,16 +81,10 @@ class LLMAccounting:
             model=model,
             username=username,
             caller_name=caller_name,
-            input_tokens=(
-                prompt_tokens if prompt_tokens is not None else 0
-            ),
-            output_tokens=(
-                completion_tokens if completion_tokens is not None else 0
-            ),
+            input_tokens=prompt_tokens if prompt_tokens is not None else 0,
+            output_tokens=completion_tokens if completion_tokens is not None else 0,
             cost=cost,
-            timestamp=(
-                timestamp if timestamp is not None else datetime.now()
-            ),
+            timestamp=timestamp if timestamp is not None else datetime.now(),
         )
         self.insert_api_request(api_request_entry)
 
@@ -101,29 +93,29 @@ class LLMAccounting:
         # This method will need to be implemented in the backend
         # For now, we'll assume the backend has a method for this
         # This will be added to BaseBackend and SQLiteBackend next
-        self.backend.insert_api_request(request)  # type: ignore[override]
+        self.backend.insert_api_request(request)
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """Get aggregated statistics for a time period"""
-        return cast(UsageStats, self.backend.get_period_stats(start, end))
+        return self.backend.get_period_stats(start, end)
 
-    def get_model_stats(self, start: datetime, end: datetime) -> Dict[str, UsageStats]:
+    def get_model_stats(self, start: datetime, end: datetime):
         """Get statistics grouped by model for a time period"""
-        return self.backend.get_model_stats(start, end)  # type: ignore[no-any-return]
+        return self.backend.get_model_stats(start, end)
 
     def get_model_rankings(
         self, start_date: datetime, end_date: datetime
     ) -> Dict[str, List[Tuple[str, float]]]:
         """Get model rankings based on different metrics"""
-        return self.backend.get_model_rankings(start_date, end_date)  # type: ignore[no-any-return]
+        return self.backend.get_model_rankings(start_date, end_date)
 
     def purge(self) -> None:
         """Delete all usage entries from the backend"""
-        self.backend.purge()  # type: ignore[attr-defined]
+        self.backend.purge()
 
     def tail(self, n: int = 10) -> List[UsageEntry]:
         """Get the n most recent usage entries"""
-        return self.backend.tail(n)  # type: ignore[no-any-return]
+        return self.backend.tail(n)
 
     def check_quota(
         self,
@@ -134,74 +126,12 @@ class LLMAccounting:
         cost: float = 0.0,
     ) -> Tuple[bool, Optional[str]]:
         """Check if the current request exceeds any defined quotas."""
-        return self.quota_service.check_quota(  # type: ignore[no-any-return]
+        return self.quota_service.check_quota(
             model, username, caller_name, input_tokens, cost
         )
 
-    def add_limit(
-        self,
-        scope: LimitScope,
-        limit_type: LimitType,
-        max_value: float,
-        interval_unit: TimeInterval,
-        interval_value: int,
-        model: Optional[str] = None,
-        username: Optional[str] = None,
-        caller_name: Optional[str] = None,
-    ) -> None:
-        """Add a new usage limit."""
-        limit = UsageLimit(
-            scope=scope.value,
-            limit_type=limit_type.value,
-            max_value=max_value,
-            interval_unit=interval_unit.value,
-            interval_value=interval_value,
-            model=model,
-            username=username,
-            caller_name=caller_name,
-        )
-        self.backend.add_limit(limit)  # type: ignore[attr-defined]
-        # Refresh the instance to get database-generated timestamps
-        # Refresh the limit object with database-generated timestamps/IDs
-        # This assumes the backend's add_limit method handles ID assignment
-        # and that get_limits can retrieve by ID.
-        # If the backend doesn't support retrieving by ID, this might need
-        # a different approach or be removed if timestamps aren't critical
-        # immediately after adding.
-        refreshed_limits = self.backend.get_limits(
-            scope=LimitScope(limit.scope),
-            model=limit.model,
-            username=limit.username,
-            caller_name=limit.caller_name,
-        )
-        # Find the newly added limit (assuming it's unique based on its properties)
-        # This is a simplified approach; a more robust solution might involve
-        # the backend returning the full UsageLimit object with its ID after insertion.
-        for refreshed_limit in refreshed_limits:
-            if (
-                refreshed_limit.scope == limit.scope
-                and refreshed_limit.limit_type == limit.limit_type
-                and refreshed_limit.max_value == limit.max_value
-                and refreshed_limit.interval_unit == limit.interval_unit
-                and refreshed_limit.interval_value == limit.interval_value
-                and refreshed_limit.model == limit.model
-                and refreshed_limit.username == limit.username
-                and refreshed_limit.caller_name == limit.caller_name
-            ):
-                limit.id = refreshed_limit.id
-                limit.created_at = refreshed_limit.created_at
-                limit.updated_at = refreshed_limit.updated_at
-                break
 
-    def get_limits(self) -> List[UsageLimit]:
-        """Get all defined usage limits."""
-        return self.backend.get_limits()  # type: ignore[no-any-return]
-
-    def delete_limit(self, limit_id: int) -> None:
-        """Delete a usage limit by its ID."""
-        return self.backend.delete_limit(limit_id)  # type: ignore[attr-defined]
-
-
+# Export commonly used classes
 __all__ = [
     "LLMAccounting",
     "BaseBackend",
@@ -210,8 +140,5 @@ __all__ = [
     "SQLiteBackend",
     "MockBackend",
     "APIRequest",
-    "UsageLimit",
-    "LimitScope",
-    "LimitType",
-    "TimeInterval",
+    "AuditLogger",
 ]

@@ -46,6 +46,4 @@ build/
 # Custom
 data/
 .clinerules/
-htmlcov/
-logs/
-.ruff_cache/
+.aider.conf.yml

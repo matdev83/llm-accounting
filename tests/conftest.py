@@ -47,8 +47,10 @@ def sqlite_backend(temp_db_path):
     logger.info(f"Initializing SQLiteBackend with db_path: {temp_db_path}")
     backend.initialize()
     logger.info(f"Initialized SQLiteBackend with db_path: {temp_db_path}")
-    yield backend
-    backend.close()
+    try:
+        yield backend
+    finally:
+        backend.close()
 
 
 @pytest.fixture

@@ -23,10 +23,11 @@ def test_select_basic_query(mock_get_accounting, test_db, capsys):
     ]
 
     with patch.object(sys, 'argv', ['cli_main', "select", "--query", "SELECT model, prompt_tokens, completion_tokens FROM accounting_entries WHERE username = 'user1'"]):
-        with pytest.raises(SystemExit) as pytest_wrapped_e:
-            cli_main()
-        
-        assert pytest_wrapped_e.type == SystemExit
-        assert pytest_wrapped_e.value.code == 1
-        captured = capsys.readouterr()
-        assert "Error: Arbitrary SQL queries are no longer supported for security reasons" in captured.out
+        cli_main()
+
+    captured = capsys.readouterr()
+    assert "gpt-4" in captured.out
+    assert "gpt-3.5" in captured.out
+    assert "100" in captured.out
+    assert "50" in captured.out
+    mock_accounting_instance.__exit__.assert_called_once()

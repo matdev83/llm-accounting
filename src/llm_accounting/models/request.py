@@ -10,6 +10,7 @@ from llm_accounting.models.base import Base
 
 class APIRequest(Base):
     __tablename__ = "api_requests"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     model = Column(String, nullable=False)

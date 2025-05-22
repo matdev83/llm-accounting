@@ -17,9 +17,8 @@ def test_select_no_results(mock_get_accounting, test_db, capsys):
     mock_accounting_instance.backend.execute_query.return_value = []
 
     with patch.object(sys, 'argv', ['cli_main', "select", "--query", "SELECT * FROM accounting_entries WHERE username = 'nonexistent'"]):
-        with pytest.raises(SystemExit):
-            cli_main()
+        cli_main()
 
     captured = capsys.readouterr()
-    assert "Error: Arbitrary SQL queries are no longer supported for security reasons" in captured.out
+    assert "No results found" in captured.out
     mock_accounting_instance.__exit__.assert_called_once()

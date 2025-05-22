@@ -19,9 +19,10 @@ def test_select_output_formatting(mock_get_accounting, test_db, capsys):
     ]
 
     with patch.object(sys, 'argv', ['cli_main', "select", "--query", "SELECT model, username FROM accounting_entries LIMIT 1"]):
-        with pytest.raises(SystemExit):
-            cli_main()
-        
+        cli_main()
+
     captured = capsys.readouterr()
-    assert "Error: Arbitrary SQL queries are no longer supported for security reasons" in captured.out
+    assert "┌───────┬──────────┐" in captured.out  # Table borders
+    assert "│ model │ username │" in captured.out  # Header
+    assert "│ gpt-4 │ user1    │" in captured.out  # First row
     mock_accounting_instance.__exit__.assert_called_once()

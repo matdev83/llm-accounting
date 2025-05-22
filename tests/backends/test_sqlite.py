@@ -32,8 +32,6 @@ def test_initialize(sqlite_backend):
         }
         assert required_columns.issubset(columns)
 
-    # The backend is closed by the fixture teardown
-
 
 def test_insert_usage(sqlite_backend):
     """Test inserting usage entries"""
@@ -63,8 +61,6 @@ def test_insert_usage(sqlite_backend):
         assert row[5] == 150  # total_tokens
         assert row[9] == 0.002  # cost
         assert row[10] == 1.5  # execution_time
-
-    # The backend is closed by the fixture teardown
 
 
 def test_get_period_stats(sqlite_backend):
@@ -290,8 +286,6 @@ def test_purge(sqlite_backend):
         count = row[0] if row else 0
         assert count == 0
 
-    # The backend is closed by the fixture teardown
-
 
 def test_purge_empty_database(sqlite_backend):
     """Test purging an empty database"""
@@ -313,5 +307,3 @@ def test_purge_empty_database(sqlite_backend):
         row = cursor.fetchone()
         count = row[0] if row else 0
         assert count == 0
-
-    # The backend is closed by the fixture teardown

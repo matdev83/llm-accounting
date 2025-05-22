@@ -34,13 +34,11 @@ class MockBackend(BaseBackend):
     def close(self) -> None:
         pass
 
-    def add_limit(self, limit: UsageLimit) -> UsageLimit:
-        # In a mock, we can just return the limit itself, or a modified version
-        # if we want to simulate ID assignment or timestamp updates.
-        # For simplicity, we'll just return the input limit for now.
-        return limit
+    def execute_query(self, query: str) -> List[Dict[str, Any]]:
+        """Mock implementation of execute_query"""
+        return [{}]  # Return list of empty dicts to match SQLite format
 
-    def get_limits(
+    def get_usage_limits(
         self,
         scope: Optional[LimitScope] = None,
         model: Optional[str] = None,
@@ -48,9 +46,6 @@ class MockBackend(BaseBackend):
         caller_name: Optional[str] = None
     ) -> List[UsageLimit]:
         return []
-
-    def delete_limit(self, limit_id: int) -> None:
-        pass
 
     def get_api_requests_for_quota(
         self,
@@ -63,6 +58,9 @@ class MockBackend(BaseBackend):
         return 0.0
 
     def insert_api_request(self, request: APIRequest) -> None:
+        pass
+
+    def insert_usage_limit(self, limit: UsageLimit) -> None:
         pass
 
 

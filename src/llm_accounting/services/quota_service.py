@@ -41,7 +41,7 @@ class QuotaService:
         input_tokens: int,
         cost: float,
     ) -> Tuple[bool, Optional[str]]:
-        limits = self.db.get_limits(scope=LimitScope.GLOBAL)
+        limits = self.db.get_usage_limits(scope=LimitScope.GLOBAL)
         return self._evaluate_limits(
             limits, model, username, caller_name, input_tokens, cost
         )
@@ -54,7 +54,7 @@ class QuotaService:
         input_tokens: int,
         cost: float,
     ) -> Tuple[bool, Optional[str]]:
-        limits = self.db.get_limits(scope=LimitScope.MODEL, model=model)
+        limits = self.db.get_usage_limits(scope=LimitScope.MODEL, model=model)
         return self._evaluate_limits(limits, model, None, None, input_tokens, cost)
 
     def _check_user_limits(
@@ -65,7 +65,7 @@ class QuotaService:
         input_tokens: int,
         cost: float,
     ) -> Tuple[bool, Optional[str]]:
-        limits = self.db.get_limits(scope=LimitScope.USER, username=username)
+        limits = self.db.get_usage_limits(scope=LimitScope.USER, username=username)
         return self._evaluate_limits(
             limits, model, username, caller_name, input_tokens, cost
         )
@@ -78,7 +78,7 @@ class QuotaService:
         input_tokens: int,
         cost: float,
     ) -> Tuple[bool, Optional[str]]:
-        limits = self.db.get_limits(
+        limits = self.db.get_usage_limits(
             scope=LimitScope.CALLER, caller_name=caller_name
         )
         return self._evaluate_limits(
@@ -93,11 +93,8 @@ class QuotaService:
         input_tokens: int,
         cost: float,
     ) -> Tuple[bool, Optional[str]]:
-        # Get limits that are specifically for this user-caller combination
-        limits = self.db.get_limits(
-            scope=LimitScope.CALLER,
-            username=username,
-            caller_name=caller_name
+        limits = self.db.get_usage_limits(
+            scope=LimitScope.CALLER, username=username, caller_name=caller_name
         )
         return self._evaluate_limits(
             limits, model, username, caller_name, input_tokens, cost

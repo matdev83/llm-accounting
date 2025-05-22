@@ -28,7 +28,7 @@ def accounting_instance(sqlite_backend_for_accounting):
 
 
 def test_multiple_limit_types(accounting_instance, sqlite_backend_for_accounting):
-    sqlite_backend_for_accounting.add_limit(
+    sqlite_backend_for_accounting.insert_usage_limit(
         UsageLimit(
             scope=LimitScope.USER.value,
             username="user2",
@@ -38,7 +38,7 @@ def test_multiple_limit_types(accounting_instance, sqlite_backend_for_accounting
             interval_value=1
         )
     )
-    sqlite_backend_for_accounting.add_limit(
+    sqlite_backend_for_accounting.insert_usage_limit(
         UsageLimit(
             scope=LimitScope.USER.value,
             username="user2",

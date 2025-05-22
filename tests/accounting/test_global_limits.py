@@ -29,11 +29,11 @@ def accounting_instance(sqlite_backend_for_accounting):
 
 def test_global_limit(accounting_instance, sqlite_backend_for_accounting):
     # Use the backend directly to add UsageLimit for setup
-    sqlite_backend_for_accounting.add_limit(UsageLimit(
-            scope=LimitScope.GLOBAL.value,
-            limit_type=LimitType.REQUESTS.value,
-            max_value=10,
-            interval_unit=TimeInterval.MINUTE.value,
+    sqlite_backend_for_accounting.insert_usage_limit(UsageLimit(
+        scope=LimitScope.GLOBAL.value,
+        limit_type=LimitType.REQUESTS.value,
+        max_value=10,
+        interval_unit=TimeInterval.MINUTE.value,
         interval_value=1
     ))
 

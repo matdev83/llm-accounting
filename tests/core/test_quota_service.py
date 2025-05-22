@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from llm_accounting.models.base import Base
+from llm_accounting.models import Base
 from llm_accounting.models.limits import (LimitScope, LimitType, TimeInterval,
                                           UsageLimit)
 from llm_accounting.services.quota_service import QuotaService
@@ -14,7 +14,7 @@ from llm_accounting.services.quota_service import QuotaService
 def db_session():
     engine = create_engine("sqlite:///:memory:")
     Session = sessionmaker(bind=engine)
-    from llm_accounting.models.base import Base
+    from llm_accounting.models import Base
     Base.metadata.create_all(engine)
     session = Session()
     yield session
