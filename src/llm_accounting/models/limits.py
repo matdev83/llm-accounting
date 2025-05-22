@@ -2,7 +2,8 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
-from sqlalchemy import Column, DateTime, Float, Integer, String
+from sqlalchemy import Column, DateTime, Float, Integer, String, func
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.schema import UniqueConstraint
 
 from llm_accounting.models.base import Base
@@ -45,48 +46,19 @@ class UsageLimit(Base):
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    scope = Column(String, nullable=False)
-    limit_type = Column(String, nullable=False)
-    max_value = Column(Float, nullable=False)
-    interval_unit = Column(String, nullable=False)
-    interval_value = Column(Integer, nullable=False)
-    model = Column(String, nullable=True)
-    username = Column(String, nullable=True)
-    caller_name = Column(String, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    scope: Mapped[str] = mapped_column(String, nullable=False)
+    limit_type: Mapped[str] = mapped_column(String, nullable=False)
+    max_value: Mapped[float] = mapped_column(Float, nullable=False)
+    interval_unit: Mapped[str] = mapped_column(String, nullable=False)
+    interval_value: Mapped[int] = mapped_column(Integer, nullable=False)
+    model: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    username: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    caller_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
-    def __init__(
-        self,
-        scope: str,
-        limit_type: str,
-        max_value: float,
-        interval_unit: str,
-        interval_value: int,
-        model: Optional[str] = None,
-        username: Optional[str] = None,
-        caller_name: Optional[str] = None,
-        id: Optional[int] = None,
-        created_at: Optional[datetime] = None,
-        updated_at: Optional[datetime] = None,
-    ):
-        self.scope = scope
-        self.limit_type = limit_type
-        self.max_value = max_value
-        self.interval_unit = interval_unit
-        self.interval_value = interval_value
-        self.model = model
-        self.username = username
-        self.caller_name = caller_name
-        self.id = id
-        self.created_at = (
-            created_at if created_at is not None else datetime.now(timezone.utc)
-        )
-        self.updated_at = (
-            updated_at if updated_at is not None else datetime.now(timezone.utc)
-        )
 
     def __repr__(self):
         return f"<UsageLimit(id={self.id}, scope='{self.scope}', type='{self.limit_type}', max_value={self.max_value})>"

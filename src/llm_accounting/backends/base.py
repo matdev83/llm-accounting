@@ -110,20 +110,20 @@ class BaseBackend(ABC):
         """Close any open connections"""
         pass
 
+
     @abstractmethod
-    def execute_query(self, query: str) -> list[dict]:
-        """Execute a raw SQL SELECT query and return results"""
+    def add_limit(self, limit: UsageLimit) -> None:
+        """Add a new usage limit."""
         pass
 
     @abstractmethod
-    def get_usage_limits(
-        self,
-        scope: Optional[LimitScope] = None,
-        model: Optional[str] = None,
-        username: Optional[str] = None,
-        caller_name: Optional[str] = None,
-    ) -> List[UsageLimit]:
-        """Retrieve usage limits based on specified filters."""
+    def get_limits(self) -> List[UsageLimit]:
+        """Get all defined usage limits."""
+        pass
+
+    @abstractmethod
+    def delete_limit(self, limit_id: int) -> None:
+        """Delete a usage limit by its ID."""
         pass
 
     @abstractmethod
@@ -145,9 +145,4 @@ class BaseBackend(ABC):
     @abstractmethod
     def insert_api_request(self, request: APIRequest) -> None:
         """Insert a new API request entry for quota tracking."""
-        pass
-
-    @abstractmethod
-    def insert_usage_limit(self, limit: UsageLimit) -> None:
-        """Insert a new usage limit entry."""
         pass
