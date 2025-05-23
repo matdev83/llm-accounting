@@ -133,6 +133,12 @@ class AuditLogger:
               remote_completion_id, 'response'))
         self.conn.commit()
 
+    def get_db_path(self) -> str:
+        """
+        Returns the database path of the AuditLogger.
+        """
+        return self.db_path
+
 # if __name__ == '__main__':
 #     # Example Usage
 #     default_db_file = "data/audit_log_main.sqlite"

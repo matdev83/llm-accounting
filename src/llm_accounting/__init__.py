@@ -162,6 +162,15 @@ class LLMAccounting:
         """Deletes a usage limit by its ID."""
         self.backend.delete_usage_limit(limit_id)
 
+    def get_db_path(self) -> Optional[str]:
+        """
+        Returns the database path if the backend is a SQLiteBackend.
+        Otherwise, returns None.
+        """
+        if isinstance(self.backend, SQLiteBackend):
+            return self.backend.db_path
+        return None
+
 
 # Export commonly used classes
 __all__ = [
