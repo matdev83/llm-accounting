@@ -64,7 +64,8 @@ class NeonBackend(BaseBackend):
                              or if schema creation fails.
         """
         try:
-            logger.info(f"Attempting to connect to Neon/PostgreSQL database using the provided connection string.")
+            logger.info("Attempting to connect to Neon/PostgreSQL database "
+                        "using the provided connection string.")
             # Establish the connection to the PostgreSQL database.
             self.conn = psycopg2.connect(self.connection_string)
             logger.info("Successfully connected to Neon/PostgreSQL database.")
@@ -74,7 +75,8 @@ class NeonBackend(BaseBackend):
             logger.error(f"Failed to connect to Neon/PostgreSQL database: {e}")
             self.conn = None # Ensure conn is None if connection failed
             # The original psycopg2.Error 'e' is included in the ConnectionError for more detailed debugging.
-            raise ConnectionError(f"Failed to connect to Neon/PostgreSQL database (see logs for details).") from e
+            raise ConnectionError("Failed to connect to Neon/PostgreSQL database "
+                                  "(see logs for details).") from e
         # No specific error handling for _create_schema_if_not_exists here, as it raises its own errors.
 
     def close(self) -> None:
@@ -110,6 +112,7 @@ class NeonBackend(BaseBackend):
         """
         try:
             self._ensure_connected()
+            assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
             # SQL DDL commands for creating tables.
             # These correspond to UsageEntry, and UsageLimit dataclasses.
@@ -183,6 +186,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         # SQL INSERT statement for accounting_entries table.
         # Uses %s placeholders for parameters to prevent SQL injection.
@@ -203,7 +207,8 @@ class NeonBackend(BaseBackend):
                     entry.caller_name, entry.username, entry.cached_tokens, entry.reasoning_tokens
                 ))
                 self.conn.commit()
-            logger.info(f"Successfully inserted usage entry for user '{entry.username}' and model '{entry.model}'.")
+            logger.info(f"Successfully inserted usage entry for user '{entry.username}' "
+                        f"and model '{entry.model}'.")
         except psycopg2.Error as e:
             logger.error(f"Error inserting usage entry: {e}")
             if self.conn and not self.conn.closed:
@@ -229,6 +234,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         # SQL INSERT statement for usage_limits table.
         # Enum values are accessed using `.value` for storage as strings.
@@ -247,7 +253,8 @@ class NeonBackend(BaseBackend):
                     limit.created_at or datetime.now(), limit.updated_at or datetime.now()
                 ))
                 self.conn.commit()
-            logger.info(f"Successfully inserted usage limit for scope '{limit.scope}' and type '{limit.limit_type}'.")
+            logger.info(f"Successfully inserted usage limit for scope '{limit.scope}' "
+                        f"and type '{limit.limit_type}'.")
         except psycopg2.Error as e:
             logger.error(f"Error inserting usage limit: {e}")
             if self.conn and not self.conn.closed:
@@ -272,6 +279,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         sql = "DELETE FROM usage_limits WHERE id = %s;"
         try:
@@ -314,6 +322,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         # SQL query to aggregate usage statistics.
         # COALESCE ensures that if SUM/AVG returns NULL (e.g., no rows), it's replaced with 0 or 0.0.
@@ -381,6 +390,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         # SQL query to aggregate usage statistics per model.
         # Groups by model_name and orders by model_name for consistent output.
@@ -448,6 +458,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         # Defines the metrics and their corresponding SQL aggregation functions.
         metrics = {
@@ -497,6 +508,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         # SQL query to select the last N entries.
         # Ordered by timestamp and then ID (as a secondary sort key for determinism if timestamps are identical).
@@ -559,6 +571,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         tables_to_purge = ["accounting_entries", "usage_limits"]
         try:
@@ -610,6 +623,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         base_query = "SELECT * FROM usage_limits"
         conditions = []
@@ -698,6 +712,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         # Determine the SQL aggregation function based on the limit_type.
         if limit_type == LimitType.REQUESTS:
@@ -768,6 +783,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         # Basic validation to allow only SELECT queries.
         if not query.lstrip().upper().startswith("SELECT"):
@@ -813,6 +829,7 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         query = "SELECT COALESCE(SUM(cost), 0.0) FROM accounting_entries WHERE username = %s"
         # Build query with optional date filters.
@@ -869,14 +886,17 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If an error occurs during the underlying `insert_usage_limit` call.
             Exception: For other unexpected errors.
         """
-        logger.info(f"Setting usage limit for user '{user_id}', amount {limit_amount}, type '{limit_type_str}'.")
+        logger.info(f"Setting usage limit for user '{user_id}', amount {limit_amount}, "
+                    f"type '{limit_type_str}'.")
         self._ensure_connected()
+        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
         try:
             # Convert the string representation of limit_type to the Enum member.
             limit_type_enum = LimitType(limit_type_str)
         except ValueError: # Raised if limit_type_str is not a valid LimitType value.
-            logger.error(f"Invalid limit_type string: {limit_type_str}. Must be one of {LimitType._member_names_}")
+            logger.error(f"Invalid limit_type string: {limit_type_str}. "
+                        f"Must be one of {LimitType._member_names_}")
             raise ValueError(f"Invalid limit_type string: {limit_type_str}")
 
         # Create a UsageLimit object with default scope (USER) and interval (MONTHLY).
@@ -896,7 +916,8 @@ class NeonBackend(BaseBackend):
         try:
             # Call the more general insert_usage_limit method.
             self.insert_usage_limit(usage_limit)
-            logger.info(f"Successfully set usage limit for user '{user_id}' via insert_usage_limit call.")
+            logger.info(f"Successfully set usage limit for user '{user_id}' "
+                        f"via insert_usage_limit call.")
         except psycopg2.Error as db_err:
             logger.error(f"Database error setting usage limit for user '{user_id}': {db_err}")
             raise # Re-raise to allow higher-level handling.
