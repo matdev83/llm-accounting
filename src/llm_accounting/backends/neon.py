@@ -2,15 +2,23 @@ import logging
 import os
 import psycopg2
 import psycopg2.extras # For RealDictCursor
+import psycopg2.extensions # For connection type
 from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
 
 from .base import BaseBackend, UsageEntry, UsageStats # Updated import for UsageEntry and UsageStats
 from ..models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
 
+from .neon_backend_parts.connection_manager import ConnectionManager
+from .neon_backend_parts.schema_manager import SchemaManager
+from .neon_backend_parts.data_inserter import DataInserter
+from .neon_backend_parts.data_deleter import DataDeleter
+from .neon_backend_parts.query_executor import QueryExecutor
+
 logger = logging.getLogger(__name__)
 
 class NeonBackend(BaseBackend):
+    conn: Optional[psycopg2.extensions.connection] = None
     """
     A backend for llm-accounting that uses a PostgreSQL database, specifically
     tailored for Neon serverless Postgres but compatible with standard PostgreSQL instances.
@@ -55,544 +63,104 @@ class NeonBackend(BaseBackend):
         self.conn = None
         logger.info("NeonBackend initialized with connection string.")
 
+        # Initialize helper classes
+        self.connection_manager = ConnectionManager(self)
+        self.schema_manager = SchemaManager(self)
+        self.data_inserter = DataInserter(self)
+        self.data_deleter = DataDeleter(self)
+        self.query_executor = QueryExecutor(self)
+
     def initialize(self) -> None:
         """
         Connects to the Neon database and sets up the schema.
+        Delegates to ConnectionManager and SchemaManager.
 
         Raises:
-            ConnectionError: If the connection to the database fails during `psycopg2.connect`
-                             or if schema creation fails.
+            ConnectionError: If the connection to the database fails.
         """
-        try:
-            logger.info("Attempting to connect to Neon/PostgreSQL database "
-                        "using the provided connection string.")
-            # Establish the connection to the PostgreSQL database.
-            self.conn = psycopg2.connect(self.connection_string)
-            logger.info("Successfully connected to Neon/PostgreSQL database.")
-            # Ensure the necessary database schema (tables) exists.
-            self._create_schema_if_not_exists()
-        except psycopg2.Error as e:
-            logger.error(f"Failed to connect to Neon/PostgreSQL database: {e}")
-            self.conn = None # Ensure conn is None if connection failed
-            # The original psycopg2.Error 'e' is included in the ConnectionError for more detailed debugging.
-            raise ConnectionError("Failed to connect to Neon/PostgreSQL database "
-                                  "(see logs for details).") from e
-        # No specific error handling for _create_schema_if_not_exists here, as it raises its own errors.
+        self.connection_manager.initialize()
+        self.schema_manager._create_schema_if_not_exists()
 
     def close(self) -> None:
         """
         Closes the connection to the Neon database.
+        Delegates to ConnectionManager.
         """
-        if self.conn and not self.conn.closed:
-            self.conn.close()
-            logger.info("Closed connection to Neon database.")
-        else:
-            logger.info("Connection to Neon database was already closed or not established.")
-        self.conn = None
+        self.connection_manager.close()
 
     def _create_schema_if_not_exists(self) -> None:
         """
         Ensures the necessary database schema (tables) exists.
+        Delegates to SchemaManager.
         """
-        self._create_tables()
+        self.schema_manager._create_schema_if_not_exists()
 
     def _create_tables(self) -> None:
         """
         Creates the database tables (`accounting_entries`, `usage_limits`)
         if they do not already exist in the PostgreSQL database.
-
-        Uses `CREATE TABLE IF NOT EXISTS` to avoid errors if tables are already present.
-        The schema is designed to store usage data, and limits,
-        mapping directly to the `UsageEntry`, and `UsageLimit` dataclasses.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            psycopg2.Error: If any error occurs during DDL execution (and is re-raised).
-            Exception: For any other unexpected errors during table creation (and is re-raised).
+        Delegates to SchemaManager.
         """
-        try:
-            self._ensure_connected()
-            assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
-
-            # SQL DDL commands for creating tables.
-            # These correspond to UsageEntry, and UsageLimit dataclasses.
-            commands = (
-                """
-                CREATE TABLE IF NOT EXISTS accounting_entries (
-                    id SERIAL PRIMARY KEY, -- Auto-incrementing integer primary key
-                    model_name VARCHAR(255) NOT NULL,
-                    prompt_tokens INTEGER,
-                    completion_tokens INTEGER,
-                    total_tokens INTEGER,
-                    local_prompt_tokens INTEGER,
-                    local_completion_tokens INTEGER,
-                    local_total_tokens INTEGER,
-                    cost DOUBLE PRECISION NOT NULL,       -- Cost of the API call
-                    execution_time DOUBLE PRECISION,      -- Execution time in seconds
-                    timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- Timestamp of the entry
-                    caller_name VARCHAR(255),             -- Optional identifier for the calling function/module
-                    username VARCHAR(255),                -- Optional identifier for the user
-                    cached_tokens INTEGER,                -- Number of tokens retrieved from cache
-                    reasoning_tokens INTEGER              -- Number of tokens used for reasoning/tool use
-                )
-                """,
-                """
-                CREATE TABLE IF NOT EXISTS usage_limits (
-                    id SERIAL PRIMARY KEY,
-                    scope VARCHAR(50) NOT NULL,           -- e.g., 'USER', 'GLOBAL', 'MODEL' (maps to LimitScope enum)
-                    limit_type VARCHAR(50) NOT NULL,      -- e.g., 'COST', 'REQUESTS', 'TOKENS' (maps to LimitType enum)
-                    max_value DOUBLE PRECISION NOT NULL,  -- Maximum value for the limit
-                    interval_unit VARCHAR(50) NOT NULL,   -- e.g., 'HOURLY', 'DAILY', 'MONTHLY' (maps to LimitIntervalUnit enum)
-                    interval_value INTEGER NOT NULL,      -- Numerical value for the interval (e.g., 1 for monthly)
-                    model_name VARCHAR(255),              -- Specific model this limit applies to (optional)
-                    username VARCHAR(255),                -- Specific user this limit applies to (optional)
-                    caller_name VARCHAR(255),             -- Specific caller this limit applies to (optional)
-                    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                )
-                """
-            )
-            # A cursor is obtained to execute SQL commands.
-            # The `with` statement ensures the cursor is closed automatically.
-            with self.conn.cursor() as cur:
-                for command in commands:
-                    cur.execute(command)
-                self.conn.commit() # Commit the transaction to make table creations permanent.
-            logger.info("Database tables (accounting_entries, usage_limits) checked/created successfully.")
-        except ConnectionError as e:
-            logger.error(f"Connection error during table creation: {e}")
-            raise # Re-raise the connection error
-        except psycopg2.Error as e:
-            logger.error(f"Error during table creation: {e}")
-            if self.conn and not self.conn.closed: # Check if connection is still valid before rollback
-                self.conn.rollback() # Rollback transaction on any DDL error.
-            raise  # Re-raise the psycopg2.Error to allow higher-level handling.
-        except Exception as e: # Catch any other unexpected exceptions.
-            logger.error(f"An unexpected error occurred during table creation: {e}")
-            if self.conn and not self.conn.closed:
-                self.conn.rollback()
-            raise # Re-raise the unexpected exception.
+        self.schema_manager._create_tables()
 
     def insert_usage(self, entry: UsageEntry) -> None:
         """
         Inserts a usage entry into the accounting_entries table.
-
-        Args:
-            entry: A `UsageEntry` dataclass object containing the data to be inserted.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
-            Exception: For any other unexpected errors (and is re-raised).
+        Delegates to DataInserter.
         """
-        self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
-
-        # SQL INSERT statement for accounting_entries table.
-        # Uses %s placeholders for parameters to prevent SQL injection.
-        sql = """
-            INSERT INTO accounting_entries (
-                model_name, prompt_tokens, completion_tokens, total_tokens,
-                local_prompt_tokens, local_completion_tokens, local_total_tokens,
-                cost, execution_time, timestamp, caller_name, username,
-                cached_tokens, reasoning_tokens
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        try:
-            with self.conn.cursor() as cur:
-                cur.execute(sql, (
-                    entry.model, entry.prompt_tokens, entry.completion_tokens, entry.total_tokens,
-                    entry.local_prompt_tokens, entry.local_completion_tokens, entry.local_total_tokens,
-                    entry.cost, entry.execution_time, entry.timestamp or datetime.now(),
-                    entry.caller_name, entry.username, entry.cached_tokens, entry.reasoning_tokens
-                ))
-                self.conn.commit()
-            logger.info(f"Successfully inserted usage entry for user '{entry.username}' "
-                        f"and model '{entry.model}'.")
-        except psycopg2.Error as e:
-            logger.error(f"Error inserting usage entry: {e}")
-            if self.conn and not self.conn.closed:
-                self.conn.rollback()
-            raise
-        except Exception as e:
-            logger.error(f"An unexpected error occurred inserting usage entry: {e}")
-            if self.conn and not self.conn.closed:
-                self.conn.rollback()
-            raise
+        self.data_inserter.insert_usage(entry)
 
     def insert_usage_limit(self, limit: UsageLimit) -> None:
         """
         Inserts a usage limit into the usage_limits table.
-
-        Args:
-            limit: A `UsageLimit` dataclass object defining the limit to be inserted.
-                   Enum fields (scope, limit_type, interval_unit) are stored as their string values.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
-            Exception: For any other unexpected errors (and is re-raised).
+        Delegates to DataInserter.
         """
-        self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
-
-        # SQL INSERT statement for usage_limits table.
-        # Enum values are accessed using `.value` for storage as strings.
-        sql = """
-            INSERT INTO usage_limits (
-                scope, limit_type, max_value, interval_unit, interval_value,
-                model_name, username, caller_name, created_at, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        try:
-            with self.conn.cursor() as cur:
-                cur.execute(sql, (
-                    limit.scope, limit.limit_type, limit.max_value,
-                    limit.interval_unit, limit.interval_value,
-                    limit.model, limit.username, limit.caller_name,
-                    limit.created_at or datetime.now(), limit.updated_at or datetime.now()
-                ))
-                self.conn.commit()
-            logger.info(f"Successfully inserted usage limit for scope '{limit.scope}' "
-                        f"and type '{limit.limit_type}'.")
-        except psycopg2.Error as e:
-            logger.error(f"Error inserting usage limit: {e}")
-            if self.conn and not self.conn.closed:
-                self.conn.rollback()
-            raise
-        except Exception as e:
-            logger.error(f"An unexpected error occurred inserting usage limit: {e}")
-            if self.conn and not self.conn.closed:
-                self.conn.rollback()
-            raise
+        self.data_inserter.insert_usage_limit(limit)
 
     def delete_usage_limit(self, limit_id: int) -> None:
         """
         Deletes a usage limit entry by its ID from the usage_limits table.
-
-        Args:
-            limit_id: The ID of the usage limit to delete.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
-            Exception: For any other unexpected errors (and is re-raised).
+        Delegates to DataDeleter.
         """
-        self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
-
-        sql = "DELETE FROM usage_limits WHERE id = %s;"
-        try:
-            with self.conn.cursor() as cur:
-                cur.execute(sql, (limit_id,))
-                self.conn.commit()
-            logger.info(f"Successfully deleted usage limit with ID: {limit_id}.")
-        except psycopg2.Error as e:
-            logger.error(f"Error deleting usage limit: {e}")
-            if self.conn and not self.conn.closed:
-                self.conn.rollback()
-            raise
-        except Exception as e:
-            logger.error(f"An unexpected error occurred deleting usage limit: {e}")
-            if self.conn and not self.conn.closed:
-                self.conn.rollback()
-            raise
+        self.data_deleter.delete_usage_limit(limit_id)
 
     # --- Implemented methods as per subtask ---
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """
         Calculates aggregated usage statistics from `accounting_entries` for a given time period.
-
-        This method computes SUM and AVG for various token counts, cost, and execution time.
-        `COALESCE` is used to ensure that 0 or 0.0 is returned for aggregates if no data exists,
-        preventing `None` values in the `UsageStats` object.
-
-        Args:
-            start: The start `datetime` of the period (inclusive).
-            end: The end `datetime` of the period (inclusive).
-
-        Returns:
-            A `UsageStats` object containing the aggregated statistics. If no data is found
-            for the period, a `UsageStats` object with all values as 0 or 0.0 is returned.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
-            Exception: For any other unexpected errors (and is re-raised).
+        Delegates to QueryExecutor.
         """
-        self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
-
-        # SQL query to aggregate usage statistics.
-        # COALESCE ensures that if SUM/AVG returns NULL (e.g., no rows), it's replaced with 0 or 0.0.
-        query = """
-            SELECT
-                COALESCE(SUM(prompt_tokens), 0) AS sum_prompt_tokens,
-                COALESCE(AVG(prompt_tokens), 0.0) AS avg_prompt_tokens,
-                COALESCE(SUM(completion_tokens), 0) AS sum_completion_tokens,
-                COALESCE(AVG(completion_tokens), 0.0) AS avg_completion_tokens,
-                COALESCE(SUM(total_tokens), 0) AS sum_total_tokens,
-                COALESCE(AVG(total_tokens), 0.0) AS avg_total_tokens,
-                COALESCE(SUM(local_prompt_tokens), 0) AS sum_local_prompt_tokens,
-                COALESCE(AVG(local_prompt_tokens), 0.0) AS avg_local_prompt_tokens,
-                COALESCE(SUM(local_completion_tokens), 0) AS sum_local_completion_tokens,
-                COALESCE(AVG(local_completion_tokens), 0.0) AS avg_local_completion_tokens,
-                COALESCE(SUM(local_total_tokens), 0) AS sum_local_total_tokens,
-                COALESCE(AVG(local_total_tokens), 0.0) AS avg_local_total_tokens,
-                COALESCE(SUM(cost), 0.0) AS sum_cost,
-                COALESCE(AVG(cost), 0.0) AS avg_cost,
-                COALESCE(SUM(execution_time), 0.0) AS sum_execution_time,
-                COALESCE(AVG(execution_time), 0.0) AS avg_execution_time
-            FROM accounting_entries
-            WHERE timestamp >= %s AND timestamp <= %s; -- Filters entries within the specified date range.
-        """
-        try:
-            # Uses RealDictCursor to get rows as dictionaries, making it easy to unpack into UsageStats.
-            with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(query, (start, end))
-                row = cur.fetchone() # Fetches the single row of aggregated results.
-                if row:
-                    # Unpack dictionary directly into UsageStats dataclass.
-                    return UsageStats(**row)
-                else:
-                    # This case should ideally not be reached if COALESCE works as expected,
-                    # but serves as a fallback to return a default UsageStats object.
-                    logger.warning("get_period_stats query returned no row, returning empty UsageStats.")
-                    return UsageStats()
-        except psycopg2.Error as e:
-            logger.error(f"Error getting period stats: {e}")
-            raise # Re-raise to allow for higher-level error handling.
-        except Exception as e: # Catch any other unexpected exceptions.
-            logger.error(f"An unexpected error occurred getting period stats: {e}")
-            raise
+        return self.query_executor.get_period_stats(start, end)
 
     def get_model_stats(self, start: datetime, end: datetime) -> List[Tuple[str, UsageStats]]:
         """
         Calculates aggregated usage statistics for each model within a given time period.
-
-        Similar to `get_period_stats` but groups the results by `model_name`.
-        `COALESCE` is used for SUM/AVG aggregates to ensure 0 or 0.0 for models with no data,
-        or if no data is found for any model.
-
-        Args:
-            start: The start `datetime` of the period (inclusive).
-            end: The end `datetime` of the period (inclusive).
-
-        Returns:
-            A list of tuples, where each tuple contains the model name (str) and
-            a `UsageStats` object with its aggregated statistics. Returns an empty list
-            if no data is found.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
-            Exception: For any other unexpected errors (and is re-raised).
+        Delegates to QueryExecutor.
         """
-        self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
-
-        # SQL query to aggregate usage statistics per model.
-        # Groups by model_name and orders by model_name for consistent output.
-        query = """
-            SELECT
-                model_name,
-                COALESCE(SUM(prompt_tokens), 0) AS sum_prompt_tokens,
-                COALESCE(AVG(prompt_tokens), 0.0) AS avg_prompt_tokens,
-                COALESCE(SUM(completion_tokens), 0) AS sum_completion_tokens,
-                COALESCE(AVG(completion_tokens), 0.0) AS avg_completion_tokens,
-                COALESCE(SUM(total_tokens), 0) AS sum_total_tokens,
-                COALESCE(AVG(total_tokens), 0.0) AS avg_total_tokens,
-                COALESCE(SUM(local_prompt_tokens), 0) AS sum_local_prompt_tokens,
-                COALESCE(AVG(local_prompt_tokens), 0.0) AS avg_local_prompt_tokens,
-                COALESCE(SUM(local_completion_tokens), 0) AS sum_local_completion_tokens,
-                COALESCE(AVG(local_completion_tokens), 0.0) AS avg_local_completion_tokens,
-                COALESCE(SUM(local_total_tokens), 0) AS sum_local_total_tokens,
-                COALESCE(AVG(local_total_tokens), 0.0) AS avg_local_total_tokens,
-                COALESCE(SUM(cost), 0.0) AS sum_cost,
-                COALESCE(AVG(cost), 0.0) AS avg_cost,
-                COALESCE(SUM(execution_time), 0.0) AS sum_execution_time,
-                COALESCE(AVG(execution_time), 0.0) AS avg_execution_time
-            FROM accounting_entries
-            WHERE timestamp >= %s AND timestamp <= %s
-            GROUP BY model_name -- Aggregates per model.
-            ORDER BY model_name; -- Ensures consistent ordering.
-        """
-        results = []
-        try:
-            # Uses RealDictCursor for easy conversion to UsageStats.
-            with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(query, (start, end))
-                for row_dict in cur:
-                    model_name = row_dict.pop('model_name') # Extract model_name for the tuple.
-                    # Create UsageStats from the rest of the row dictionary.
-                    results.append((model_name, UsageStats(**row_dict)))
-            return results
-        except psycopg2.Error as e:
-            logger.error(f"Error getting model stats: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"An unexpected error occurred getting model stats: {e}")
-            raise
+        return self.query_executor.get_model_stats(start, end)
 
     def get_model_rankings(self, start: datetime, end: datetime) -> Dict[str, List[Tuple[str, Any]]]:
         """
         Ranks models based on various aggregated metrics (total tokens, cost, etc.)
         within a given time period.
-
-        For each metric, it queries the `accounting_entries` table, groups by `model_name`,
-        aggregates the metric, and orders in descending order of the aggregated value.
-
-        Args:
-            start: The start `datetime` of the period (inclusive).
-            end: The end `datetime` of the period (inclusive).
-
-        Returns:
-            A dictionary where keys are metric names (e.g., "total_tokens", "cost")
-            and values are lists of tuples. Each tuple contains (model_name, aggregated_value)
-            sorted by `aggregated_value` in descending order.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
-            Exception: For any other unexpected errors (and is re-raised).
+        Delegates to QueryExecutor.
         """
-        self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
-
-        # Defines the metrics and their corresponding SQL aggregation functions.
-        metrics = {
-            "total_tokens": "SUM(total_tokens)",
-            "cost": "SUM(cost)",
-            "prompt_tokens": "SUM(prompt_tokens)",
-            "completion_tokens": "SUM(completion_tokens)",
-            "execution_time": "SUM(execution_time)"
-        }
-        rankings: Dict[str, List[Tuple[str, Any]]] = {metric: [] for metric in metrics}
-
-        try:
-            with self.conn.cursor() as cur: # Using standard cursor, as RealDictCursor not strictly needed for tuple output
-                for metric_key, agg_func in metrics.items():
-                    # model_name is the correct column name in accounting_entries
-                    query = f"""
-                        SELECT model_name, {agg_func} AS aggregated_value
-                        FROM accounting_entries
-                        WHERE timestamp >= %s AND timestamp <= %s AND {agg_func} IS NOT NULL -- Exclude entries where the metric is NULL.
-                        GROUP BY model_name
-                        ORDER BY aggregated_value DESC; -- Rank by the aggregated value.
-                    """
-                    cur.execute(query, (start, end))
-                    rankings[metric_key] = cur.fetchall() # fetchall() returns a list of tuples (model_name, value).
-            return rankings
-        except psycopg2.Error as e:
-            logger.error(f"Error getting model rankings: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"An unexpected error occurred getting model rankings: {e}")
-            raise
+        return self.query_executor.get_model_rankings(start, end)
 
     def tail(self, n: int = 10) -> List[UsageEntry]:
         """
-        Retrieves the last N usage entries from the `accounting_entries` table,
-        ordered by timestamp (most recent first), then by ID for tie-breaking.
-
-        Args:
-            n: The number of most recent entries to retrieve. Defaults to 10.
-
-        Returns:
-            A list of `UsageEntry` objects. Returns an empty list if no entries are found.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
-            Exception: For any other unexpected errors (and is re-raised).
+        Retrieves the last N usage entries from the `accounting_entries` table.
+        Delegates to QueryExecutor.
         """
-        self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
-
-        # SQL query to select the last N entries.
-        # Ordered by timestamp and then ID (as a secondary sort key for determinism if timestamps are identical).
-        query = """
-            SELECT * FROM accounting_entries
-            ORDER BY timestamp DESC, id DESC
-            LIMIT %s;
-        """
-        entries = []
-        try:
-            # Uses RealDictCursor for easy mapping to UsageEntry dataclass.
-            with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(query, (n,))
-                for row_dict in cur:
-                    # Map database row (dictionary) to UsageEntry dataclass.
-                    # The 'model' field in UsageEntry maps to 'model_name' in the database.
-                    entry_data = {
-                        'model': row_dict.get('model_name'),
-                        'prompt_tokens': row_dict.get('prompt_tokens'),
-                        'completion_tokens': row_dict.get('completion_tokens'),
-                        'total_tokens': row_dict.get('total_tokens'),
-                        'local_prompt_tokens': row_dict.get('local_prompt_tokens'),
-                        'local_completion_tokens': row_dict.get('local_completion_tokens'),
-                        'local_total_tokens': row_dict.get('local_total_tokens'),
-                        'cost': row_dict.get('cost'),
-                        'execution_time': row_dict.get('execution_time'),
-                        'timestamp': row_dict.get('timestamp'),
-                        'caller_name': row_dict.get('caller_name'),
-                        'username': row_dict.get('username'),
-                        'cached_tokens': row_dict.get('cached_tokens'),
-                        'reasoning_tokens': row_dict.get('reasoning_tokens')
-                    }
-                    # Filter out None values before passing to dataclass constructor
-                    # to avoid issues if a field is not Optional in the dataclass
-                    # and the DB returns NULL.
-                    # However, UsageEntry fields are mostly Optional or have defaults.
-                    # Fields in entry_data are directly from the dataclass, so 'model' is used.
-                    # The database column is 'model_name', so row_dict.get('model_name') is correct.
-                    valid_entry_data = {k: v for k, v in entry_data.items() if v is not None}
-                    entries.append(UsageEntry(**valid_entry_data))
-            return entries
-        except psycopg2.Error as e:
-            logger.error(f"Error tailing usage entries: {e}")
-            raise
-        except Exception as e: # Catch other exceptions, e.g., issues during dataclass instantiation.
-            logger.error(f"An unexpected error occurred tailing usage entries: {e}")
-            raise
+        return self.query_executor.tail(n)
 
     def purge(self) -> None:
         """
         Deletes all data from `accounting_entries`, and `usage_limits` tables.
-
-        This is a destructive operation and should be used with caution.
-        It iterates through a list of table names and executes a `DELETE FROM` statement for each.
-        The operations are performed within a single transaction.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
-            Exception: For any other unexpected errors (and is re-raised).
+        Delegates to DataDeleter.
         """
-        self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
-
-        tables_to_purge = ["accounting_entries", "usage_limits"]
-        try:
-            with self.conn.cursor() as cur:
-                for table in tables_to_purge:
-                    # Using f-string for table name is generally safe if table names are controlled internally.
-                    # TRUNCATE TABLE could be faster but might have locking implications or issues with foreign keys if they existed.
-                    # DELETE FROM is safer in general-purpose code.
-                    cur.execute(f"DELETE FROM {table};")
-                self.conn.commit() # Commit transaction after all deletes are successful.
-            logger.info(f"Successfully purged data from tables: {', '.join(tables_to_purge)}.")
-        except psycopg2.Error as e:
-            logger.error(f"Error purging data: {e}")
-            if self.conn and not self.conn.closed:
-                self.conn.rollback() # Rollback if any delete operation fails.
-            raise
-        except Exception as e:
-            logger.error(f"An unexpected error occurred purging data: {e}")
-            if self.conn and not self.conn.closed:
-                self.conn.rollback()
-            raise
+        self.data_deleter.purge()
 
     def get_usage_limits(self,
                          scope: Optional[LimitScope] = None,
@@ -623,7 +191,8 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        if self.conn is None:
+            raise ConnectionError("Database connection is not established.")
 
         base_query = "SELECT * FROM usage_limits"
         conditions = []
@@ -712,7 +281,8 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        if self.conn is None:
+            raise ConnectionError("Database connection is not established.")
 
         # Determine the SQL aggregation function based on the limit_type.
         if limit_type == LimitType.REQUESTS:
@@ -783,7 +353,8 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        if self.conn is None:
+            raise ConnectionError("Database connection is not established.")
 
         # Basic validation to allow only SELECT queries.
         if not query.lstrip().upper().startswith("SELECT"):
@@ -813,157 +384,30 @@ class NeonBackend(BaseBackend):
         """
         Calculates the total usage costs for a specific user from `accounting_entries`
         within an optional date range.
-
-        Args:
-            user_id: The identifier of the user.
-            start_date: Optional start `datetime` for the period (inclusive).
-            end_date: Optional end `datetime` for the period (inclusive).
-
-        Returns:
-            The total cost as a float. Returns 0.0 if no costs are found for the user
-            in the specified period.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
-            Exception: For any other unexpected errors (and is re-raised).
+        Delegates to QueryExecutor.
         """
-        self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
-
-        query = "SELECT COALESCE(SUM(cost), 0.0) FROM accounting_entries WHERE username = %s"
-        # Build query with optional date filters.
-        params: List[Any] = [user_id]
-
-        if start_date:
-            query += " AND timestamp >= %s"
-            params.append(start_date)
-        if end_date:
-            query += " AND timestamp <= %s"
-            params.append(end_date)
-        query += ";" # Finalize query.
-
-        try:
-            with self.conn.cursor() as cur:
-                cur.execute(query, tuple(params))
-                result = cur.fetchone()
-                # Result from SUM will be a single value in a tuple, or None if no rows.
-                # COALESCE ensures it's 0.0 if no rows/cost.
-                if result and result[0] is not None:
-                    return float(result[0])
-                return 0.0
-        except psycopg2.Error as e:
-            logger.error(f"Error getting usage costs for user '{user_id}': {e}")
-            raise
-        except Exception as e:
-            logger.error(f"An unexpected error occurred getting usage costs for user '{user_id}': {e}")
-            raise
+        return self.query_executor.get_usage_costs(user_id, start_date, end_date)
 
     def set_usage_limit(self, user_id: str, limit_amount: float, limit_type_str: str = "COST") -> None:
         """
         A simplified way to set a usage limit for a user. It creates a `UsageLimit` object
         with `USER` scope and `MONTHLY` interval by default, then calls `insert_usage_limit`.
-
-        This method primarily serves as a convenience. For setting limits with more specific
-        scopes, intervals, or other attributes, `insert_usage_limit` should be used directly
-        with a fully configured `UsageLimit` object.
-
-        Note: This method attempts an INSERT. If a usage limit that would violate unique
-        constraints (e.g. for the same user, scope, type, model, caller) already exists,
-        this method will likely raise a `psycopg2.Error` (specifically, an IntegrityError).
-        A robust update/insert (upsert) mechanism is not implemented here but would typically
-        use `INSERT ... ON CONFLICT DO UPDATE` in PostgreSQL.
-
-        Args:
-            user_id: The identifier for the user.
-            limit_amount: The maximum value for the limit (e.g., cost amount, token count).
-            limit_type_str: String representation of the limit type (e.g., "cost", "requests").
-                            Defaults to "cost". Must be a valid `LimitType` enum value.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            ValueError: If `limit_type_str` is not a valid `LimitType`.
-            psycopg2.Error: If an error occurs during the underlying `insert_usage_limit` call.
-            Exception: For other unexpected errors.
+        Delegates to QueryExecutor.
         """
-        logger.info(f"Setting usage limit for user '{user_id}', amount {limit_amount}, "
-                    f"type '{limit_type_str}'.")
-        self._ensure_connected()
-        assert self.conn is not None # Pylance: self.conn is guaranteed to be not None here.
-
-        try:
-            # Convert the string representation of limit_type to the Enum member.
-            limit_type_enum = LimitType(limit_type_str)
-        except ValueError: # Raised if limit_type_str is not a valid LimitType value.
-            logger.error(f"Invalid limit_type string: {limit_type_str}. "
-                        f"Must be one of {LimitType._member_names_}")
-            raise ValueError(f"Invalid limit_type string: {limit_type_str}")
-
-        # Create a UsageLimit object with default scope (USER) and interval (MONTHLY).
-        usage_limit = UsageLimit(
-            scope=LimitScope.USER.value,
-            limit_type=limit_type_enum.value,
-            max_value=limit_amount,
-            interval_unit=TimeInterval.MONTH.value,
-            interval_value=1, # Interval value for monthly is 1 (e.g., 1 month).
-            username=user_id,
-            model=None, # No specific model for this simplified limit.
-            caller_name=None, # No specific caller for this simplified limit.
-            created_at=datetime.now(), # Set creation timestamp.
-            updated_at=datetime.now()  # Set update timestamp.
-        )
-
-        try:
-            # Call the more general insert_usage_limit method.
-            self.insert_usage_limit(usage_limit)
-            logger.info(f"Successfully set usage limit for user '{user_id}' "
-                        f"via insert_usage_limit call.")
-        except psycopg2.Error as db_err:
-            logger.error(f"Database error setting usage limit for user '{user_id}': {db_err}")
-            raise # Re-raise to allow higher-level handling.
-        except Exception as e:
-            logger.error(f"Unexpected error setting usage limit for user '{user_id}': {e}")
-            raise
+        self.query_executor.set_usage_limit(user_id, limit_amount, limit_type_str)
 
     def get_usage_limit(self, user_id: str) -> Optional[List[UsageLimit]]:
         """
         Retrieves all usage limits defined for a specific user.
-
-        This method is a convenience wrapper around `get_usage_limits`, pre-setting
-        the `username` filter.
-
-        Args:
-            user_id: The identifier of the user whose limits are to be retrieved.
-
-        Returns:
-            A list of `UsageLimit` objects associated with the user, or an empty list
-            if no limits are found. Can return `None` if an underlying issue occurs,
-            though current implementation of get_usage_limits re-raises errors.
-
-        Raises:
-            ConnectionError: If the database connection is not active (from underlying call).
-            psycopg2.Error: If an error occurs during SQL execution (from underlying call).
-            Exception: For other unexpected errors (from underlying call).
+        Delegates to QueryExecutor.
         """
-        logger.info(f"Retrieving all usage limits for user_id: {user_id}.")
-        try:
-            # Delegates to the more generic get_usage_limits method.
-            return self.get_usage_limits(username=user_id)
-        except Exception as e:
-            # Log the error and re-raise. Depending on desired API contract,
-            # one might choose to return None or an empty list here.
-            logger.error(f"Error retrieving usage limits for user '{user_id}': {e}")
-            raise
+        return self.query_executor.get_usage_limit(user_id)
 
     def _ensure_connected(self) -> None:
         """
         Ensures the Neon backend has an active connection.
         Initializes the connection if it's None or closed.
         Raises ConnectionError if initialization fails.
+        Delegates to ConnectionManager.
         """
-        if self.conn is None or self.conn.closed:
-            try:
-                self.initialize()
-            except ConnectionError as e:
-                logger.error(f"Failed to establish connection in _ensure_connected: {e}")
-                raise # Re-raise the connection error
+        self.connection_manager.ensure_connected()

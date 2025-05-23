@@ -38,33 +38,42 @@ pip install llm-accounting[neon]
 
 ### Basic Usage
 
+The `LLMAccounting` class automatically manages the database connection for its chosen backend. You can simply instantiate it and call its methods; the backend will ensure the connection is active when needed.
+
 ```python
 from llm_accounting import LLMAccounting
-# from llm_accounting.backends.sqlite import SQLiteBackend # Default
-# from llm_accounting.backends.neon import NeonBackend # If using Neon
-# from datetime import datetime # If providing timestamps or querying by date
+from datetime import datetime, timedelta
 
-# Default backend (SQLite)
-# with LLMAccounting() as accounting:
-#     # Track usage (model name is required, timestamp is optional)
-#     accounting.track_usage(
-#         model="gpt-4",  # Required: name of the LLM model
-#         prompt_tokens=100,
-#         completion_tokens=50,
-#         total_tokens=150,
-#         cost=0.002,
-#         execution_time=1.5,
-#         caller_name="my_app",  # Optional: name of the calling application
-#         username="john_doe",   # Optional: name of the user
-#         timestamp=None         # Optional: if None, current time will be used
-#     )
-#     
-#     # Get statistics
-#     # start_date = datetime(2024, 1, 1)
-#     # end_date = datetime(2024, 1, 31)
-#     # stats = accounting.get_period_stats(start_date, end_date)
-#     # model_stats = accounting.get_model_stats(start_date, end_date)
-#     # rankings = accounting.get_model_rankings(start_date, end_date)
+# Default backend (SQLite) is used if no backend is provided
+accounting = LLMAccounting()
+
+# Track usage (model name is required, timestamp is optional)
+accounting.track_usage(
+    model="gpt-4",  # Required: name of the LLM model
+    prompt_tokens=100,
+    completion_tokens=50,
+    total_tokens=150,
+    cost=0.002,
+    execution_time=1.5,
+    caller_name="my_app",  # Optional: name of the calling application
+    username="john_doe",   # Optional: name of the user
+    timestamp=None         # Optional: if None, current time will be used
+)
+
+# Get statistics
+end_date = datetime.now()
+start_date = end_date - timedelta(days=7) # Last 7 days
+stats = accounting.get_period_stats(start_date, end_date)
+model_stats = accounting.get_model_stats(start_date, end_date)
+rankings = accounting.get_model_rankings(start_date, end_date)
+
+print(f"Total cost last 7 days: {stats.sum_cost}")
+print(f"Model stats: {model_stats}")
+print(f"Model rankings: {rankings}")
+
+# When you are done with the accounting instance, it's good practice to close it.
+# If used as a context manager, it will be closed automatically.
+accounting.close()
 ```
 *Note: The `LLMAccounting` class and its methods are synchronous. If you are integrating `llm-accounting` into an asynchronous application, you should run its synchronous calls in a separate thread (e.g., using `asyncio.to_thread`) to avoid blocking the event loop.*
 
@@ -267,66 +276,70 @@ print(f"Initializing LLMAccounting with custom DB: {custom_accounting_db_filenam
 sqlite_backend = SQLiteBackend(db_path=custom_accounting_db_filename)
 
 # 2. Pass the custom backend to LLMAccounting
-# Using a context manager ensures the connection is properly opened and closed
-with LLMAccounting(backend=sqlite_backend) as accounting:
-    print(f"LLMAccounting initialized. Actual DB path: {accounting.get_db_path()}")
+# The backend will automatically manage its connection.
+accounting = LLMAccounting(backend=sqlite_backend)
+print(f"LLMAccounting initialized. Actual DB path: {accounting.get_db_path()}")
 
-    # Example usage: track some usage
-    accounting.track_usage(
-        model="gpt-4",
-        prompt_tokens=100,
-        completion_tokens=50,
-        cost=0.01,
-        username="example_user",
-        caller_name="example_app"
+# Example usage: track some usage
+accounting.track_usage(
+    model="gpt-4",
+    prompt_tokens=100,
+    completion_tokens=50,
+    cost=0.01,
+    username="example_user",
+    caller_name="example_app"
+)
+print("Usage tracked successfully.")
+
+# Verify stats (optional)
+end_time = datetime.now()
+start_time = end_time - timedelta(days=1)
+stats = accounting.get_period_stats(start_time, end_time)
+print(f"Stats for last 24 hours: {stats.sum_cost:.4f} cost, {stats.sum_total_tokens} tokens")
+
+print("\n--- Testing Usage Limits ---")
+# Set a global limit: 10 requests per minute
+print("Setting a global limit: 10 requests per minute...")
+accounting.set_usage_limit(
+    scope=LimitScope.GLOBAL,
+    limit_type=LimitType.REQUESTS,
+    max_value=10,
+    interval_unit=TimeInterval.MINUTE,
+    interval_value=1
+)
+print("Global limit set.")
+
+# Simulate requests and check quota
+for i in range(1, 15): # Try 14 requests to exceed the limit
+    model = "gpt-3.5-turbo"
+    username = "test_user"
+    caller_name = "test_app"
+    input_tokens = 10
+
+    allowed, reason = accounting.check_quota(
+        model=model,
+        username=username,
+        caller_name=caller_name,
+        input_tokens=input_tokens
     )
-    print("Usage tracked successfully.")
-
-    # Verify stats (optional)
-    end_time = datetime.now()
-    start_time = end_time - timedelta(days=1)
-    stats = accounting.get_period_stats(start_time, end_time)
-    print(f"Stats for last 24 hours: {stats.sum_cost:.4f} cost, {stats.sum_total_tokens} tokens")
-
-    print("\n--- Testing Usage Limits ---")
-    # Set a global limit: 10 requests per minute
-    print("Setting a global limit: 10 requests per minute...")
-    accounting.set_usage_limit(
-        scope=LimitScope.GLOBAL,
-        limit_type=LimitType.REQUESTS,
-        max_value=10,
-        interval_unit=TimeInterval.MINUTE,
-        interval_value=1
-    )
-    print("Global limit set.")
-
-    # Simulate requests and check quota
-    for i in range(1, 15): # Try 14 requests to exceed the limit
-        model = "gpt-3.5-turbo"
-        username = "test_user"
-        caller_name = "test_app"
-        input_tokens = 10
-
-        allowed, reason = accounting.check_quota(
+    if allowed:
+        print(f"Request {i}: ALLOWED. Tracking usage...")
+        accounting.track_usage(
             model=model,
+            prompt_tokens=input_tokens,
+            cost=0.0001,
             username=username,
-            caller_name=caller_name,
-            input_tokens=input_tokens
+            caller_name=caller_name
         )
-        if allowed:
-            print(f"Request {i}: ALLOWED. Tracking usage...")
-            accounting.track_usage(
-                model=model,
-                prompt_tokens=input_tokens,
-                cost=0.0001,
-                username=username,
-                caller_name=caller_name
-            )
-        else:
-            print(f"Request {i}: DENIED. Reason: {reason}")
-        
-        # Small delay to simulate real-world requests, but not enough to reset minute limit
-        time.sleep(0.1) 
+    else:
+        print(f"Request {i}: DENIED. Reason: {reason}")
+    
+    # Small delay to simulate real-world requests, but not enough to reset minute limit
+    time.sleep(0.1) 
+
+# It's good practice to explicitly close the accounting instance when done,
+# though the backend methods will auto-connect if needed for subsequent calls.
+accounting.close()
 
 print(f"\nInitializing AuditLogger with custom DB: {custom_audit_db_filename}")
 
@@ -407,42 +420,47 @@ from llm_accounting.backends.neon import NeonBackend # Import the NeonBackend
 neon_backend_env = NeonBackend() # Reads from environment variable
 accounting_neon_env = LLMAccounting(backend=neon_backend_env)
 
-# The LLMAccounting class's methods might be async or sync.
-# The NeonBackend's initialize/close methods are synchronous.
-# This example assumes LLMAccounting manages the async/sync interaction if its methods are async.
-# For simplicity, direct calls are shown here. If LLMAccounting methods are async, use `async with`.
+# The backend will automatically manage its connection.
 
-# with accounting_neon_env:
-#     # Example: Track usage
-#     accounting_neon_env.track_usage(
-#         model="gpt-3.5-turbo",
-#         prompt_tokens=50,
-#         completion_tokens=100,
-#         cost=0.00015
-#     )
-#     print("Usage tracked with Neon backend (from env var).")
-#     
-#     # Example: Get stats for a period
-#     # start_date = datetime(2024, 1, 1)
-#     # end_date = datetime(2024, 1, 31)
-#     # stats = accounting_neon_env.get_period_stats(start_date, end_date)
-#     # print(stats)
+# Option 1: Connection string from environment variable NEON_CONNECTION_STRING
+# Ensure NEON_CONNECTION_STRING is set in your environment before running the script.
+# For example: export NEON_CONNECTION_STRING="your_neon_uri_here"
 
+neon_backend_env = NeonBackend() # Reads from environment variable
+accounting_neon_env = LLMAccounting(backend=neon_backend_env)
+
+# Example: Track usage
+accounting_neon_env.track_usage(
+    model="gpt-3.5-turbo",
+    prompt_tokens=50,
+    completion_tokens=100,
+    cost=0.00015
+)
+print("Usage tracked with Neon backend (from env var).")
+
+# Example: Get stats for a period
+end_date = datetime.now()
+start_date = end_date - timedelta(days=7) # Last 7 days
+stats = accounting_neon_env.get_period_stats(start_date, end_date)
+print(f"Neon backend stats: {stats.sum_cost}")
 
 # Option 2: Pass connection string directly
 # Replace with your actual connection string if testing this way.
-# neon_connection_str = "postgresql://user:pass@host.neon.tech/dbname?sslmode=require" 
-# neon_backend_direct = NeonBackend(neon_connection_string=neon_connection_str)
-# accounting_neon_direct = LLMAccounting(backend=neon_backend_direct)
+neon_connection_str = "postgresql://user:pass@host.neon.tech/dbname?sslmode=require" 
+neon_backend_direct = NeonBackend(neon_connection_string=neon_connection_str)
+accounting_neon_direct = LLMAccounting(backend=neon_backend_direct)
 
-# with accounting_neon_direct:
-#     accounting_neon_direct.track_usage(
-#         model="gpt-4",
-#         prompt_tokens=200,
-#         completion_tokens=400,
-#         cost=0.006
-#     )
-#     print("Usage tracked with Neon backend (direct connection string).")
+accounting_neon_direct.track_usage(
+    model="gpt-4",
+    prompt_tokens=200,
+    completion_tokens=400,
+    cost=0.006
+)
+print("Usage tracked with Neon backend (direct connection string).")
+
+# It's good practice to explicitly close the accounting instances when done.
+accounting_neon_env.close()
+accounting_neon_direct.close()
 ```
 
 **Error Handling/Notes:**
@@ -464,81 +482,101 @@ Here's how you can implement your own custom backend, using the `MockBackend` as
     from datetime import datetime
     from typing import Dict, List, Tuple, Any, Optional
 
-    from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats, APIRequest # Added APIRequest
+    from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats
 
     class MyCustomBackend(BaseBackend):
         def __init__(self):
             self.usage_storage = [] # Example: a list to store UsageEntry objects
-            self.request_storage = [] # Example: a list to store APIRequest objects
             # Add storage for limits if needed
 
         def initialize(self) -> None:
             print("MyCustomBackend: Initializing connection/resources...")
             # Implement your database connection or resource setup here
 
+        def _ensure_connected(self) -> None:
+            print("MyCustomBackend: Ensuring connection is active...")
+            # Implement logic to ensure connection is active, e.g., self.initialize() if not connected
+
         def insert_usage(self, entry: UsageEntry) -> None:
+            self._ensure_connected()
             print(f"MyCustomBackend: Inserting usage for model {entry.model}")
             self.usage_storage.append(entry)
             # Implement logic to save 'entry' to your database
 
-        def insert_api_request(self, request: APIRequest) -> None: # New method from BaseBackend
-            print(f"MyCustomBackend: Inserting API request for model {request.model_name}")
-            self.request_storage.append(request)
-            # Implement logic to save 'request' to your database
-
         # ... (implement other abstract methods like get_period_stats, get_model_stats, etc.) ...
         # ... (get_model_rankings, purge, tail, close, execute_query) ...
-        # ... (get_usage_limits, insert_usage_limit, get_api_requests_for_quota) ...
-        # ... (get_usage_costs, set_usage_limit, get_usage_limit, record_api_request (from dict)) ...
+        # ... (get_usage_limits, insert_usage_limit, get_accounting_entries_for_quota) ...
+        # ... (delete_usage_limit) ...
 
         def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
+            self._ensure_connected()
             # Dummy implementation
             return UsageStats()
 
         def get_model_stats(self, start: datetime, end: datetime) -> List[Tuple[str, UsageStats]]:
+            self._ensure_connected()
             # Dummy implementation
             return []
         
         def get_model_rankings(self, start: datetime, end: datetime) -> Dict[str, List[Tuple[str, Any]]]:
+            self._ensure_connected()
             # Dummy implementation
             return {}
 
         def purge(self) -> None:
+            self._ensure_connected()
             self.usage_storage = []
-            self.request_storage = []
         
         def tail(self, n: int = 10) -> List[UsageEntry]:
+            self._ensure_connected()
             return self.usage_storage[-n:]
 
         def close(self) -> None:
             print("MyCustomBackend: Closing connection/resources...")
 
-        def execute_query(self, query: str) -> List[Dict[str, Any]]: # Corrected return type
+        def execute_query(self, query: str) -> List[Dict[str, Any]]:
+            self._ensure_connected()
             print(f"MyCustomBackend: Executing custom query: {query}")
             return []
             
-        # You would also need to implement other methods from BaseBackend like:
-        # get_usage_limits, insert_usage_limit, get_api_requests_for_quota,
-        # get_usage_costs, set_usage_limit, get_usage_limit, record_api_request (dict version)
+        def get_usage_limits(self, scope: Optional[LimitScope] = None, model: Optional[str] = None, username: Optional[str] = None, caller_name: Optional[str] = None) -> List[UsageLimit]:
+            self._ensure_connected()
+            # Dummy implementation
+            return []
+
+        def get_accounting_entries_for_quota(self, start_time: datetime, limit_type: LimitType, model: Optional[str] = None, username: Optional[str] = None, caller_name: Optional[str] = None) -> float:
+            self._ensure_connected()
+            # Dummy implementation
+            return 0.0
+
+        def insert_usage_limit(self, limit: UsageLimit) -> None:
+            self._ensure_connected()
+            # Dummy implementation
+            pass
+
+        def delete_usage_limit(self, limit_id: int) -> None:
+            self._ensure_connected()
+            # Dummy implementation
+            pass
     ```
 
 2.  **Integrate with `LLMAccounting`**: Once your custom backend is implemented, you can pass an instance of it to the `LLMAccounting` constructor:
 
     ```python
     from llm_accounting import LLMAccounting
-    # from my_custom_backend import MyCustomBackend # Import your custom backend
+    from my_custom_backend import MyCustomBackend # Import your custom backend
 
     # Instantiate your custom backend
-    # custom_backend = MyCustomBackend()
+    custom_backend = MyCustomBackend()
 
     # Pass it to LLMAccounting
-    # accounting_custom = LLMAccounting(backend=custom_backend)
+    accounting_custom = LLMAccounting(backend=custom_backend)
 
     # Now, all accounting operations will use your custom backend
-# with accounting_custom:
-#     accounting_custom.track_usage(model="custom_model", prompt_tokens=10, cost=0.001)
-#     # stats = accounting_custom.get_period_stats(datetime.now(), datetime.now())
-#     # ... and so on
+    accounting_custom.track_usage(model="custom_model", prompt_tokens=10, cost=0.001)
+    stats = accounting_custom.get_period_stats(datetime.now(), datetime.now())
+    print(f"Custom backend stats: {stats.sum_cost}")
+    accounting_custom.close()
 ```
 
 By following this pattern, you can extend `llm-accounting` to work seamlessly with virtually any data storage solution, providing maximum flexibility for your application's needs.

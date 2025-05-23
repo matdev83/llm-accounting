@@ -16,8 +16,8 @@ import psycopg2 # Keep this for type hinting and raising psycopg2.Error
 class TestNeonBackend(unittest.TestCase):
 
     def setUp(self):
-        # Patch psycopg2 module globally for the duration of the test
-        self.patcher = patch('src.llm_accounting.backends.neon.psycopg2')
+        # Patch psycopg2 module as imported in connection_manager.py
+        self.patcher = patch('src.llm_accounting.backends.neon_backend_parts.connection_manager.psycopg2')
         self.mock_psycopg2_module = self.patcher.start()
 
         # Create a mock for psycopg2.Error that inherits from Exception
@@ -31,19 +31,34 @@ class TestNeonBackend(unittest.TestCase):
         self.original_neon_conn_string = os.environ.get('NEON_CONNECTION_STRING')
         os.environ['NEON_CONNECTION_STRING'] = 'dummy_dsn_from_env'
 
+        # Patch SchemaManager before instantiating NeonBackend
+        self.patcher_schema_manager = patch('src.llm_accounting.backends.neon.SchemaManager')
+        self.mock_schema_manager_class = self.patcher_schema_manager.start()
+        
+        # Create a mock instance that will be returned when SchemaManager is instantiated
+        self.mock_schema_manager_instance = MagicMock(name="mock_schema_manager_instance")
+        self.mock_schema_manager_class.return_value = self.mock_schema_manager_instance
+
+        # Mock schema creation methods on the mock instance
+        self.mock_schema_manager_instance._create_schema_if_not_exists = MagicMock(name="mock_create_schema_if_not_exists")
+        self.mock_schema_manager_instance._create_tables = MagicMock(name="mock_create_tables")
+
         # Instantiate the backend
         self.backend = NeonBackend()
 
         # Mock the connection and cursor objects
-        self.mock_conn = self.mock_psycopg2_module.connect.return_value
+        self.mock_conn = MagicMock()
+        self.mock_psycopg2_module.connect.return_value = self.mock_conn
         self.mock_cursor = self.mock_conn.cursor.return_value.__enter__.return_value
 
         # Explicitly set the 'closed' attribute for the mock connection
         self.mock_conn.closed = False # Connection is initially open
 
+
     def tearDown(self):
-        # Stop the patcher
+        # Stop the patchers
         self.patcher.stop()
+        self.patcher_schema_manager.stop()
 
         # Explicitly close the mock connection if it exists and is not already closed
         if self.backend.conn and not self.backend.conn.closed:
@@ -79,13 +94,17 @@ class TestNeonBackend(unittest.TestCase):
 
     def test_initialize_success(self):
         # Mock _create_tables to avoid testing its DDL execution here
-        self.backend._create_tables = MagicMock(name="_create_tables_mock_on_instance")
+        # This mock is now on the schema_manager, not the backend directly
+        # self.backend._create_tables = MagicMock(name="_create_tables_mock_on_instance") # Old mock
 
         self.backend.initialize()
 
         self.mock_psycopg2_module.connect.assert_called_once_with('dummy_dsn_from_env')
         self.assertEqual(self.backend.conn, self.mock_conn)
-        self.backend._create_tables.assert_called_once()
+        # Assert that the schema creation methods were called on the mock instance
+        self.mock_schema_manager_instance._create_schema_if_not_exists.assert_called_once()
+        # _create_schema_if_not_exists internally calls _create_tables, so we don't assert _create_tables directly here
+        # unless we want to check the internal call. For now, just check the top-level schema creation.
 
 
     def test_initialize_connection_error(self):
@@ -98,7 +117,7 @@ class TestNeonBackend(unittest.TestCase):
     def test_close_connection(self):
         # 1. Initialize to get a connection
         # We need to make sure _create_tables doesn't fail during initialize
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.assertEqual(self.backend.conn, self.mock_conn)
 
@@ -115,7 +134,7 @@ class TestNeonBackend(unittest.TestCase):
         self.assertIsNone(self.backend.conn)
 
     def test_insert_usage_success(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize() # To set up self.backend.conn
 
         sample_entry = UsageEntry(
@@ -141,7 +160,7 @@ class TestNeonBackend(unittest.TestCase):
         self.mock_conn.commit.assert_called_once()
 
     def test_insert_usage_db_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.execute.side_effect = psycopg2.Error("Insert failed")
 
@@ -154,7 +173,7 @@ class TestNeonBackend(unittest.TestCase):
         self.mock_conn.commit.assert_not_called() # Ensure commit was not called on error
 
     def test_get_period_stats_success(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
 
         sample_db_row_dict = {
@@ -194,7 +213,7 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(stats.avg_cost, sample_db_row_dict['avg_cost'])
 
     def test_get_period_stats_no_data(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
 
         # Simulate no rows returned or all aggregates are NULL (COALESCE handles this)
@@ -230,7 +249,7 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(stats.sum_prompt_tokens, 0)
 
     def test_insert_usage_limit_success(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         sample_limit = UsageLimit(
             scope=LimitScope.USER.value,
@@ -253,7 +272,7 @@ class TestNeonBackend(unittest.TestCase):
         self.mock_conn.commit.assert_called_once()
 
     def test_insert_usage_limit_db_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.execute.side_effect = psycopg2.Error("Limit Insert failed")
         sample_limit = UsageLimit(scope=LimitScope.GLOBAL.value, limit_type=LimitType.COST.value, max_value=500.0, interval_unit=TimeInterval.DAY.value, interval_value=1)
@@ -263,7 +282,7 @@ class TestNeonBackend(unittest.TestCase):
         self.mock_conn.commit.assert_not_called()
 
     def test_get_model_stats_success(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         sample_db_rows = [
             {'model_name': 'gpt-4', 'sum_prompt_tokens': 1000, 'avg_prompt_tokens': 100.0, 'sum_cost': 1.2, 'avg_cost': 0.12,
@@ -297,7 +316,7 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(model_stats_list[1][1].sum_prompt_tokens, 500)
 
     def test_get_model_stats_no_data(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.__iter__.return_value = iter([]) # Simulate no rows
 
@@ -309,7 +328,7 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(len(model_stats_list), 0)
 
     def test_get_model_stats_db_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.execute.side_effect = psycopg2.Error("Model Stats failed")
         start_dt = datetime(2023, 1, 1)
@@ -318,7 +337,7 @@ class TestNeonBackend(unittest.TestCase):
             self.backend.get_model_stats(start_dt, end_dt)
 
     def test_get_model_rankings_success(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         # Simulate cursor returning different data for each metric query
         # Example for 'total_tokens'
@@ -355,7 +374,7 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(rankings['prompt_tokens'], [])
 
     def test_get_model_rankings_no_data(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.fetchall.return_value = [] # No data for any metric
 
@@ -368,7 +387,7 @@ class TestNeonBackend(unittest.TestCase):
             self.assertEqual(rankings[metric], [])
 
     def test_get_model_rankings_db_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.execute.side_effect = psycopg2.Error("Rankings failed")
         start_dt = datetime(2023, 1, 1)
@@ -377,7 +396,7 @@ class TestNeonBackend(unittest.TestCase):
             self.backend.get_model_rankings(start_dt, end_dt)
 
     def test_tail_success(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         sample_rows = [
             {'model_name': 'gpt-4', 'prompt_tokens': 10, 'cost': 0.1, 'timestamp': datetime(2023,3,1,10,0,5)},
@@ -399,7 +418,7 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(entries[1].cost, 0.2)
 
     def test_tail_no_data(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.__iter__.return_value = iter([])
         entries = self.backend.tail(n=5)
@@ -407,14 +426,14 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(len(entries), 0)
 
     def test_tail_db_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.execute.side_effect = psycopg2.Error("Tail failed")
         with self.assertRaises(psycopg2.Error):
             self.backend.tail(n=3)
 
     def test_purge_success(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.backend.purge()
 
@@ -427,7 +446,7 @@ class TestNeonBackend(unittest.TestCase):
         self.mock_conn.commit.assert_called_once()
 
     def test_purge_db_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.execute.side_effect = psycopg2.Error("Purge failed")
         with self.assertRaises(psycopg2.Error):
@@ -436,7 +455,7 @@ class TestNeonBackend(unittest.TestCase):
         self.mock_conn.commit.assert_not_called()
 
     def test_get_usage_limits_success_with_filters(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         sample_limit_row = {
             'id': 1, 'scope': 'USER', 'limit_type': 'cost', 'max_value': 100.0,
@@ -470,21 +489,21 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(limits[0].username, 'test_user')
 
     def test_get_usage_limits_success_no_filters(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.__iter__.return_value = iter([])
         self.backend.get_usage_limits()
         self.mock_cursor.execute.assert_called_once_with("SELECT * FROM usage_limits ORDER BY created_at DESC;", tuple())
 
     def test_get_usage_limits_no_data(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.__iter__.return_value = iter([])
         limits = self.backend.get_usage_limits(scope=LimitScope.USER)
         self.assertEqual(len(limits), 0)
 
     def test_get_usage_limits_enum_conversion_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         invalid_enum_row = {
             'id': 1, 'scope': 'INVALID_SCOPE', 'limit_type': 'COST', 'max_value': 100.0,
@@ -497,14 +516,14 @@ class TestNeonBackend(unittest.TestCase):
 
 
     def test_get_usage_limits_db_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.execute.side_effect = psycopg2.Error("Get limits failed")
         with self.assertRaises(psycopg2.Error):
             self.backend.get_usage_limits()
 
     def test_get_accounting_entries_for_quota_success(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         start_time = datetime(2023, 1, 1, 0, 0, 0)
 
@@ -545,7 +564,7 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(output_tokens_val, 20000)
 
     def test_get_accounting_entries_for_quota_no_data(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.fetchone.return_value = (0.0,) # COALESCE should return 0 or 0.0
         val = self.backend.get_accounting_entries_for_quota(datetime.now(), LimitType.COST)
@@ -557,21 +576,21 @@ class TestNeonBackend(unittest.TestCase):
 
 
     def test_get_accounting_entries_for_quota_db_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.execute.side_effect = psycopg2.Error("Quota check failed")
         with self.assertRaises(psycopg2.Error):
             self.backend.get_accounting_entries_for_quota(datetime.now(), LimitType.COST)
 
     def test_get_accounting_entries_for_quota_invalid_type(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         with self.assertRaisesRegex(ValueError, "'unsupported' is not a valid LimitType"):
             self.backend.get_accounting_entries_for_quota(datetime.now(), LimitType("unsupported"))
 
 
     def test_execute_query_success(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         sample_query = "SELECT * FROM accounting_entries WHERE cost > %s;" # Example with params, though execute_query doesn't take params directly
         # The current execute_query doesn't support parameterized queries directly, it expects a full query string.
@@ -592,7 +611,7 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(result, expected_result)
 
     def test_execute_query_non_select_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         non_select_query = "DELETE FROM accounting_entries;"
         with self.assertRaisesRegex(ValueError, "Only SELECT queries are allowed"):
@@ -600,7 +619,7 @@ class TestNeonBackend(unittest.TestCase):
         self.mock_cursor.execute.assert_not_called()
 
     def test_execute_query_db_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.execute.side_effect = psycopg2.Error("Custom query failed")
         with self.assertRaises(psycopg2.Error):
@@ -609,7 +628,7 @@ class TestNeonBackend(unittest.TestCase):
     # --- Tests for remaining BaseBackend methods ---
 
     def test_get_usage_costs_success(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.fetchone.return_value = (123.45,) # Sum of costs
 
@@ -626,26 +645,23 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(costs, 123.45)
 
     def test_get_usage_costs_no_data(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.fetchone.return_value = (0.0,) # COALESCE returns 0.0
         costs = self.backend.get_usage_costs("user_unknown")
         self.assertEqual(costs, 0.0)
 
     def test_get_usage_costs_db_error(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
         self.mock_cursor.execute.side_effect = psycopg2.Error("get_usage_costs failed")
         with self.assertRaises(psycopg2.Error):
             self.backend.get_usage_costs("user123")
 
     def test_set_usage_limit_base_method_success(self):
-        self.backend._create_tables = MagicMock()
         self.backend.initialize()
-        # This method calls insert_usage_limit internally, so we check those calls
-        # Reset mocks for insert_usage_limit if it was called during initialize's _create_tables or similar
-        # Or mock insert_usage_limit itself on the instance
-        self.backend.insert_usage_limit = MagicMock(name="insert_usage_limit_mock")
+        # Mock the insert_usage_limit method on the DataInserter instance
+        self.backend.data_inserter.insert_usage_limit = MagicMock(name="insert_usage_limit_mock")
 
         user_id = "test_user_for_set_limit"
         limit_amount = 200.0
@@ -653,8 +669,8 @@ class TestNeonBackend(unittest.TestCase):
         
         self.backend.set_usage_limit(user_id, limit_amount, limit_type_str)
 
-        self.backend.insert_usage_limit.assert_called_once()
-        called_arg = self.backend.insert_usage_limit.call_args[0][0]
+        self.backend.data_inserter.insert_usage_limit.assert_called_once()
+        called_arg = self.backend.data_inserter.insert_usage_limit.call_args[0][0]
         self.assertIsInstance(called_arg, UsageLimit)
         self.assertEqual(called_arg.username, user_id)
         self.assertEqual(called_arg.max_value, limit_amount)
@@ -663,38 +679,37 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(called_arg.interval_unit, TimeInterval.MONTH.value) # Default
 
     def test_set_usage_limit_base_method_invalid_type_str(self):
-        self.backend._create_tables = MagicMock()
         self.backend.initialize()
         with self.assertRaisesRegex(ValueError, "Invalid limit_type string"):
             self.backend.set_usage_limit("user1", 100.0, "invalid_type_string")
 
     def test_set_usage_limit_base_method_db_error(self):
-        self.backend._create_tables = MagicMock()
         self.backend.initialize()
-        self.backend.insert_usage_limit = MagicMock(side_effect=psycopg2.Error("Insert from set_usage_limit failed"))
+        # Mock the insert_usage_limit method on the DataInserter instance to raise an error
+        self.backend.data_inserter.insert_usage_limit = MagicMock(side_effect=psycopg2.Error("Insert from set_usage_limit failed"))
         
         with self.assertRaises(psycopg2.Error):
             self.backend.set_usage_limit("user_err", 100.0, "cost")
 
 
     def test_get_usage_limit_base_method_success(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
-        # This method calls self.get_usage_limits internally
+        # This method calls self.query_executor.get_usage_limit internally
         expected_limits = [
             UsageLimit(scope=LimitScope.USER.value, limit_type=LimitType.COST.value, max_value=100.0, interval_unit=TimeInterval.MONTH.value, interval_value=1, username="user_abc")
         ]
-        self.backend.get_usage_limits = MagicMock(return_value=expected_limits)
+        self.backend.query_executor.get_usage_limit = MagicMock(return_value=expected_limits)
 
         retrieved_limits = self.backend.get_usage_limit("user_abc")
 
-        self.backend.get_usage_limits.assert_called_once_with(username="user_abc")
+        self.backend.query_executor.get_usage_limit.assert_called_once_with("user_abc")
         self.assertEqual(retrieved_limits, expected_limits)
 
     def test_get_usage_limit_base_method_no_data(self):
-        self.backend._create_tables = MagicMock()
+        # self.backend._create_tables = MagicMock() # Old mock
         self.backend.initialize()
-        self.backend.get_usage_limits = MagicMock(return_value=[])
+        self.backend.query_executor.get_usage_limit = MagicMock(return_value=[])
         retrieved_limits = self.backend.get_usage_limit("user_xyz")
         self.assertEqual(retrieved_limits, [])
 
