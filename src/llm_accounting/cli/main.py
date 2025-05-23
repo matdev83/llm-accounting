@@ -1,5 +1,6 @@
 import argparse
 import sys
+from importlib.metadata import version as get_version
 
 from .parsers import (add_purge_parser, add_select_parser, add_stats_parser,
                       add_tail_parser, add_track_parser, add_limits_parser)
@@ -7,10 +8,12 @@ from .utils import console
 
 
 def main():
+    package_version = get_version('llm-accounting')
     parser = argparse.ArgumentParser(
         description="LLM Accounting CLI - Track and analyze LLM usage",
         formatter_class=argparse.RawTextHelpFormatter,
     )
+    parser.add_argument('--version', action='version', version=f'llm-accounting {package_version}')
     parser.add_argument(
         "--db-file",
         type=str,
