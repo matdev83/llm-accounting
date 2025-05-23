@@ -22,7 +22,10 @@ def test_select_output_formatting(mock_get_accounting, test_db, capsys):
         cli_main()
 
     captured = capsys.readouterr()
-    assert "┌───────┬──────────┐" in captured.out  # Table borders
-    assert "│ model │ username │" in captured.out  # Header
-    assert "│ gpt-4 │ user1    │" in captured.out  # First row
+    # Assertions updated to match actual output from rich.Console
+    assert "┏━━━━━━━┳━━━━━━━━━━┓" in captured.out  # Top border
+    assert "┃ model ┃ username ┃" in captured.out  # Header
+    assert "┡━━━━━━━╇━━━━━━━━━━┩" in captured.out  # Header/content separator
+    assert "│ gpt-4 │ user1    │" in captured.out  # Content row
+    assert "└───────┴──────────┘" in captured.out  # Bottom border
     mock_accounting_instance.__exit__.assert_called_once()
