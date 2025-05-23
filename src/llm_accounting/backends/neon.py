@@ -6,7 +6,6 @@ from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
 
 from .base import BaseBackend, UsageEntry, UsageStats # Updated import for UsageEntry and UsageStats
-from ..models.request import APIRequest
 from ..models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
 
 logger = logging.getLogger(__name__)
@@ -17,7 +16,7 @@ class NeonBackend(BaseBackend):
     tailored for Neon serverless Postgres but compatible with standard PostgreSQL instances.
 
     This backend handles the storage and retrieval of LLM API usage data,
-    including accounting entries, API request details, and usage limits.
+    including accounting entries, and usage limits.
 
     Connection Parameters:
     The database connection string is determined in the following order:
@@ -97,12 +96,12 @@ class NeonBackend(BaseBackend):
 
     def _create_tables(self) -> None:
         """
-        Creates the database tables (`accounting_entries`, `api_requests`, `usage_limits`)
+        Creates the database tables (`accounting_entries`, `usage_limits`)
         if they do not already exist in the PostgreSQL database.
 
         Uses `CREATE TABLE IF NOT EXISTS` to avoid errors if tables are already present.
-        The schema is designed to store usage data, request details, and limits,
-        mapping directly to the `UsageEntry`, `APIRequest`, and `UsageLimit` dataclasses.
+        The schema is designed to store usage data, and limits,
+        mapping directly to the `UsageEntry`, and `UsageLimit` dataclasses.
 
         Raises:
             ConnectionError: If the database connection is not active.
@@ -114,7 +113,7 @@ class NeonBackend(BaseBackend):
             raise ConnectionError("Database connection is not active. Call initialize() first.")
 
         # SQL DDL commands for creating tables.
-        # These correspond to UsageEntry, APIRequest, and UsageLimit dataclasses.
+        # These correspond to UsageEntry, and UsageLimit dataclasses.
         commands = (
             """
             CREATE TABLE IF NOT EXISTS accounting_entries (
@@ -133,18 +132,6 @@ class NeonBackend(BaseBackend):
                 username VARCHAR(255),                -- Optional identifier for the user
                 cached_tokens INTEGER,                -- Number of tokens retrieved from cache
                 reasoning_tokens INTEGER              -- Number of tokens used for reasoning/tool use
-            )
-            """,
-            """
-            CREATE TABLE IF NOT EXISTS api_requests (
-                id SERIAL PRIMARY KEY,
-                model_name VARCHAR(255) NOT NULL,
-                username VARCHAR(255),
-                caller_name VARCHAR(255),
-                input_tokens INTEGER,                 -- Tokens in the input/prompt
-                output_tokens INTEGER,                -- Tokens in the output/completion
-                cost DOUBLE PRECISION,                -- Cost associated with this specific request
-                timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP -- Timestamp of the request
             )
             """,
             """
@@ -171,7 +158,7 @@ class NeonBackend(BaseBackend):
                 for command in commands:
                     cur.execute(command)
                 self.conn.commit() # Commit the transaction to make table creations permanent.
-            logger.info("Database tables (accounting_entries, api_requests, usage_limits) checked/created successfully.")
+            logger.info("Database tables (accounting_entries, usage_limits) checked/created successfully.")
         except psycopg2.Error as e:
             logger.error(f"Error during table creation: {e}")
             if self.conn and not self.conn.closed: # Check if connection is still valid before rollback
@@ -226,48 +213,6 @@ class NeonBackend(BaseBackend):
             raise
         except Exception as e:
             logger.error(f"An unexpected error occurred inserting usage entry: {e}")
-            if self.conn and not self.conn.closed:
-                self.conn.rollback()
-            raise
-
-    def insert_api_request(self, request: APIRequest) -> None:
-        """
-        Inserts an API request record into the api_requests table.
-
-        Args:
-            request: An `APIRequest` dataclass object containing the data for the request.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
-            Exception: For any other unexpected errors (and is re-raised).
-        """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot insert API request, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
-
-        # SQL INSERT statement for api_requests table.
-        sql = """
-            INSERT INTO api_requests (
-                model_name, username, caller_name, input_tokens, output_tokens, cost, timestamp
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """
-        try:
-            with self.conn.cursor() as cur:
-                cur.execute(sql, (
-                    request.model, request.username, request.caller_name,
-                    request.input_tokens, request.output_tokens, request.cost,
-                    request.timestamp or datetime.now()
-                ))
-                self.conn.commit()
-            logger.info(f"Successfully inserted API request for user '{request.username}' and model '{request.model}'.")
-        except psycopg2.Error as e:
-            logger.error(f"Error inserting API request: {e}")
-            if self.conn and not self.conn.closed:
-                self.conn.rollback()
-            raise
-        except Exception as e:
-            logger.error(f"An unexpected error occurred inserting API request: {e}")
             if self.conn and not self.conn.closed:
                 self.conn.rollback()
             raise
@@ -616,7 +561,7 @@ class NeonBackend(BaseBackend):
 
     def purge(self) -> None:
         """
-        Deletes all data from `accounting_entries`, `api_requests`, and `usage_limits` tables.
+        Deletes all data from `accounting_entries`, and `usage_limits` tables.
 
         This is a destructive operation and should be used with caution.
         It iterates through a list of table names and executes a `DELETE FROM` statement for each.
@@ -631,7 +576,7 @@ class NeonBackend(BaseBackend):
             logger.error("Cannot purge data, database connection is not active.")
             raise ConnectionError("Database connection is not active. Call initialize() first.")
 
-        tables_to_purge = ["accounting_entries", "api_requests", "usage_limits"]
+        tables_to_purge = ["accounting_entries", "usage_limits"]
         try:
             with self.conn.cursor() as cur:
                 for table in tables_to_purge:
@@ -740,17 +685,17 @@ class NeonBackend(BaseBackend):
             logger.error(f"An unexpected error occurred getting usage limits: {e}")
             raise
 
-    def get_api_requests_for_quota(self,
+    def get_accounting_entries_for_quota(self,
                                    start_time: datetime,
                                    limit_type: LimitType,
                                    model: Optional[str] = None,
                                    username: Optional[str] = None,
                                    caller_name: Optional[str] = None) -> float:
         """
-        Aggregates API request data from `api_requests` for quota checking purposes.
+        Aggregates API request data from `accounting_entries` for quota checking purposes.
 
         This method calculates a sum or count based on the `limit_type` (e.g., total cost,
-        number of requests, total input/output tokens) since a given `start_time`.
+        number of requests, total prompt/completion tokens) since a given `start_time`.
         It can be filtered by `model_name`, `username`, and `caller_name`.
 
         Args:
@@ -771,23 +716,23 @@ class NeonBackend(BaseBackend):
             Exception: For any other unexpected errors (and is re-raised).
         """
         if not self.conn or self.conn.closed:
-            logger.error("Cannot get API requests for quota, database connection is not active.")
+            logger.error("Cannot get accounting entries for quota, database connection is not active.")
             raise ConnectionError("Database connection is not active. Call initialize() first.")
 
         # Determine the SQL aggregation function based on the limit_type.
         if limit_type == LimitType.REQUESTS:
             agg_field = "COUNT(*)"
         elif limit_type == LimitType.INPUT_TOKENS:
-            agg_field = "COALESCE(SUM(input_tokens), 0)" # Sum of input tokens, 0 if none.
+            agg_field = "COALESCE(SUM(prompt_tokens), 0)" # Sum of prompt tokens, 0 if none.
         elif limit_type == LimitType.OUTPUT_TOKENS:
-            agg_field = "COALESCE(SUM(output_tokens), 0)" # Sum of output tokens, 0 if none.
+            agg_field = "COALESCE(SUM(completion_tokens), 0)" # Sum of completion tokens, 0 if none.
         elif limit_type == LimitType.COST:
             agg_field = "COALESCE(SUM(cost), 0.0)" # Sum of costs, 0.0 if none.
         else:
             logger.error(f"Unsupported LimitType for quota aggregation: {limit_type}")
             raise ValueError(f"Unsupported LimitType for quota aggregation: {limit_type}")
 
-        base_query = f"SELECT {agg_field} AS aggregated_value FROM api_requests"
+        base_query = f"SELECT {agg_field} AS aggregated_value FROM accounting_entries"
         # Build dynamic WHERE clause.
         conditions = ["timestamp >= %s"] # Always filter by start_time.
         params: List[Any] = [start_time]
@@ -815,10 +760,10 @@ class NeonBackend(BaseBackend):
                     return float(result[0])
                 return 0.0 # Should be covered by COALESCE, but as a fallback.
         except psycopg2.Error as e:
-            logger.error(f"Error getting API requests for quota (type: {limit_type.value}): {e}")
+            logger.error(f"Error getting accounting entries for quota (type: {limit_type.value}): {e}")
             raise
         except Exception as e:
-            logger.error(f"An unexpected error occurred getting API requests for quota (type: {limit_type.value}): {e}")
+            logger.error(f"An unexpected error occurred getting accounting entries for quota (type: {limit_type.value}): {e}")
             raise
 
     def execute_query(self, query: str) -> List[Dict[str, Any]]:
@@ -1013,55 +958,4 @@ class NeonBackend(BaseBackend):
             # Log the error and re-raise. Depending on desired API contract,
             # one might choose to return None or an empty list here.
             logger.error(f"Error retrieving usage limits for user '{user_id}': {e}")
-            raise
-
-    def record_api_request(self, request_data: dict) -> None:
-        """
-        Records an API request from a dictionary of data.
-
-        This method serves as a bridge for systems that might provide request data as a dict.
-        It converts the dictionary to an `APIRequest` dataclass object and then calls
-        `insert_api_request` for actual database insertion.
-
-        Args:
-            request_data: A dictionary containing the API request details.
-                          Expected keys should match the fields of the `APIRequest` dataclass
-                          (e.g., 'model_name', 'username', 'input_tokens', 'cost').
-                          'model_name' is mandatory. 'timestamp' defaults to now if not provided.
-
-
-        Raises:
-            ValueError: If required fields (like 'model_name') are missing from `request_data`
-                        or if data conversion fails.
-            ConnectionError: If the database connection is not active (from underlying call).
-            psycopg2.Error: If an error occurs during SQL execution (from underlying call).
-            Exception: For other unexpected errors.
-        """
-        logger.debug(f"record_api_request(dict) called with data: {request_data}")
-        try:
-            # Validate that 'model_name' is present and is a string, as it's a non-optional field.
-            if not isinstance(request_data.get('model'), str):
-                raise ValueError("model (str) is required in request_data.")
-
-            # Construct an APIRequest object from the dictionary.
-            # Fields not present in request_data will use their default values if defined in APIRequest.
-            api_req = APIRequest(
-                model=request_data["model"],
-                username=request_data.get("username", ""),  # Default to empty string
-                caller_name=request_data.get("caller_name", ""), # Default to empty string
-                input_tokens=request_data.get("input_tokens", 0), # Default to 0
-                output_tokens=request_data.get("output_tokens", 0), # Default to 0
-                cost=request_data.get("cost", 0.0), # Default to 0.0
-                timestamp=request_data.get("timestamp", datetime.now())
-            )
-            self.insert_api_request(api_req)
-            logger.info(f"Successfully recorded API request from dict for user '{api_req.username}' model '{api_req.model}'.")
-        except KeyError as e:
-            logger.error(f"Missing key in request_data for record_api_request: {e}")
-            raise ValueError(f"Missing key in request_data: {e}") from e
-        except ValueError as ve: # Catch specific ValueErrors from our checks or enum conversions
-            logger.error(f"Validation error in record_api_request: {ve}")
-            raise
-        except Exception as e:
-            logger.error(f"Error processing record_api_request with dict: {e}")
             raise

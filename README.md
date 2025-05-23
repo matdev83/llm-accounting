@@ -227,16 +227,6 @@ The database schema generally includes the following tables and key fields (spec
 - `cached_tokens`: INTEGER - Number of tokens retrieved from cache.
 - `reasoning_tokens`: INTEGER - Number of tokens used for model reasoning/tool use.
 
-**`api_requests` Table (for quota tracking):**
-- `id`: SERIAL PRIMARY KEY
-- `model_name`: VARCHAR(255) NOT NULL
-- `username`: VARCHAR(255)
-- `caller_name`: VARCHAR(255)
-- `input_tokens`: INTEGER
-- `output_tokens`: INTEGER
-- `cost`: DOUBLE PRECISION
-- `timestamp`: TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-
 **`usage_limits` Table (for defining quotas/limits):**
 - `id`: SERIAL PRIMARY KEY
 - `scope`: VARCHAR(50) NOT NULL (e.g., 'USER', 'GLOBAL')

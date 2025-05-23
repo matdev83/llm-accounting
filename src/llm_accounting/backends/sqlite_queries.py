@@ -13,7 +13,7 @@ def insert_usage_query(conn: sqlite3.Connection, entry: UsageEntry) -> None:
     conn.execute(
         """
         INSERT INTO accounting_entries (
-            datetime,
+            timestamp,
             model,
             prompt_tokens,
             completion_tokens,
@@ -73,7 +73,7 @@ def get_period_stats_query(
             AVG(cost) as avg_cost,
             AVG(execution_time) as avg_execution_time
         FROM accounting_entries
-        WHERE datetime BETWEEN ? AND ?
+        WHERE timestamp BETWEEN ? AND ?
     """,
         (start.isoformat(), end.isoformat()),
     )
@@ -144,7 +144,7 @@ def get_model_stats_query(
             AVG(cost) as avg_cost,
             AVG(execution_time) as avg_execution_time
         FROM accounting_entries
-        WHERE datetime BETWEEN ? AND ?
+        WHERE timestamp BETWEEN ? AND ?
         GROUP BY model
     """,
         (start.isoformat(), end.isoformat()),
@@ -185,7 +185,7 @@ def get_model_rankings_query(
     prompt_tokens_query = """
         SELECT model, SUM(prompt_tokens) as total
         FROM accounting_entries
-        WHERE datetime BETWEEN ? AND ?
+        WHERE timestamp BETWEEN ? AND ?
         GROUP BY model
         ORDER BY total DESC
     """
@@ -196,7 +196,7 @@ def get_model_rankings_query(
     cost_query = """
         SELECT model, SUM(cost) as total
         FROM accounting_entries
-        WHERE datetime BETWEEN ? AND ?
+        WHERE timestamp BETWEEN ? AND ?
         GROUP BY model
         ORDER BY total DESC
     """
@@ -211,7 +211,7 @@ def tail_query(conn: sqlite3.Connection, n: int = 10) -> List[UsageEntry]:
     cursor = conn.execute(
         """
         SELECT
-            datetime,
+            timestamp,
             model,
             prompt_tokens,
             completion_tokens,
@@ -226,7 +226,7 @@ def tail_query(conn: sqlite3.Connection, n: int = 10) -> List[UsageEntry]:
             cached_tokens,
             reasoning_tokens
         FROM accounting_entries
-        ORDER BY datetime DESC
+        ORDER BY timestamp DESC
         LIMIT ?
     """,
         (n,),

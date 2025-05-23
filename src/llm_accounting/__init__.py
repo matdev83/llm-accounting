@@ -11,7 +11,19 @@ from .backends.base import BaseBackend, UsageEntry, UsageStats
 from .backends.mock_backend import MockBackend
 from .backends.sqlite import SQLiteBackend
 from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimit
-from .models.request import APIRequest
+"""Main package initialization for LLM Accounting system.
+
+This package provides core functionality for tracking and managing API usage quotas
+and rate limits across multiple services.
+"""
+import logging
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+
+from .backends.base import BaseBackend, UsageEntry, UsageStats
+from .backends.mock_backend import MockBackend
+from .backends.sqlite import SQLiteBackend
+from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimit
 from .services.quota_service import QuotaService
 from .audit_log import AuditLogger
 
@@ -58,7 +70,7 @@ class LLMAccounting:
         cached_tokens: int = 0,
         reasoning_tokens: int = 0,
     ) -> None:
-        """Track a new LLM usage entry and an API request entry"""
+        """Track a new LLM usage entry"""
         entry = UsageEntry(
             model=model,
             prompt_tokens=prompt_tokens,
@@ -76,25 +88,6 @@ class LLMAccounting:
             reasoning_tokens=reasoning_tokens,
         )
         self.backend.insert_usage(entry)
-
-        # Also insert an APIRequest entry for quota tracking
-        api_request_entry = APIRequest(
-            model=model,
-            username=username,
-            caller_name=caller_name,
-            input_tokens=prompt_tokens if prompt_tokens is not None else 0,
-            output_tokens=completion_tokens if completion_tokens is not None else 0,
-            cost=cost,
-            timestamp=timestamp if timestamp is not None else datetime.now(),
-        )
-        self.insert_api_request(api_request_entry)
-
-    def insert_api_request(self, request: APIRequest) -> None:
-        """Insert a new API request entry for quota tracking"""
-        # This method will need to be implemented in the backend
-        # For now, we'll assume the backend has a method for this
-        # This will be added to BaseBackend and SQLiteBackend next
-        self.backend.insert_api_request(request)
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """Get aggregated statistics for a time period"""
@@ -178,7 +171,6 @@ __all__ = [
     "UsageStats",
     "SQLiteBackend",
     "MockBackend",
-    "APIRequest",
     "AuditLogger",
     "LimitScope",
     "LimitType",

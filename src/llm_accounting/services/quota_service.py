@@ -143,7 +143,7 @@ class QuotaService:
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
     ) -> float:
-        return self.db.get_api_requests_for_quota(
+        return self.db.get_accounting_entries_for_quota(
             start_time=start_time,
             limit_type=LimitType(limit_type),
             model=model,

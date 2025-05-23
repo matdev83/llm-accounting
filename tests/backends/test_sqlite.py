@@ -26,7 +26,7 @@ def test_initialize(sqlite_backend):
         cursor = conn.execute("PRAGMA table_info(accounting_entries)")
         columns = {row[1] for row in cursor.fetchall()}
         required_columns = {
-            'id', 'datetime', 'model', 'prompt_tokens', 'completion_tokens',
+            'id', 'timestamp', 'model', 'prompt_tokens', 'completion_tokens',
             'total_tokens', 'local_prompt_tokens', 'local_completion_tokens',
             'local_total_tokens', 'cost', 'execution_time'
         }

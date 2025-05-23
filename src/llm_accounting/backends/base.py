@@ -3,8 +3,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
 from llm_accounting.models.limits import LimitScope, LimitType, UsageLimit
-from llm_accounting.models.request import APIRequest
 
 
 @dataclass
@@ -127,7 +131,7 @@ class BaseBackend(ABC):
         pass
 
     @abstractmethod
-    def get_api_requests_for_quota(
+    def get_accounting_entries_for_quota(
         self,
         start_time: datetime,
         limit_type: LimitType,
@@ -140,11 +144,6 @@ class BaseBackend(ABC):
         Returns the sum of the specified limit_type (e.g., input_tokens, cost)
         or the count of requests.
         """
-        pass
-
-    @abstractmethod
-    def insert_api_request(self, request: APIRequest) -> None:
-        """Insert a new API request entry for quota tracking."""
         pass
 
     @abstractmethod

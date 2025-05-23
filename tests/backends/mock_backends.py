@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats
 from llm_accounting.models.limits import LimitScope, LimitType, UsageLimit
-from llm_accounting.models.request import APIRequest
 
 
 class MockBackend(BaseBackend):
@@ -47,7 +46,7 @@ class MockBackend(BaseBackend):
     ) -> List[UsageLimit]:
         return []
 
-    def get_api_requests_for_quota(
+    def get_accounting_entries_for_quota(
         self,
         start_time: datetime,
         limit_type: LimitType,
@@ -56,9 +55,6 @@ class MockBackend(BaseBackend):
         caller_name: Optional[str] = None
     ) -> float:
         return 0.0
-
-    def insert_api_request(self, request: APIRequest) -> None:
-        pass
 
     def insert_usage_limit(self, limit: UsageLimit) -> None:
         pass

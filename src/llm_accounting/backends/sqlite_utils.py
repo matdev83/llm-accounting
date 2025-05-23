@@ -60,7 +60,7 @@ def initialize_db_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         """CREATE TABLE IF NOT EXISTS accounting_entries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            datetime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             model TEXT NOT NULL,
             prompt_tokens INTEGER,
             completion_tokens INTEGER,
@@ -74,20 +74,6 @@ def initialize_db_schema(conn: sqlite3.Connection) -> None:
             username TEXT NOT NULL DEFAULT '',
             cached_tokens INTEGER NOT NULL DEFAULT 0,
             reasoning_tokens INTEGER NOT NULL DEFAULT 0
-        )"""
-    )
-
-    # Create api_requests table if it doesn't exist
-    conn.execute(
-        """CREATE TABLE IF NOT EXISTS api_requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            model TEXT NOT NULL,
-            username TEXT NOT NULL,
-            caller_name TEXT NOT NULL,
-            input_tokens INTEGER NOT NULL,
-            output_tokens INTEGER NOT NULL,
-            cost REAL NOT NULL,
-            timestamp TEXT NOT NULL
         )"""
     )
 
@@ -140,13 +126,6 @@ def initialize_db_schema(conn: sqlite3.Connection) -> None:
         conn.execute(
             "ALTER TABLE accounting_entries ADD COLUMN reasoning_tokens INTEGER NOT NULL DEFAULT 0"
         )
-
-    # Check for and add any missing columns to api_requests (if needed in the future)
-    # Example:
-    # cursor = conn.execute("PRAGMA table_info(api_requests)")
-    # columns = [column[1] for column in cursor.fetchall()]
-    # if 'new_column' not in columns:
-    #     conn.execute('ALTER TABLE api_requests ADD COLUMN new_column TEXT')
 
     # Check for and add any missing columns to usage_limits (if needed in the future)
     # Example:

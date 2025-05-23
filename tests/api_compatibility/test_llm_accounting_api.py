@@ -19,7 +19,6 @@ class TestLLMAccountingAPI(unittest.TestCase):
             "__enter__",
             "__exit__",
             "track_usage",
-            "insert_api_request",
             "get_period_stats",
             "get_model_stats",
             "get_model_rankings",

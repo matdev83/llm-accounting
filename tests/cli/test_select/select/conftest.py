@@ -18,7 +18,7 @@ def test_db():
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS accounting_entries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            datetime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             model TEXT NOT NULL,
             prompt_tokens INTEGER,
             completion_tokens INTEGER,
@@ -35,7 +35,7 @@ def test_db():
         );
     """)
     conn.executemany(
-        "INSERT INTO accounting_entries (model, username, datetime, prompt_tokens, completion_tokens, total_tokens, cost, execution_time, cached_tokens, reasoning_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO accounting_entries (model, username, timestamp, prompt_tokens, completion_tokens, total_tokens, cost, execution_time, cached_tokens, reasoning_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
             ("gpt-4", "user1", "2024-01-01 10:00", 100, 150, 250, 0.06, 1.5, 0, 0),
             ("gpt-4", "user2", "2024-01-01 11:00", 150, 100, 250, 0.09, 2.1, 0, 0),

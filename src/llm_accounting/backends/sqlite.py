@@ -4,8 +4,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import logging
+import sqlite3
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
 from llm_accounting.models.limits import UsageLimit
-from llm_accounting.models.request import APIRequest
 
 from .base import BaseBackend, LimitScope, LimitType, UsageEntry, UsageStats
 from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
@@ -148,26 +153,6 @@ class SQLiteBackend(BaseBackend):
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error: {e}") from e
 
-    def insert_api_request(self, request: APIRequest) -> None:
-        """Insert a new API request entry into the database"""
-        assert self.conn is not None
-        self.conn.execute(
-            """
-            INSERT INTO api_requests (model, username, caller_name, input_tokens, output_tokens, cost, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                request.model,
-                request.username,
-                request.caller_name,
-                request.input_tokens,
-                request.output_tokens,
-                request.cost,
-                request.timestamp.isoformat(),
-            ),
-        )
-        self.conn.commit()
-
     def get_usage_limits(
         self,
         scope: Optional[LimitScope] = None,
@@ -212,7 +197,7 @@ class SQLiteBackend(BaseBackend):
             )
         return limits
 
-    def get_api_requests_for_quota(
+    def get_accounting_entries_for_quota(
         self,
         start_time: datetime,
         limit_type: LimitType,
@@ -225,15 +210,15 @@ class SQLiteBackend(BaseBackend):
         if limit_type == LimitType.REQUESTS:
             select_clause = "COUNT(*)"
         elif limit_type == LimitType.INPUT_TOKENS:
-            select_clause = "SUM(input_tokens)"
+            select_clause = "SUM(prompt_tokens)"
         elif limit_type == LimitType.OUTPUT_TOKENS:
-            select_clause = "SUM(output_tokens)"
+            select_clause = "SUM(completion_tokens)"
         elif limit_type == LimitType.COST:
             select_clause = "SUM(cost)"
         else:
             raise ValueError(f"Unknown limit type: {limit_type}")
 
-        query = f"SELECT {select_clause} FROM api_requests WHERE timestamp >= ?"
+        query = f"SELECT {select_clause} FROM accounting_entries WHERE timestamp >= ?"
         params = [start_time.isoformat()]
 
         if model:

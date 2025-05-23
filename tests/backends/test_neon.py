@@ -6,7 +6,6 @@ from datetime import datetime
 # Assuming src is in PYTHONPATH or the tests are run in a way that src can be found
 from src.llm_accounting.backends.neon import NeonBackend
 from src.llm_accounting.backends.base import UsageEntry, UsageStats
-from src.llm_accounting.models.request import APIRequest
 from src.llm_accounting.models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
 
 # Import psycopg2 and its error types for mocking side effects
@@ -230,36 +229,6 @@ class TestNeonBackend(unittest.TestCase):
         # Check a few default values
         self.assertEqual(stats.sum_prompt_tokens, 0)
 
-    def test_insert_api_request_success(self):
-        self.backend._create_tables = MagicMock()
-        self.backend.initialize()
-        sample_request = APIRequest(
-            model="text-davinci-003",
-            username="test_user",
-            input_tokens=50,
-            output_tokens=150,
-            cost=0.002,
-            timestamp=datetime(2023, 2, 1, 10, 0, 0),
-            caller_name=""
-        )
-        self.backend.insert_api_request(sample_request)
-        self.mock_cursor.execute.assert_called_once()
-        args, _ = self.mock_cursor.execute.call_args
-        self.assertIn("INSERT INTO api_requests", args[0])
-        self.assertIn(sample_request.model, args[1])
-        self.assertIn(sample_request.username, args[1])
-        self.mock_conn.commit.assert_called_once()
-
-    def test_insert_api_request_db_error(self):
-        self.backend._create_tables = MagicMock()
-        self.backend.initialize()
-        self.mock_cursor.execute.side_effect = psycopg2.Error("API Insert failed")
-        sample_request = APIRequest(model="text-davinci-003", username="", caller_name="", input_tokens=0, output_tokens=0, cost=0.002)
-        with self.assertRaises(psycopg2.Error):
-            self.backend.insert_api_request(sample_request)
-        self.mock_conn.rollback.assert_called_once()
-        self.mock_conn.commit.assert_not_called()
-
     def test_insert_usage_limit_success(self):
         self.backend._create_tables = MagicMock()
         self.backend.initialize()
@@ -322,7 +291,6 @@ class TestNeonBackend(unittest.TestCase):
         self.assertEqual(args[1], (start_dt, end_dt))
 
         self.assertEqual(len(model_stats_list), 2)
-        self.assertEqual(model_stats_list[0][0], 'gpt-4')
         self.assertIsInstance(model_stats_list[0][1], UsageStats)
         self.assertEqual(model_stats_list[0][1].sum_cost, 1.2)
         self.assertEqual(model_stats_list[1][0], 'gpt-3.5-turbo')
@@ -452,11 +420,10 @@ class TestNeonBackend(unittest.TestCase):
 
         expected_calls = [
             call("DELETE FROM accounting_entries;"),
-            call("DELETE FROM api_requests;"),
             call("DELETE FROM usage_limits;")
         ]
         self.mock_cursor.execute.assert_has_calls(expected_calls, any_order=False) # Order matters for DELETEs usually not, but check
-        self.assertEqual(self.mock_cursor.execute.call_count, 3)
+        self.assertEqual(self.mock_cursor.execute.call_count, 2)
         self.mock_conn.commit.assert_called_once()
 
     def test_purge_db_error(self):
@@ -536,62 +503,71 @@ class TestNeonBackend(unittest.TestCase):
         with self.assertRaises(psycopg2.Error):
             self.backend.get_usage_limits()
 
-    def test_get_api_requests_for_quota_success(self):
+    def test_get_accounting_entries_for_quota_success(self):
         self.backend._create_tables = MagicMock()
         self.backend.initialize()
         start_time = datetime(2023, 1, 1, 0, 0, 0)
 
         # Test for COST
         self.mock_cursor.fetchone.return_value = (123.45,)
-        cost_val = self.backend.get_api_requests_for_quota(start_time, LimitType.COST, model='gpt-4')
+        cost_val = self.backend.get_accounting_entries_for_quota(start_time, LimitType.COST, model='gpt-4')
         self.mock_cursor.execute.assert_called_with(
-            "SELECT COALESCE(SUM(cost), 0.0) AS aggregated_value FROM api_requests WHERE timestamp >= %s AND model_name = %s;",
+            "SELECT COALESCE(SUM(cost), 0.0) AS aggregated_value FROM accounting_entries WHERE timestamp >= %s AND model_name = %s;",
             (start_time, 'gpt-4')
         )
         self.assertEqual(cost_val, 123.45)
 
         # Test for REQUESTS
         self.mock_cursor.fetchone.return_value = (50,)
-        requests_val = self.backend.get_api_requests_for_quota(start_time, LimitType.REQUESTS, username='user1')
+        requests_val = self.backend.get_accounting_entries_for_quota(start_time, LimitType.REQUESTS, username='user1')
         self.mock_cursor.execute.assert_called_with(
-            "SELECT COUNT(*) AS aggregated_value FROM api_requests WHERE timestamp >= %s AND username = %s;",
+            "SELECT COUNT(*) AS aggregated_value FROM accounting_entries WHERE timestamp >= %s AND username = %s;",
             (start_time, 'user1')
         )
         self.assertEqual(requests_val, 50)
         
         # Test for INPUT_TOKENS
         self.mock_cursor.fetchone.return_value = (10000,)
-        input_tokens_val = self.backend.get_api_requests_for_quota(start_time, LimitType.INPUT_TOKENS, caller_name='caller_A')
+        input_tokens_val = self.backend.get_accounting_entries_for_quota(start_time, LimitType.INPUT_TOKENS, caller_name='caller_A')
         self.mock_cursor.execute.assert_called_with(
-            "SELECT COALESCE(SUM(input_tokens), 0) AS aggregated_value FROM api_requests WHERE timestamp >= %s AND caller_name = %s;",
+            "SELECT COALESCE(SUM(prompt_tokens), 0) AS aggregated_value FROM accounting_entries WHERE timestamp >= %s AND caller_name = %s;",
             (start_time, 'caller_A')
         )
         self.assertEqual(input_tokens_val, 10000)
 
-    def test_get_api_requests_for_quota_no_data(self):
+        # Test for OUTPUT_TOKENS
+        self.mock_cursor.fetchone.return_value = (20000,)
+        output_tokens_val = self.backend.get_accounting_entries_for_quota(start_time, LimitType.OUTPUT_TOKENS, caller_name='caller_B')
+        self.mock_cursor.execute.assert_called_with(
+            "SELECT COALESCE(SUM(completion_tokens), 0) AS aggregated_value FROM accounting_entries WHERE timestamp >= %s AND caller_name = %s;",
+            (start_time, 'caller_B')
+        )
+        self.assertEqual(output_tokens_val, 20000)
+
+    def test_get_accounting_entries_for_quota_no_data(self):
         self.backend._create_tables = MagicMock()
         self.backend.initialize()
         self.mock_cursor.fetchone.return_value = (0.0,) # COALESCE should return 0 or 0.0
-        val = self.backend.get_api_requests_for_quota(datetime.now(), LimitType.COST)
+        val = self.backend.get_accounting_entries_for_quota(datetime.now(), LimitType.COST)
         self.assertEqual(val, 0.0)
         
         self.mock_cursor.fetchone.return_value = (0,) # For COUNT or SUM(tokens)
-        val_tokens = self.backend.get_api_requests_for_quota(datetime.now(), LimitType.INPUT_TOKENS)
+        val_tokens = self.backend.get_accounting_entries_for_quota(datetime.now(), LimitType.INPUT_TOKENS)
         self.assertEqual(val_tokens, 0)
 
 
-    def test_get_api_requests_for_quota_db_error(self):
+    def test_get_accounting_entries_for_quota_db_error(self):
         self.backend._create_tables = MagicMock()
         self.backend.initialize()
         self.mock_cursor.execute.side_effect = psycopg2.Error("Quota check failed")
         with self.assertRaises(psycopg2.Error):
-            self.backend.get_api_requests_for_quota(datetime.now(), LimitType.COST)
+            self.backend.get_accounting_entries_for_quota(datetime.now(), LimitType.COST)
 
-    def test_get_api_requests_for_quota_invalid_type(self):
+    def test_get_accounting_entries_for_quota_invalid_type(self):
         self.backend._create_tables = MagicMock()
         self.backend.initialize()
-        with self.assertRaisesRegex(ValueError, "is not a valid LimitType"):
-            self.backend.get_api_requests_for_quota(datetime.now(), LimitType("unsupported"))
+        with self.assertRaisesRegex(ValueError, "'unsupported' is not a valid LimitType"):
+            self.backend.get_accounting_entries_for_quota(datetime.now(), LimitType("unsupported"))
 
 
     def test_execute_query_success(self):
@@ -721,36 +697,6 @@ class TestNeonBackend(unittest.TestCase):
         self.backend.get_usage_limits = MagicMock(return_value=[])
         retrieved_limits = self.backend.get_usage_limit("user_xyz")
         self.assertEqual(retrieved_limits, [])
-
-
-    def test_record_api_request_base_method_success(self):
-        self.backend._create_tables = MagicMock()
-        self.backend.initialize()
-        # This method calls self.insert_api_request
-        self.backend.insert_api_request = MagicMock(name="insert_api_request_mock")
-        
-        request_data = {
-            "model": "gpt-4-turbo",
-            "username": "test_user_record",
-            "input_tokens": 10,
-            "output_tokens": 20,
-            "cost": 0.001
-        }
-        self.backend.record_api_request(request_data)
-
-        self.backend.insert_api_request.assert_called_once()
-        called_arg = self.backend.insert_api_request.call_args[0][0]
-        self.assertIsInstance(called_arg, APIRequest)
-        self.assertEqual(called_arg.model, request_data["model"])
-        self.assertEqual(called_arg.username, request_data["username"])
-        self.assertEqual(called_arg.cost, request_data["cost"])
-
-    def test_record_api_request_base_method_missing_key(self):
-        self.backend._create_tables = MagicMock()
-        self.backend.initialize()
-        request_data_missing = {"username": "some_user"} # Missing model
-        with self.assertRaisesRegex(ValueError, "model .* is required"):
-            self.backend.record_api_request(request_data_missing)
 
 
 if __name__ == '__main__':
