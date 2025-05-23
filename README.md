@@ -45,9 +45,9 @@ from llm_accounting import LLMAccounting
 # from datetime import datetime # If providing timestamps or querying by date
 
 # Default backend (SQLite)
-# async with LLMAccounting() as accounting:
+# with LLMAccounting() as accounting:
 #     # Track usage (model name is required, timestamp is optional)
-#     await accounting.track_usage(
+#     accounting.track_usage(
 #         model="gpt-4",  # Required: name of the LLM model
 #         prompt_tokens=100,
 #         completion_tokens=50,
@@ -62,11 +62,11 @@ from llm_accounting import LLMAccounting
 #     # Get statistics
 #     # start_date = datetime(2024, 1, 1)
 #     # end_date = datetime(2024, 1, 31)
-#     # stats = await accounting.get_period_stats(start_date, end_date)
-#     # model_stats = await accounting.get_model_stats(start_date, end_date)
-#     # rankings = await accounting.get_model_rankings(start_date, end_date)
+#     # stats = accounting.get_period_stats(start_date, end_date)
+#     # model_stats = accounting.get_model_stats(start_date, end_date)
+#     # rankings = accounting.get_model_rankings(start_date, end_date)
 ```
-*Note: The `LLMAccounting` class's methods like `track_usage` are shown with `await` in previous examples. If these methods are indeed asynchronous, ensure your application is run in an async context (e.g., using `asyncio.run()`). The specific backend's methods (like `NeonBackend.initialize()`) might be synchronous; `LLMAccounting` should manage this interaction.*
+*Note: The `LLMAccounting` class and its methods are synchronous. If you are integrating `llm-accounting` into an asynchronous application, you should run its synchronous calls in a separate thread (e.g., using `asyncio.to_thread`) to avoid blocking the event loop.*
 
 ### CLI Usage
 
@@ -258,8 +258,8 @@ from llm_accounting.backends.sqlite import SQLiteBackend
 
 # Otherwise, LLMAccounting() uses a default SQLiteBackend:
 accounting_sqlite = LLMAccounting()
-# async with accounting_sqlite:
-#     await accounting_sqlite.track_usage(model="gpt-3.5-turbo", cost=0.001)
+# with accounting_sqlite:
+#     accounting_sqlite.track_usage(model="gpt-3.5-turbo", cost=0.001)
 ```
 
 ### Neon Backend (PostgreSQL)
@@ -319,9 +319,9 @@ accounting_neon_env = LLMAccounting(backend=neon_backend_env)
 # This example assumes LLMAccounting manages the async/sync interaction if its methods are async.
 # For simplicity, direct calls are shown here. If LLMAccounting methods are async, use `async with`.
 
-# with accounting_neon_env: # Use `async with` if LLMAccounting methods are async
+# with accounting_neon_env:
 #     # Example: Track usage
-#     accounting_neon_env.track_usage( # Use `await` if track_usage is async
+#     accounting_neon_env.track_usage(
 #         model="gpt-3.5-turbo",
 #         prompt_tokens=50,
 #         completion_tokens=100,
@@ -332,7 +332,7 @@ accounting_neon_env = LLMAccounting(backend=neon_backend_env)
 #     # Example: Get stats for a period
 #     # start_date = datetime(2024, 1, 1)
 #     # end_date = datetime(2024, 1, 31)
-#     # stats = accounting_neon_env.get_period_stats(start_date, end_date) # Use `await` if async
+#     # stats = accounting_neon_env.get_period_stats(start_date, end_date)
 #     # print(stats)
 
 
@@ -342,8 +342,8 @@ accounting_neon_env = LLMAccounting(backend=neon_backend_env)
 # neon_backend_direct = NeonBackend(neon_connection_string=neon_connection_str)
 # accounting_neon_direct = LLMAccounting(backend=neon_backend_direct)
 
-# with accounting_neon_direct: # Use `async with` if LLMAccounting methods are async
-#     accounting_neon_direct.track_usage( # Use `await` if track_usage is async
+# with accounting_neon_direct:
+#     accounting_neon_direct.track_usage(
 #         model="gpt-4",
 #         prompt_tokens=200,
 #         completion_tokens=400,
@@ -351,8 +351,6 @@ accounting_neon_env = LLMAccounting(backend=neon_backend_env)
 #     )
 #     print("Usage tracked with Neon backend (direct connection string).")
 ```
-
-*Note on Asynchronous Operations: The main `LLMAccounting` class examples in this README use `async with` and `await`, suggesting asynchronous operation. The `NeonBackend` itself uses the synchronous `psycopg2` library. If `LLMAccounting`'s core methods are asynchronous, it should ideally handle the execution of synchronous backend operations in a way that doesn't block the async event loop (e.g., by using `asyncio.to_thread` or similar patterns). Users building fully asynchronous applications should be mindful of this potential interaction.*
 
 **Error Handling/Notes:**
 
@@ -444,11 +442,11 @@ Here's how you can implement your own custom backend, using the `MockBackend` as
     # accounting_custom = LLMAccounting(backend=custom_backend)
 
     # Now, all accounting operations will use your custom backend
-    # with accounting_custom: # Use `async with` if LLMAccounting methods are async
-    #     accounting_custom.track_usage(model="custom_model", prompt_tokens=10, cost=0.001) # Use `await` if async
-    #     # stats = accounting_custom.get_period_stats(datetime.now(), datetime.now()) # Use `await` if async
-    #     # ... and so on
-    ```
+# with accounting_custom:
+#     accounting_custom.track_usage(model="custom_model", prompt_tokens=10, cost=0.001)
+#     # stats = accounting_custom.get_period_stats(datetime.now(), datetime.now())
+#     # ... and so on
+```
 
 By following this pattern, you can extend `llm-accounting` to work seamlessly with virtually any data storage solution, providing maximum flexibility for your application's needs.
 
