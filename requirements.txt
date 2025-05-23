@@ -12,6 +12,7 @@ alembic>=1.13.0
 hatchling>=1.18.0
 build>=1.0.0
 twine>=4.0.0
+setuptools
 
 # LLM Accounting Backends
 psycopg2-binary>=2.9,<3.0
