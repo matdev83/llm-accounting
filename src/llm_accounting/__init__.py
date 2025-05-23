@@ -71,6 +71,7 @@ class LLMAccounting:
         reasoning_tokens: int = 0,
     ) -> None:
         """Track a new LLM usage entry"""
+        self.backend._ensure_connected()
         entry = UsageEntry(
             model=model,
             prompt_tokens=prompt_tokens,
@@ -91,24 +92,29 @@ class LLMAccounting:
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """Get aggregated statistics for a time period"""
+        self.backend._ensure_connected()
         return self.backend.get_period_stats(start, end)
 
     def get_model_stats(self, start: datetime, end: datetime):
         """Get statistics grouped by model for a time period"""
+        self.backend._ensure_connected()
         return self.backend.get_model_stats(start, end)
 
     def get_model_rankings(
         self, start_date: datetime, end_date: datetime
     ) -> Dict[str, List[Tuple[str, float]]]:
         """Get model rankings based on different metrics"""
+        self.backend._ensure_connected()
         return self.backend.get_model_rankings(start_date, end_date)
 
     def purge(self) -> None:
         """Delete all usage entries from the backend"""
+        self.backend._ensure_connected()
         self.backend.purge()
 
     def tail(self, n: int = 10) -> List[UsageEntry]:
         """Get the n most recent usage entries"""
+        self.backend._ensure_connected()
         return self.backend.tail(n)
 
     def check_quota(
@@ -120,6 +126,7 @@ class LLMAccounting:
         cost: float = 0.0,
     ) -> Tuple[bool, Optional[str]]:
         """Check if the current request exceeds any defined quotas."""
+        self.backend._ensure_connected()
         return self.quota_service.check_quota(
             model, username, caller_name, input_tokens, cost
         )
@@ -136,6 +143,7 @@ class LLMAccounting:
         caller_name: Optional[str] = None,
     ) -> None:
         """Sets a new usage limit."""
+        self.backend._ensure_connected()
         limit = UsageLimit(
             scope=scope.value,
             limit_type=limit_type.value,
@@ -156,10 +164,12 @@ class LLMAccounting:
         caller_name: Optional[str] = None,
     ) -> List[UsageLimit]:
         """Retrieves configured usage limits."""
+        self.backend._ensure_connected()
         return self.backend.get_usage_limits(scope, model, username, caller_name)
 
     def delete_usage_limit(self, limit_id: int) -> None:
         """Deletes a usage limit by its ID."""
+        self.backend._ensure_connected()
         self.backend.delete_usage_limit(limit_id)
 
     def get_db_path(self) -> Optional[str]:

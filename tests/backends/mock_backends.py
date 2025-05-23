@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, override
 
 
 from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats
@@ -9,34 +9,49 @@ from llm_accounting.models.limits import LimitScope, LimitType, UsageLimit
 class MockBackend(BaseBackend):
     """A mock backend that implements all required methods"""
 
+    @override
+    def _ensure_connected(self) -> None:
+        """Mocks ensuring connection."""
+        pass
+
+    @override
     def initialize(self) -> None:
         pass
 
+    @override
     def insert_usage(self, entry: UsageEntry) -> None:
         pass
 
+    @override
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         return UsageStats()  # Return a default UsageStats object
 
+    @override
     def get_model_stats(self, start: datetime, end: datetime) -> List[Tuple[str, UsageStats]]:
         return []  # Return an empty list
 
+    @override
     def get_model_rankings(self, start: datetime, end: datetime) -> Dict[str, List[Tuple[str, Any]]]:
         return {}  # Return an empty dictionary
 
+    @override
     def purge(self) -> None:
         pass  # pragma: no cover
 
+    @override
     def tail(self, n: int = 10) -> List[UsageEntry]:
         return []
 
+    @override
     def close(self) -> None:
         pass
 
+    @override
     def execute_query(self, query: str) -> List[Dict[str, Any]]:
         """Mock implementation of execute_query"""
         return [{}]  # Return list of empty dicts to match SQLite format
 
+    @override
     def get_usage_limits(
         self,
         scope: Optional[LimitScope] = None,
@@ -46,6 +61,7 @@ class MockBackend(BaseBackend):
     ) -> List[UsageLimit]:
         return []
 
+    @override
     def get_accounting_entries_for_quota(
         self,
         start_time: datetime,
@@ -56,9 +72,11 @@ class MockBackend(BaseBackend):
     ) -> float:
         return 0.0
 
+    @override
     def insert_usage_limit(self, limit: UsageLimit) -> None:
         pass
 
+    @override
     def delete_usage_limit(self, limit_id: int) -> None:
         pass
 

@@ -61,11 +61,13 @@ class SQLiteBackend(BaseBackend):
 
     def insert_usage(self, entry: UsageEntry) -> None:
         """Insert a new usage entry into the database"""
+        self._ensure_connected()
         assert self.conn is not None
         insert_usage_query(self.conn, entry)
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """Get aggregated statistics for a time period"""
+        self._ensure_connected()
         assert self.conn is not None
         return get_period_stats_query(self.conn, start, end)
 
@@ -73,6 +75,7 @@ class SQLiteBackend(BaseBackend):
         self, start: datetime, end: datetime
     ) -> List[Tuple[str, UsageStats]]:
         """Get statistics grouped by model for a time period"""
+        self._ensure_connected()
         assert self.conn is not None
         return get_model_stats_query(self.conn, start, end)
 
@@ -80,17 +83,20 @@ class SQLiteBackend(BaseBackend):
         self, start: datetime, end: datetime
     ) -> Dict[str, List[Tuple[str, float]]]:
         """Get model rankings based on different metrics"""
+        self._ensure_connected()
         assert self.conn is not None
         return get_model_rankings_query(self.conn, start, end)
 
     def purge(self) -> None:
         """Delete all usage entries from the database"""
+        self._ensure_connected()
         assert self.conn is not None
         self.conn.execute("DELETE FROM accounting_entries")
         self.conn.commit()
 
     def insert_usage_limit(self, limit: UsageLimit) -> None:
         """Insert a new usage limit entry into the database."""
+        self._ensure_connected()
         assert self.conn is not None
         self.conn.execute(
             """
@@ -114,6 +120,7 @@ class SQLiteBackend(BaseBackend):
 
     def tail(self, n: int = 10) -> List[UsageEntry]:
         """Get the n most recent usage entries"""
+        self._ensure_connected()
         assert self.conn is not None
         return tail_query(self.conn, n)
 
@@ -138,8 +145,7 @@ class SQLiteBackend(BaseBackend):
         if not query.strip().upper().startswith("SELECT"):
             raise ValueError("Only SELECT queries are allowed.")
 
-        if not self.conn:
-            self.initialize()
+        self._ensure_connected()
 
         assert self.conn is not None  # For type checking
         try:
@@ -160,6 +166,7 @@ class SQLiteBackend(BaseBackend):
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
     ) -> List[UsageLimit]:
+        self._ensure_connected()
         assert self.conn is not None
         query = "SELECT id, scope, limit_type, model, username, caller_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits WHERE 1=1"
         params = []
@@ -205,6 +212,7 @@ class SQLiteBackend(BaseBackend):
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
     ) -> float:
+        self._ensure_connected()
         assert self.conn is not None
 
         if limit_type == LimitType.REQUESTS:
@@ -237,6 +245,15 @@ class SQLiteBackend(BaseBackend):
 
     def delete_usage_limit(self, limit_id: int) -> None:
         """Delete a usage limit entry by its ID."""
+        self._ensure_connected()
         assert self.conn is not None
         self.conn.execute("DELETE FROM usage_limits WHERE id = ?", (limit_id,))
         self.conn.commit()
+
+    def _ensure_connected(self) -> None:
+        """
+        Ensures the SQLite backend has an active connection.
+        Initializes the connection if it's None.
+        """
+        if self.conn is None:
+            self.initialize()

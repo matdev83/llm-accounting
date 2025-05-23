@@ -155,3 +155,12 @@ class BaseBackend(ABC):
     def delete_usage_limit(self, limit_id: int) -> None:
         """Delete a usage limit entry by its ID."""
         pass
+
+    @abstractmethod
+    def _ensure_connected(self) -> None:
+        """
+        Ensures the backend has an active connection.
+        Implementations should handle connection establishment or re-establishment.
+        This method should be idempotent.
+        """
+        pass

@@ -108,50 +108,47 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during DDL execution (and is re-raised).
             Exception: For any other unexpected errors during table creation (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot create tables, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
-
-        # SQL DDL commands for creating tables.
-        # These correspond to UsageEntry, and UsageLimit dataclasses.
-        commands = (
-            """
-            CREATE TABLE IF NOT EXISTS accounting_entries (
-                id SERIAL PRIMARY KEY, -- Auto-incrementing integer primary key
-                model_name VARCHAR(255) NOT NULL,
-                prompt_tokens INTEGER,
-                completion_tokens INTEGER,
-                total_tokens INTEGER,
-                local_prompt_tokens INTEGER,
-                local_completion_tokens INTEGER,
-                local_total_tokens INTEGER,
-                cost DOUBLE PRECISION NOT NULL,       -- Cost of the API call
-                execution_time DOUBLE PRECISION,      -- Execution time in seconds
-                timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- Timestamp of the entry
-                caller_name VARCHAR(255),             -- Optional identifier for the calling function/module
-                username VARCHAR(255),                -- Optional identifier for the user
-                cached_tokens INTEGER,                -- Number of tokens retrieved from cache
-                reasoning_tokens INTEGER              -- Number of tokens used for reasoning/tool use
-            )
-            """,
-            """
-            CREATE TABLE IF NOT EXISTS usage_limits (
-                id SERIAL PRIMARY KEY,
-                scope VARCHAR(50) NOT NULL,           -- e.g., 'USER', 'GLOBAL', 'MODEL' (maps to LimitScope enum)
-                limit_type VARCHAR(50) NOT NULL,      -- e.g., 'COST', 'REQUESTS', 'TOKENS' (maps to LimitType enum)
-                max_value DOUBLE PRECISION NOT NULL,  -- Maximum value for the limit
-                interval_unit VARCHAR(50) NOT NULL,   -- e.g., 'HOURLY', 'DAILY', 'MONTHLY' (maps to LimitIntervalUnit enum)
-                interval_value INTEGER NOT NULL,      -- Numerical value for the interval (e.g., 1 for monthly)
-                model_name VARCHAR(255),              -- Specific model this limit applies to (optional)
-                username VARCHAR(255),                -- Specific user this limit applies to (optional)
-                caller_name VARCHAR(255),             -- Specific caller this limit applies to (optional)
-                created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
         try:
-            # Connection check is already done at the beginning of the method.
+            self._ensure_connected()
+
+            # SQL DDL commands for creating tables.
+            # These correspond to UsageEntry, and UsageLimit dataclasses.
+            commands = (
+                """
+                CREATE TABLE IF NOT EXISTS accounting_entries (
+                    id SERIAL PRIMARY KEY, -- Auto-incrementing integer primary key
+                    model_name VARCHAR(255) NOT NULL,
+                    prompt_tokens INTEGER,
+                    completion_tokens INTEGER,
+                    total_tokens INTEGER,
+                    local_prompt_tokens INTEGER,
+                    local_completion_tokens INTEGER,
+                    local_total_tokens INTEGER,
+                    cost DOUBLE PRECISION NOT NULL,       -- Cost of the API call
+                    execution_time DOUBLE PRECISION,      -- Execution time in seconds
+                    timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- Timestamp of the entry
+                    caller_name VARCHAR(255),             -- Optional identifier for the calling function/module
+                    username VARCHAR(255),                -- Optional identifier for the user
+                    cached_tokens INTEGER,                -- Number of tokens retrieved from cache
+                    reasoning_tokens INTEGER              -- Number of tokens used for reasoning/tool use
+                )
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS usage_limits (
+                    id SERIAL PRIMARY KEY,
+                    scope VARCHAR(50) NOT NULL,           -- e.g., 'USER', 'GLOBAL', 'MODEL' (maps to LimitScope enum)
+                    limit_type VARCHAR(50) NOT NULL,      -- e.g., 'COST', 'REQUESTS', 'TOKENS' (maps to LimitType enum)
+                    max_value DOUBLE PRECISION NOT NULL,  -- Maximum value for the limit
+                    interval_unit VARCHAR(50) NOT NULL,   -- e.g., 'HOURLY', 'DAILY', 'MONTHLY' (maps to LimitIntervalUnit enum)
+                    interval_value INTEGER NOT NULL,      -- Numerical value for the interval (e.g., 1 for monthly)
+                    model_name VARCHAR(255),              -- Specific model this limit applies to (optional)
+                    username VARCHAR(255),                -- Specific user this limit applies to (optional)
+                    caller_name VARCHAR(255),             -- Specific caller this limit applies to (optional)
+                    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
             # A cursor is obtained to execute SQL commands.
             # The `with` statement ensures the cursor is closed automatically.
             with self.conn.cursor() as cur:
@@ -159,6 +156,9 @@ class NeonBackend(BaseBackend):
                     cur.execute(command)
                 self.conn.commit() # Commit the transaction to make table creations permanent.
             logger.info("Database tables (accounting_entries, usage_limits) checked/created successfully.")
+        except ConnectionError as e:
+            logger.error(f"Connection error during table creation: {e}")
+            raise # Re-raise the connection error
         except psycopg2.Error as e:
             logger.error(f"Error during table creation: {e}")
             if self.conn and not self.conn.closed: # Check if connection is still valid before rollback
@@ -182,9 +182,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot insert usage entry, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         # SQL INSERT statement for accounting_entries table.
         # Uses %s placeholders for parameters to prevent SQL injection.
@@ -230,9 +228,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot insert usage limit, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         # SQL INSERT statement for usage_limits table.
         # Enum values are accessed using `.value` for storage as strings.
@@ -275,9 +271,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot delete usage limit, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         sql = "DELETE FROM usage_limits WHERE id = %s;"
         try:
@@ -319,9 +313,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot get period stats, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         # SQL query to aggregate usage statistics.
         # COALESCE ensures that if SUM/AVG returns NULL (e.g., no rows), it's replaced with 0 or 0.0.
@@ -388,9 +380,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot get model stats, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         # SQL query to aggregate usage statistics per model.
         # Groups by model_name and orders by model_name for consistent output.
@@ -457,9 +447,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot get model rankings, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         # Defines the metrics and their corresponding SQL aggregation functions.
         metrics = {
@@ -508,9 +496,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot tail usage entries, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         # SQL query to select the last N entries.
         # Ordered by timestamp and then ID (as a secondary sort key for determinism if timestamps are identical).
@@ -572,9 +558,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot purge data, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         tables_to_purge = ["accounting_entries", "usage_limits"]
         try:
@@ -625,9 +609,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot get usage limits, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         base_query = "SELECT * FROM usage_limits"
         conditions = []
@@ -715,9 +697,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot get accounting entries for quota, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         # Determine the SQL aggregation function based on the limit_type.
         if limit_type == LimitType.REQUESTS:
@@ -787,9 +767,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot execute query, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         # Basic validation to allow only SELECT queries.
         if not query.lstrip().upper().startswith("SELECT"):
@@ -834,9 +812,7 @@ class NeonBackend(BaseBackend):
             psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
             Exception: For any other unexpected errors (and is re-raised).
         """
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot get usage costs, database connection is not active.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         query = "SELECT COALESCE(SUM(cost), 0.0) FROM accounting_entries WHERE username = %s"
         # Build query with optional date filters.
@@ -894,9 +870,7 @@ class NeonBackend(BaseBackend):
             Exception: For other unexpected errors.
         """
         logger.info(f"Setting usage limit for user '{user_id}', amount {limit_amount}, type '{limit_type_str}'.")
-        if not self.conn or self.conn.closed:
-            logger.error("Cannot set usage limit, DB connection inactive.")
-            raise ConnectionError("Database connection is not active. Call initialize() first.")
+        self._ensure_connected()
 
         try:
             # Convert the string representation of limit_type to the Enum member.
@@ -959,3 +933,16 @@ class NeonBackend(BaseBackend):
             # one might choose to return None or an empty list here.
             logger.error(f"Error retrieving usage limits for user '{user_id}': {e}")
             raise
+
+    def _ensure_connected(self) -> None:
+        """
+        Ensures the Neon backend has an active connection.
+        Initializes the connection if it's None or closed.
+        Raises ConnectionError if initialization fails.
+        """
+        if self.conn is None or self.conn.closed:
+            try:
+                self.initialize()
+            except ConnectionError as e:
+                logger.error(f"Failed to establish connection in _ensure_connected: {e}")
+                raise # Re-raise the connection error
