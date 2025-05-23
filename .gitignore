@@ -47,3 +47,4 @@ build/
 data/
 .clinerules/
 .aider.conf.yml
+.ruff_cache/
