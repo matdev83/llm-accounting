@@ -34,8 +34,8 @@ class DataInserter:
                 model_name, prompt_tokens, completion_tokens, total_tokens,
                 local_prompt_tokens, local_completion_tokens, local_total_tokens,
                 cost, execution_time, timestamp, caller_name, username,
-                cached_tokens, reasoning_tokens
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                cached_tokens, reasoning_tokens, project
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         try:
             with self.backend.conn.cursor() as cur:
@@ -43,7 +43,8 @@ class DataInserter:
                     entry.model, entry.prompt_tokens, entry.completion_tokens, entry.total_tokens,
                     entry.local_prompt_tokens, entry.local_completion_tokens, entry.local_total_tokens,
                     entry.cost, entry.execution_time, entry.timestamp or datetime.now(),
-                    entry.caller_name, entry.username, entry.cached_tokens, entry.reasoning_tokens
+                    entry.caller_name, entry.username, entry.cached_tokens, entry.reasoning_tokens,
+                    entry.project
                 ))
                 self.backend.conn.commit()
             logger.info(f"Successfully inserted usage entry for user '{entry.username}' "
@@ -80,8 +81,8 @@ class DataInserter:
         sql = """
             INSERT INTO usage_limits (
                 scope, limit_type, max_value, interval_unit, interval_value,
-                model_name, username, caller_name, created_at, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                model_name, username, caller_name, project_name, created_at, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         try:
             with self.backend.conn.cursor() as cur:
@@ -89,6 +90,7 @@ class DataInserter:
                     limit.scope, limit.limit_type, limit.max_value,
                     limit.interval_unit, limit.interval_value,
                     limit.model, limit.username, limit.caller_name,
+                    limit.project_name, # Added project_name
                     limit.created_at or datetime.now(), limit.updated_at or datetime.now()
                 ))
                 self.backend.conn.commit()

@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, override
+from typing import Any, Dict, List, Optional, Tuple
+from typing_extensions import override # MODIFIED_LINE
 
 from .base import BaseBackend, UsageEntry, UsageStats
 from ..models.limits import LimitScope, LimitType, UsageLimit

@@ -17,6 +17,7 @@ def run_tail(args, accounting: LLMAccounting):
     table = Table(title=f"Last {len(entries)} Usage Entries")
     table.add_column("Timestamp", style="cyan")
     table.add_column("Model", style="cyan")
+    table.add_column("Project", style="cyan")
     table.add_column("Caller", style="cyan")
     table.add_column("User", style="cyan")
     table.add_column("Prompt Tokens", justify="right", style="green")
@@ -29,6 +30,7 @@ def run_tail(args, accounting: LLMAccounting):
         table.add_row(
             entry.timestamp.strftime("%Y-%m-%d %H:%M:%S") if entry.timestamp else "-",
             entry.model,
+            entry.project or "-",
             entry.caller_name or "-",
             entry.username or "-",
             format_tokens(

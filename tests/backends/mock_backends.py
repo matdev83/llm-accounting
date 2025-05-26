@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, override
-
+from typing import Any, Dict, List, Optional, Tuple
+from typing_extensions import override # MODIFIED_LINE
 
 from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats
 from llm_accounting.models.limits import LimitScope, LimitType, UsageLimit

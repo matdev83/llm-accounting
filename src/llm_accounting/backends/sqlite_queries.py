@@ -26,8 +26,9 @@ def insert_usage_query(conn: sqlite3.Connection, entry: UsageEntry) -> None:
             caller_name,
             username,
             cached_tokens,
-            reasoning_tokens
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            reasoning_tokens,
+            project
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
             timestamp,
@@ -44,6 +45,7 @@ def insert_usage_query(conn: sqlite3.Connection, entry: UsageEntry) -> None:
             entry.username,
             entry.cached_tokens,
             entry.reasoning_tokens,
+            entry.project,
         ),
     )
     conn.commit()
@@ -224,7 +226,8 @@ def tail_query(conn: sqlite3.Connection, n: int = 10) -> List[UsageEntry]:
             caller_name,
             username,
             cached_tokens,
-            reasoning_tokens
+            reasoning_tokens,
+            project
         FROM accounting_entries
         ORDER BY timestamp DESC
         LIMIT ?
@@ -249,6 +252,7 @@ def tail_query(conn: sqlite3.Connection, n: int = 10) -> List[UsageEntry]:
             username=row[11],
             cached_tokens=row[12],
             reasoning_tokens=row[13],
+            project=row[14],
         )
         for row in rows
     ]

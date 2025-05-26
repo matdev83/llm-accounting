@@ -29,6 +29,7 @@ class UsageEntry:
     timestamp: Optional[datetime] = None
     caller_name: str = ""
     username: str = ""
+    project: Optional[str] = None
     # Additional token details
     cached_tokens: int = 0
     reasoning_tokens: int = 0
@@ -126,6 +127,7 @@ class BaseBackend(ABC):
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
+        project_name: Optional[str] = None,
     ) -> List[UsageLimit]:
         """Retrieve usage limits based on specified filters."""
         pass
@@ -138,6 +140,7 @@ class BaseBackend(ABC):
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
+        project_name: Optional[str] = None,
     ) -> float:
         """
         Retrieve aggregated API request data for quota calculation.

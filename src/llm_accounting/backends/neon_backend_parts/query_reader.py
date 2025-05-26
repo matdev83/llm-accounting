@@ -252,7 +252,8 @@ class QueryReader:
                         'caller_name': row_dict.get('caller_name'),
                         'username': row_dict.get('username'),
                         'cached_tokens': row_dict.get('cached_tokens'),
-                        'reasoning_tokens': row_dict.get('reasoning_tokens')
+                        'reasoning_tokens': row_dict.get('reasoning_tokens'),
+                        'project': row_dict.get('project')
                     }
                     # Filter out None values before passing to dataclass constructor
                     # to avoid issues if a field is not Optional in the dataclass

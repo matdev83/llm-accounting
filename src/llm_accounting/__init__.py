@@ -11,19 +11,6 @@ from .backends.base import BaseBackend, UsageEntry, UsageStats
 from .backends.mock_backend import MockBackend
 from .backends.sqlite import SQLiteBackend
 from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimit
-"""Main package initialization for LLM Accounting system.
-
-This package provides core functionality for tracking and managing API usage quotas
-and rate limits across multiple services.
-"""
-import logging
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple
-
-from .backends.base import BaseBackend, UsageEntry, UsageStats
-from .backends.mock_backend import MockBackend
-from .backends.sqlite import SQLiteBackend
-from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimit
 from .services.quota_service import QuotaService
 from .audit_log import AuditLogger
 
@@ -69,6 +56,7 @@ class LLMAccounting:
         username: str = "",
         cached_tokens: int = 0,
         reasoning_tokens: int = 0,
+        project: Optional[str] = None,
     ) -> None:
         """Track a new LLM usage entry"""
         self.backend._ensure_connected()
@@ -87,6 +75,7 @@ class LLMAccounting:
             username=username,
             cached_tokens=cached_tokens,
             reasoning_tokens=reasoning_tokens,
+            project=project,
         )
         self.backend.insert_usage(entry)
 
@@ -120,15 +109,21 @@ class LLMAccounting:
     def check_quota(
         self,
         model: str,
-        username: str,
-        caller_name: str,
+        username: Optional[str], # Already Optional from previous step
+        caller_name: Optional[str], # Already Optional
         input_tokens: int,
         cost: float = 0.0,
+        project_name: Optional[str] = None, # Added in previous step
     ) -> Tuple[bool, Optional[str]]:
         """Check if the current request exceeds any defined quotas."""
         self.backend._ensure_connected()
         return self.quota_service.check_quota(
-            model, username, caller_name, input_tokens, cost
+            model=model, 
+            username=username, 
+            caller_name=caller_name, 
+            input_tokens=input_tokens, 
+            cost=cost,
+            project_name=project_name
         )
 
     def set_usage_limit(
@@ -141,18 +136,20 @@ class LLMAccounting:
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
+        project_name: Optional[str] = None, # Added project_name
     ) -> None:
         """Sets a new usage limit."""
         self.backend._ensure_connected()
         limit = UsageLimit(
-            scope=scope.value,
-            limit_type=limit_type.value,
+            scope=scope.value if isinstance(scope, LimitScope) else scope, # Ensure string value for DB
+            limit_type=limit_type.value if isinstance(limit_type, LimitType) else limit_type, # Ensure string value
             max_value=max_value,
-            interval_unit=interval_unit.value,
+            interval_unit=interval_unit.value if isinstance(interval_unit, TimeInterval) else interval_unit, # Ensure string
             interval_value=interval_value,
             model=model,
             username=username,
             caller_name=caller_name,
+            project_name=project_name, # Pass to UsageLimit constructor
         )
         self.backend.insert_usage_limit(limit)
 
@@ -162,10 +159,17 @@ class LLMAccounting:
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
+        project_name: Optional[str] = None, # Added project_name
     ) -> List[UsageLimit]:
         """Retrieves configured usage limits."""
         self.backend._ensure_connected()
-        return self.backend.get_usage_limits(scope, model, username, caller_name)
+        return self.backend.get_usage_limits(
+            scope=scope, 
+            model=model, 
+            username=username, 
+            caller_name=caller_name,
+            project_name=project_name # Pass to backend
+        )
 
     def delete_usage_limit(self, limit_id: int) -> None:
         """Deletes a usage limit by its ID."""

@@ -4,15 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import logging
-import sqlite3
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
-from llm_accounting.models.limits import UsageLimit
-
-from .base import BaseBackend, LimitScope, LimitType, UsageEntry, UsageStats
+from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType # Added LimitScope, LimitType
+from .base import BaseBackend, UsageEntry, UsageStats # Removed LimitScope, LimitType from here if they were
 from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
                              get_period_stats_query, insert_usage_query,
                              tail_query)
@@ -24,35 +17,19 @@ DEFAULT_DB_PATH = "data/accounting.sqlite"
 
 
 class SQLiteBackend(BaseBackend):
-    """SQLite implementation of the usage tracking backend
-
-    This class provides a concrete implementation of the BaseBackend using SQLite
-    for persistent storage of LLM usage tracking data. It handles database schema
-    initialization, connection management, and implements all required operations
-    for usage tracking including insertion, querying, and aggregation of usage data.
-
-    Key Features:
-    - Uses SQLite for persistent storage with configurable database path
-    - Automatically creates database schema on initialization
-    - Supports raw SQL query execution for advanced analytics
-    - Implements usage limits and quota tracking capabilities
-    - Handles connection lifecycle management
-
-    The backend is designed to be used within the LLMAccounting context manager
-    to ensure proper connection handling and resource cleanup.
-    """
+    """SQLite implementation of the usage tracking backend"""
 
     def __init__(self, db_path: Optional[str] = None):
         actual_db_path = db_path if db_path is not None else DEFAULT_DB_PATH
         validate_db_filename(actual_db_path)
-        self.db_path = actual_db_path  # Store as string
+        self.db_path = actual_db_path
         if not self.db_path.startswith("file:"):
             Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self.conn: Optional[sqlite3.Connection] = None
 
     def initialize(self) -> None:
         """Initialize the SQLite database"""
-        print(f"Initializing database at {self.db_path}")
+        # print(f"Initializing database at {self.db_path}") # Removed print
         if str(self.db_path).startswith("file:"):
             self.conn = sqlite3.connect(self.db_path, uri=True)
         else:
@@ -92,6 +69,7 @@ class SQLiteBackend(BaseBackend):
         self._ensure_connected()
         assert self.conn is not None
         self.conn.execute("DELETE FROM accounting_entries")
+        self.conn.execute("DELETE FROM usage_limits") # Also purge usage_limits
         self.conn.commit()
 
     def insert_usage_limit(self, limit: UsageLimit) -> None:
@@ -100,8 +78,10 @@ class SQLiteBackend(BaseBackend):
         assert self.conn is not None
         self.conn.execute(
             """
-            INSERT INTO usage_limits (scope, limit_type, max_value, interval_unit, interval_value, model, username, caller_name, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO usage_limits (
+                scope, limit_type, max_value, interval_unit, interval_value, 
+                model, username, caller_name, project_name, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 limit.scope,
@@ -112,6 +92,7 @@ class SQLiteBackend(BaseBackend):
                 limit.model,
                 limit.username,
                 limit.caller_name,
+                limit.project_name, # Added project_name
                 limit.created_at.isoformat(),
                 limit.updated_at.isoformat(),
             ),
@@ -136,25 +117,17 @@ class SQLiteBackend(BaseBackend):
             logger.info(f"No sqlite connection to close for {self.db_path}")
 
     def execute_query(self, query: str) -> List[Dict]:
-        """
-        Execute a raw SQL SELECT query and return results.
-        If the connection is not already open, it will be initialized.
-        It is recommended to use this method within the LLMAccounting context manager
-        to ensure proper connection management (opening and closing).
-        """
+        """Execute a raw SQL SELECT query and return results."""
         if not query.strip().upper().startswith("SELECT"):
             raise ValueError("Only SELECT queries are allowed.")
-
         self._ensure_connected()
-
-        assert self.conn is not None  # For type checking
+        assert self.conn is not None
         try:
-            # Set row_factory to sqlite3.Row to access columns by name
             original_row_factory = self.conn.row_factory
             self.conn.row_factory = sqlite3.Row
             cursor = self.conn.execute(query)
             results = [dict(row) for row in cursor.fetchall()]
-            self.conn.row_factory = original_row_factory  # Restore original row_factory
+            self.conn.row_factory = original_row_factory
             return results
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error: {e}") from e
@@ -165,15 +138,17 @@ class SQLiteBackend(BaseBackend):
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
+        project_name: Optional[str] = None, # Added project_name parameter
     ) -> List[UsageLimit]:
         self._ensure_connected()
         assert self.conn is not None
-        query = "SELECT id, scope, limit_type, model, username, caller_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits WHERE 1=1"
+        # Added project_name to SELECT
+        query = "SELECT id, scope, limit_type, model, username, caller_name, project_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits WHERE 1=1"
         params = []
 
         if scope:
             query += " AND scope = ?"
-            params.append(scope.value)
+            params.append(scope.value) # Use enum value
         if model:
             query += " AND model = ?"
             params.append(model)
@@ -183,6 +158,19 @@ class SQLiteBackend(BaseBackend):
         if caller_name:
             query += " AND caller_name = ?"
             params.append(caller_name)
+        if project_name: # Filter by project_name
+            query += " AND project_name = ?"
+            params.append(project_name)
+        
+        # Special case for PROJECT scope if project_name is None (match limits where project_name IS NULL)
+        # This is typically not how PROJECT scope limits would be defined (they should have a project_name),
+        # but handling for completeness or specific use cases if a PROJECT scope limit can exist without a name.
+        # However, usually, if scope is PROJECT, project_name will be provided.
+        # If project_name is explicitly 'NULL_PROJECT_SENTINEL' or similar, then filter for IS NULL.
+        # For now, direct match or IS NULL if project_name is None and scope is PROJECT.
+        # This logic might be better placed in QuotaService or require a sentinel.
+        # For simplicity here, if project_name is provided, it's an exact match.
+        # If scope is PROJECT and project_name is None, it might imply a general project limit (not typical).
 
         cursor = self.conn.execute(query, params)
         limits = []
@@ -190,16 +178,17 @@ class SQLiteBackend(BaseBackend):
             limits.append(
                 UsageLimit(
                     id=row[0],
-                    scope=row[1],
-                    limit_type=row[2],
+                    scope=row[1], # Already string from DB, will be handled by UsageLimit constructor
+                    limit_type=row[2], # Already string
                     model=str(row[3]) if row[3] is not None else None,
                     username=str(row[4]) if row[4] is not None else None,
                     caller_name=str(row[5]) if row[5] is not None else None,
-                    max_value=row[6],
-                    interval_unit=row[7],
-                    interval_value=row[8],
-                    created_at=datetime.fromisoformat(row[9]) if row[9] else None,
-                    updated_at=datetime.fromisoformat(row[10]) if row[10] else None,
+                    project_name=str(row[6]) if row[6] is not None else None, # Added project_name
+                    max_value=row[7],
+                    interval_unit=row[8], # Already string
+                    interval_value=row[9],
+                    created_at=datetime.fromisoformat(row[10]) if row[10] else None,
+                    updated_at=datetime.fromisoformat(row[11]) if row[11] else None,
                 )
             )
         return limits
@@ -211,6 +200,7 @@ class SQLiteBackend(BaseBackend):
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
+        project_name: Optional[str] = None, # Added project_name
     ) -> float:
         self._ensure_connected()
         assert self.conn is not None
@@ -227,7 +217,7 @@ class SQLiteBackend(BaseBackend):
             raise ValueError(f"Unknown limit type: {limit_type}")
 
         query = f"SELECT {select_clause} FROM accounting_entries WHERE timestamp >= ?"
-        params = [start_time.isoformat()]
+        params: List[Any] = [start_time.isoformat()] # Ensure params is explicitly typed
 
         if model:
             query += " AND model = ?"
@@ -238,10 +228,27 @@ class SQLiteBackend(BaseBackend):
         if caller_name:
             query += " AND caller_name = ?"
             params.append(caller_name)
+        if project_name: # Filter by project_name if provided
+            query += " AND project = ?" # Assumes 'project' column in accounting_entries
+            params.append(project_name)
+        elif project_name is None: # Explicitly check for NULL if project_name is None for this query context
+             # This part depends on desired behavior:
+             # If project_name=None means "don't filter by project", then no clause is added.
+             # If project_name=None means "filter for entries where project IS NULL", then add:
+             # query += " AND project IS NULL"
+             # For QuotaService, usually it's "don't filter unless specified".
+             # However, if a PROJECT scope limit is being checked, and the incoming request has no project,
+             # then we might want to sum usage for entries with NO project.
+             # This logic is nuanced and depends on how _evaluate_limits decides to call this.
+             # For now, if project_name is provided, filter by it. If None, no project filter.
+             pass
+
 
         cursor = self.conn.execute(query, params)
-        result = cursor.fetchone()[0]
-        return float(result) if result is not None else 0.0
+        result = cursor.fetchone()
+        # Ensure result and result[0] are not None before float conversion
+        return float(result[0]) if result and result[0] is not None else 0.0
+
 
     def delete_usage_limit(self, limit_id: int) -> None:
         """Delete a usage limit entry by its ID."""
@@ -251,9 +258,6 @@ class SQLiteBackend(BaseBackend):
         self.conn.commit()
 
     def _ensure_connected(self) -> None:
-        """
-        Ensures the SQLite backend has an active connection.
-        Initializes the connection if it's None.
-        """
+        """Ensures the SQLite backend has an active connection."""
         if self.conn is None:
             self.initialize()

@@ -44,6 +44,7 @@ class SchemaManager:
                     local_prompt_tokens INTEGER,
                     local_completion_tokens INTEGER,
                     local_total_tokens INTEGER,
+                    project TEXT DEFAULT NULL,
                     cost DOUBLE PRECISION NOT NULL,       -- Cost of the API call
                     execution_time DOUBLE PRECISION,      -- Execution time in seconds
                     timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- Timestamp of the entry
@@ -64,6 +65,7 @@ class SchemaManager:
                     model_name VARCHAR(255),              -- Specific model this limit applies to (optional)
                     username VARCHAR(255),                -- Specific user this limit applies to (optional)
                     caller_name VARCHAR(255),             -- Specific caller this limit applies to (optional)
+                    project_name TEXT DEFAULT NULL,       -- Specific project this limit applies to (optional)
                     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 )
