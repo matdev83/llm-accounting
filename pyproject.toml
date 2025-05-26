@@ -14,6 +14,7 @@ authors = [
 ]
 dependencies = [
     "rich>=10.0.0",
+    "sqlalchemy>=2.0.0", # Added as a core dependency due to model reliance
 ]
 
 [project.optional-dependencies]
