@@ -1,12 +1,11 @@
 import unittest
 from unittest.mock import patch, MagicMock, call
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.llm_accounting.backends.neon import NeonBackend
 from src.llm_accounting.backends.base import UsageEntry, UsageStats
-# Updated imports: UsageLimitData and enums
-from src.llm_accounting.models.limits import UsageLimitData, LimitScope, LimitType, TimeInterval
+from src.llm_accounting.models.limits import UsageLimitDTO, LimitScope, LimitType, TimeInterval
 
 import psycopg2
 
@@ -55,7 +54,7 @@ class TestNeonBackend(unittest.TestCase):
         
         self.backend = NeonBackend()
 
-        self.mock_conn = MagicMock(spec=psycopg2.extensions.connection) # Use spec for better mocking
+        self.mock_conn = MagicMock(spec=psycopg2.extensions.connection)
         self.mock_psycopg2_module.connect.return_value = self.mock_conn
         self.mock_cursor = self.mock_conn.cursor.return_value.__enter__.return_value
         self.mock_conn.closed = False
@@ -64,7 +63,7 @@ class TestNeonBackend(unittest.TestCase):
         self.patcher_psycopg2.stop()
         self.patcher_schema_manager.stop()
         self.patcher_data_inserter.stop()
-        self.patcher_limit_manager.stop() # Stop LimitManager patcher
+        self.patcher_limit_manager.stop()
         self.patcher_data_deleter.stop()
         self.patcher_query_executor.stop()
 
@@ -79,19 +78,17 @@ class TestNeonBackend(unittest.TestCase):
     def test_init_success(self):
         self.assertEqual(self.backend.connection_string, 'dummy_dsn_from_env')
         self.assertIsNone(self.backend.conn)
-        # Check if managers are instantiated
         self.mock_schema_manager_class.assert_called_once_with(self.backend)
         self.mock_data_inserter_class.assert_called_once_with(self.backend)
         self.mock_limit_manager_class.assert_called_once_with(self.backend, self.mock_data_inserter_instance)
 
 
     def test_initialize_success(self):
-        self.backend.initialize() # Calls connection_manager.initialize() and schema_manager._create_schema_if_not_exists()
+        self.backend.initialize()
         self.mock_psycopg2_module.connect.assert_called_once_with('dummy_dsn_from_env')
         self.assertEqual(self.backend.conn, self.mock_conn)
         self.mock_schema_manager_instance._create_schema_if_not_exists.assert_called_once()
 
-    # ... (other tests like test_initialize_connection_error, test_close_connection remain similar) ...
     def test_initialize_connection_error(self):
         self.mock_psycopg2_module.connect.side_effect = self.mock_psycopg2_module.Error("Connection failed")
         with self.assertRaisesRegex(ConnectionError, r"Failed to connect to Neon/PostgreSQL database \(see logs for details\)\."):
@@ -114,14 +111,12 @@ class TestNeonBackend(unittest.TestCase):
         self.backend.initialize()
         sample_entry = UsageEntry(model="gpt-4", cost=0.05, caller_name="")
         self.backend.insert_usage(sample_entry)
-        # Check that DataInserter.insert_usage was called
         self.mock_data_inserter_instance.insert_usage.assert_called_once_with(sample_entry)
 
-    # Refactored test for insert_usage_limit
     def test_insert_usage_limit_uses_limit_manager_with_usage_limit_data(self):
-        self.backend.initialize() # Ensures _ensure_connected doesn't try to re-init in a way that breaks mocks
+        self.backend.initialize()
 
-        test_limit_data = UsageLimitData(
+        test_limit_data = UsageLimitDTO(
             scope=LimitScope.USER.value,
             limit_type=LimitType.COST.value,
             max_value=100.0,
@@ -129,60 +124,133 @@ class TestNeonBackend(unittest.TestCase):
             interval_value=1,
             username="test_user_for_data",
             model="all_models_data"
-            # created_at and updated_at can be None for new limits
         )
         self.backend.insert_usage_limit(test_limit_data)
 
-        # Assert that LimitManager's insert_usage_limit was called with the UsageLimitData instance
         self.mock_limit_manager_instance.insert_usage_limit.assert_called_once_with(test_limit_data)
-        # Ensure direct DB commit/rollback are not called by NeonBackend for this
         self.mock_conn.commit.assert_not_called()
         self.mock_conn.rollback.assert_not_called()
 
 
-    # Refactored test for get_usage_limits
     def test_get_usage_limits_uses_limit_manager_and_returns_usage_limit_data(self):
         self.backend.initialize()
 
         mock_limit_data_list = [
-            UsageLimitData(
+            UsageLimitDTO(
                 id=1, scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value,
                 max_value=1000.0, interval_unit=TimeInterval.DAY.value, interval_value=1,
-                created_at=datetime.now(), updated_at=datetime.now()
+                created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc)
             ),
-            UsageLimitData(
+            UsageLimitDTO(
                 id=2, scope=LimitScope.USER.value, limit_type=LimitType.COST.value,
                 max_value=50.0, interval_unit=TimeInterval.MONTH.value, interval_value=1,
-                username="user123", created_at=datetime.now(), updated_at=datetime.now()
+                username="user123", created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc)
             )
         ]
-        # Configure the mock LimitManager to return this list
         self.mock_limit_manager_instance.get_usage_limits.return_value = mock_limit_data_list
 
-        # Call get_usage_limits with some filter parameters
         filter_scope = LimitScope.USER
         filter_username = "user123"
         retrieved_limits = self.backend.get_usage_limits(scope=filter_scope, username=filter_username)
 
-        # Assert that LimitManager's get_usage_limits was called with the correct filters
         self.mock_limit_manager_instance.get_usage_limits.assert_called_once_with(
             scope=filter_scope,
-            model=None, # Not passed in this call
+            model=None,
             username=filter_username,
-            caller_name=None # Not passed in this call
+            caller_name=None,
+            project_name=None,
+            filter_project_null=None,
+            filter_username_null=None,
+            filter_caller_name_null=None
         )
         
         self.assertEqual(retrieved_limits, mock_limit_data_list)
-        self.assertIsInstance(retrieved_limits[0], UsageLimitData)
-        self.assertIsInstance(retrieved_limits[1], UsageLimitData)
-        # Ensure direct DB cursor execute is not called by NeonBackend for this
+        self.assertIsInstance(retrieved_limits[0], UsageLimitDTO)
+        self.assertIsInstance(retrieved_limits[1], UsageLimitDTO)
+        self.mock_cursor.execute.assert_not_called()
+
+
+    def test_get_accounting_entries_for_quota_success(self):
+        self.backend.initialize()
+        start_time = datetime(2023, 1, 1, 0, 0, 0)
+
+        self.mock_cursor.fetchone.return_value = (123.45,)
+        cost_val = self.backend.get_accounting_entries_for_quota(start_time, LimitType.COST, model='gpt-4', project_name='projA')
+        self.mock_cursor.execute.assert_called_with(
+            "SELECT COALESCE(SUM(cost), 0.0) AS aggregated_value FROM accounting_entries WHERE timestamp >= %s AND model_name = %s AND project = %s;",
+            (start_time, 'gpt-4', 'projA')
+        )
+        self.assertEqual(cost_val, 123.45)
+
+        self.mock_cursor.fetchone.return_value = (50,)
+        requests_val = self.backend.get_accounting_entries_for_quota(start_time, LimitType.REQUESTS, username='user1', project_name=None, filter_project_null=True)
+        self.mock_cursor.execute.assert_called_with(
+            "SELECT COUNT(*) AS aggregated_value FROM accounting_entries WHERE timestamp >= %s AND username = %s AND project IS NULL;",
+            (start_time, 'user1')
+        )
+        self.assertEqual(requests_val, 50)
+        
+        self.mock_cursor.fetchone.return_value = (10000,)
+        input_tokens_val = self.backend.get_accounting_entries_for_quota(start_time, LimitType.INPUT_TOKENS, caller_name='caller_A', project_name='projB')
+        self.mock_cursor.execute.assert_called_with(
+            "SELECT COALESCE(SUM(prompt_tokens), 0) AS aggregated_value FROM accounting_entries WHERE timestamp >= %s AND caller_name = %s AND project = %s;",
+            (start_time, 'caller_A', 'projB')
+        )
+        self.assertEqual(input_tokens_val, 10000)
+
+        self.mock_cursor.fetchone.return_value = (20000,)
+        output_tokens_val = self.backend.get_accounting_entries_for_quota(start_time, LimitType.OUTPUT_TOKENS, caller_name='caller_B', project_name='projC')
+        self.mock_cursor.execute.assert_called_with(
+            "SELECT COALESCE(SUM(completion_tokens), 0) AS aggregated_value FROM accounting_entries WHERE timestamp >= %s AND caller_name = %s AND project = %s;",
+            (start_time, 'caller_B', 'projC')
+        )
+        self.assertEqual(output_tokens_val, 20000)
+
+    def test_get_accounting_entries_for_quota_no_data(self):
+        self.backend.initialize()
+        self.mock_cursor.fetchone.return_value = (0.0,)
+        val = self.backend.get_accounting_entries_for_quota(datetime.now(), LimitType.COST)
+        self.assertEqual(val, 0.0)
+        
+        self.mock_cursor.fetchone.return_value = (0,)
+        val_tokens = self.backend.get_accounting_entries_for_quota(datetime.now(), LimitType.INPUT_TOKENS)
+        self.assertEqual(val_tokens, 0)
+
+
+    def test_get_accounting_entries_for_quota_db_error(self):
+        self.backend.initialize()
+        self.mock_cursor.execute.side_effect = psycopg2.Error("Quota check failed")
+        with self.assertRaises(psycopg2.Error):
+            self.backend.get_accounting_entries_for_quota(datetime.now(), LimitType.COST)
+
+    def test_get_accounting_entries_for_quota_invalid_type(self):
+        self.backend.initialize()
+        with self.assertRaisesRegex(ValueError, "'unsupported' is not a valid LimitType"):
+            self.backend.get_accounting_entries_for_quota(datetime.now(), LimitType("unsupported"))
+
+
+    def test_execute_query_success(self):
+        self.backend.initialize()
+        raw_query_for_execute = "SELECT * FROM accounting_entries WHERE cost > 10;"
+        expected_result = [{'id': 1, 'cost': 20.0}, {'id': 2, 'cost': 30.0}]
+        self.mock_cursor.fetchall.return_value = expected_result
+        
+        result = self.backend.execute_query(raw_query_for_execute)
+
+        self.mock_cursor.execute.assert_called_once_with(raw_query_for_execute)
+        self.assertEqual(result, expected_result)
+
+    def test_execute_query_non_select_error(self):
+        self.backend.initialize()
+        non_select_query = "DELETE FROM accounting_entries;"
+        with self.assertRaisesRegex(ValueError, "Only SELECT queries are allowed"):
+            self.backend.execute_query(non_select_query)
         self.mock_cursor.execute.assert_not_called()
 
     def test_delete_usage_limit_success(self):
         self.backend.initialize()
         limit_id_to_delete = 42
         self.backend.delete_usage_limit(limit_id_to_delete)
-        # Check that DataDeleter.delete_usage_limit was called
         self.mock_data_deleter_instance.delete_usage_limit.assert_called_once_with(limit_id_to_delete)
 
 
@@ -235,13 +303,13 @@ class TestNeonBackend(unittest.TestCase):
         # This convenience method was updated in NeonBackend to use LimitManager.
         self.backend.initialize()
         user_id = "user_specific_get"
-        expected_data = [UsageLimitData(id=10, scope=LimitScope.USER.value, username=user_id, limit_type="cost", max_value=10, interval_unit="day", interval_value=1)]
+        expected_data = [UsageLimitDTO(id=10, scope=LimitScope.USER.value, username=user_id, limit_type="cost", max_value=10, interval_unit="day", interval_value=1)]
         self.mock_limit_manager_instance.get_usage_limit.return_value = expected_data
         
         # This is NeonBackend.get_usage_limit (the specific one, not BaseBackend's get_usage_limits)
         result = self.backend.get_usage_limit(user_id)
         
-        self.mock_limit_manager_instance.get_usage_limit.assert_called_once_with(user_id)
+        self.mock_limit_manager_instance.get_usage_limit.assert_called_once_with(user_id, project_name=None)
         self.assertEqual(result, expected_data)
 
 

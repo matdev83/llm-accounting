@@ -23,4 +23,4 @@ def test_select_non_select_query(mock_get_accounting, test_db, capsys):
     assert pytest_wrapped_e.type == SystemExit
     assert pytest_wrapped_e.value.code == 1
     captured = capsys.readouterr()
-    assert "Error: Only SELECT queries are allowed" in captured.out
+    assert "Error executing query: Only SELECT queries are allowed" in captured.out

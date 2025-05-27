@@ -2,11 +2,11 @@ import os
 import sys
 from datetime import datetime
 from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
 import pytest
 
-from llm_accounting import LLMAccounting
+from llm_accounting import LLMAccounting, UsageEntry # Added UsageEntry
 from llm_accounting.cli.main import main as cli_main
 
 
@@ -21,6 +21,28 @@ def test_track_usage(mock_get_accounting):
         cli_main()
 
     mock_backend_instance.insert_usage.assert_called_once()
+    # Check that project is None by default
+    args, _ = mock_backend_instance.insert_usage.call_args
+    assert args[0].project is None
+
+
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_track_usage_with_project(mock_get_accounting):
+    """Test tracking a new usage entry with a project"""
+    mock_backend_instance = MagicMock()
+    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
+    mock_get_accounting.return_value = real_accounting_instance
+    project_name = "MyAwesomeProject"
+
+    with patch.object(sys, 'argv', ['cli_main', "track", "--model", "gpt-4", "--prompt-tokens", "10", "--cost", "0.01", "--execution-time", "0.1", "--project", project_name]):
+        cli_main()
+
+    mock_backend_instance.insert_usage.assert_called_once()
+    # Check that project is passed correctly
+    args, _ = mock_backend_instance.insert_usage.call_args
+    assert isinstance(args[0], UsageEntry)
+    assert args[0].project == project_name
+    assert args[0].model == "gpt-4" # Ensure other args are still passed
 
 
 @patch("llm_accounting.cli.utils.get_accounting")

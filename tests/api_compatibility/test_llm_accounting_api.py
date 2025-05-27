@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, call
 from datetime import datetime
 
 # Updated imports: Added UsageLimitData and relevant enums
-from llm_accounting import LLMAccounting, UsageLimitData, LimitScope, LimitType, TimeInterval
+from llm_accounting import LLMAccounting, UsageLimitDTO, LimitScope, LimitType, TimeInterval
 from llm_accounting.backends.base import UsageEntry, UsageStats # For type hints if needed elsewhere
 
 
@@ -64,7 +64,7 @@ class TestLLMAccountingAPI(unittest.TestCase):
         args, _ = self.mock_backend.insert_usage_limit.call_args
         limit_arg = args[0]
 
-        self.assertIsInstance(limit_arg, UsageLimitData)
+        self.assertIsInstance(limit_arg, UsageLimitDTO)
         self.assertEqual(limit_arg.scope, scope.value) # Enums should be passed as their string values
         self.assertEqual(limit_arg.limit_type, limit_type.value)
         self.assertEqual(limit_arg.max_value, max_value)
@@ -79,7 +79,7 @@ class TestLLMAccountingAPI(unittest.TestCase):
 
     def test_get_usage_limits_returns_list_of_usage_limit_data_from_backend(self) -> None:
         """Test that get_usage_limits returns a list of UsageLimitData from the backend."""
-        mock_limit_data = UsageLimitData(
+        mock_limit_data = UsageLimitDTO(
             id=1,
             scope=LimitScope.GLOBAL.value,
             limit_type=LimitType.REQUESTS.value,
@@ -102,14 +102,14 @@ class TestLLMAccountingAPI(unittest.TestCase):
 
         # Assert that the backend method was called with the correct filter values
         self.mock_backend.get_usage_limits.assert_called_once_with(
-            scope_filter, model_filter, None, None # username, caller_name are None
+            scope=scope_filter, model=model_filter, username=None, caller_name=None, project_name=None
         )
 
         self.assertIsInstance(result_limits, list)
         self.assertEqual(len(result_limits), 1)
         
         retrieved_limit = result_limits[0]
-        self.assertIsInstance(retrieved_limit, UsageLimitData)
+        self.assertIsInstance(retrieved_limit, UsageLimitDTO)
         self.assertEqual(retrieved_limit.id, mock_limit_data.id)
         self.assertEqual(retrieved_limit.scope, mock_limit_data.scope)
         self.assertEqual(retrieved_limit.limit_type, mock_limit_data.limit_type)

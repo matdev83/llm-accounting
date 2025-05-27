@@ -68,6 +68,7 @@ def initialize_db_schema(conn: sqlite3.Connection) -> None:
             local_prompt_tokens INTEGER,
             local_completion_tokens INTEGER,
             local_total_tokens INTEGER,
+            project TEXT DEFAULT NULL,
             cost REAL NOT NULL,
             execution_time REAL NOT NULL,
             caller_name TEXT NOT NULL DEFAULT '',
@@ -86,6 +87,7 @@ def initialize_db_schema(conn: sqlite3.Connection) -> None:
             model TEXT,
             username TEXT,
             caller_name TEXT,
+            project_name TEXT DEFAULT NULL, -- Added project_name
             max_value REAL NOT NULL,
             interval_unit TEXT NOT NULL,
             interval_value INTEGER NOT NULL,
@@ -96,42 +98,46 @@ def initialize_db_schema(conn: sqlite3.Connection) -> None:
 
     # Check for and add any missing columns to accounting_entries
     cursor = conn.execute("PRAGMA table_info(accounting_entries)")
-    columns = [column[1] for column in cursor.fetchall()]
+    accounting_columns = {column[1] for column in cursor.fetchall()}
 
-    if "local_prompt_tokens" not in columns:
+    if "local_prompt_tokens" not in accounting_columns:
         conn.execute(
             "ALTER TABLE accounting_entries ADD COLUMN local_prompt_tokens INTEGER"
         )
-    if "local_completion_tokens" not in columns:
+    if "local_completion_tokens" not in accounting_columns:
         conn.execute(
             "ALTER TABLE accounting_entries ADD COLUMN local_completion_tokens INTEGER"
         )
-    if "local_total_tokens" not in columns:
+    if "local_total_tokens" not in accounting_columns:
         conn.execute(
             "ALTER TABLE accounting_entries ADD COLUMN local_total_tokens INTEGER"
         )
-    if "caller_name" not in columns:
+    if "caller_name" not in accounting_columns:
         conn.execute(
             'ALTER TABLE accounting_entries ADD COLUMN caller_name TEXT NOT NULL DEFAULT ""'
         )
-    if "username" not in columns:
+    if "username" not in accounting_columns:
         conn.execute(
             'ALTER TABLE accounting_entries ADD COLUMN username TEXT NOT NULL DEFAULT ""'
         )
-    if "cached_tokens" not in columns:
+    if "cached_tokens" not in accounting_columns:
         conn.execute(
             "ALTER TABLE accounting_entries ADD COLUMN cached_tokens INTEGER NOT NULL DEFAULT 0"
         )
-    if "reasoning_tokens" not in columns:
+    if "reasoning_tokens" not in accounting_columns:
         conn.execute(
             "ALTER TABLE accounting_entries ADD COLUMN reasoning_tokens INTEGER NOT NULL DEFAULT 0"
         )
+    if "project" not in accounting_columns:
+        conn.execute(
+            'ALTER TABLE accounting_entries ADD COLUMN project TEXT DEFAULT NULL'
+        )
 
-    # Check for and add any missing columns to usage_limits (if needed in the future)
-    # Example:
-    # cursor = conn.execute("PRAGMA table_info(usage_limits)")
-    # columns = [column[1] for column in cursor.fetchall()]
-    # if 'new_column' not in columns:
-    #     conn.execute('ALTER TABLE usage_limits ADD COLUMN new_column TEXT')
+    # Check for and add any missing columns to usage_limits
+    cursor = conn.execute("PRAGMA table_info(usage_limits)")
+    usage_limits_columns = {column[1] for column in cursor.fetchall()}
+    
+    if 'project_name' not in usage_limits_columns:
+        conn.execute('ALTER TABLE usage_limits ADD COLUMN project_name TEXT DEFAULT NULL')
 
     conn.commit()

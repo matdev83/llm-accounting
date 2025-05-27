@@ -6,7 +6,7 @@ from typing import Optional # Added Optional
 # Updated import: UsageLimit changed to UsageLimitData
 # Also importing enums needed for creating UsageLimitData instances
 from llm_accounting.models.limits import (LimitScope, LimitType, TimeInterval, # Added TimeInterval
-                                          UsageLimitData)
+                                          UsageLimitDTO)
 from llm_accounting.services.quota_service import QuotaService
 from llm_accounting.backends.base import BaseBackend # For type hinting the mock_backend
 
@@ -45,7 +45,7 @@ def test_check_quota_no_limits(quota_service: QuotaService, mock_backend: MagicM
         call(scope=LimitScope.MODEL, model="gpt-4"),
         call(scope=LimitScope.GLOBAL),
         call(scope=LimitScope.USER, username="test_user"),
-        call(scope=LimitScope.CALLER, caller_name="test_caller", username=None), # General caller
+        call(scope=LimitScope.CALLER, caller_name="test_caller"), # General caller
         call(scope=LimitScope.CALLER, username="test_user", caller_name="test_caller") # User+Caller
     ]
     # Use any_order=True because the internal order of fetching these specific scopes might not be guaranteed
@@ -62,7 +62,7 @@ def test_check_quota_no_limits(quota_service: QuotaService, mock_backend: MagicM
 def test_check_quota_allowed_single_limit(quota_service: QuotaService, mock_backend: MagicMock):
     """Test check_quota when usage is within a single configured limit."""
     now = datetime.now(timezone.utc)
-    limit = UsageLimitData(
+    limit = UsageLimitDTO(
         id=1, scope=LimitScope.USER.value, limit_type=LimitType.COST.value,
         max_value=10.0, interval_unit=TimeInterval.MONTH.value, interval_value=1,
         username="test_user", created_at=now, updated_at=now
@@ -82,7 +82,9 @@ def test_check_quota_allowed_single_limit(quota_service: QuotaService, mock_back
     # Define a side_effect function for mock_backend.get_usage_limits
     # This function will be called each time mock_backend.get_usage_limits is invoked
     def get_usage_limits_side_effect(scope: Optional[LimitScope] = None, model: Optional[str] = None, 
-                                     username: Optional[str] = None, caller_name: Optional[str] = None):
+                                     username: Optional[str] = None, caller_name: Optional[str] = None, 
+                                     project_name: Optional[str] = None, filter_project_null: Optional[bool] = None,
+                                     filter_username_null: Optional[bool] = None, filter_caller_name_null: Optional[bool] = None):
         # Only return the 'limit' if the scope and username match the specific USER limit we're testing
         if scope == LimitScope.USER and username == "test_user":
             return [limit] 
@@ -120,7 +122,7 @@ def test_check_quota_allowed_single_limit(quota_service: QuotaService, mock_back
 def test_check_quota_denied_single_limit(quota_service: QuotaService, mock_backend: MagicMock):
     """Test check_quota when usage exceeds a single configured limit."""
     now = datetime.now(timezone.utc)
-    limit = UsageLimitData(
+    limit = UsageLimitDTO(
         id=1, scope=LimitScope.USER.value, limit_type=LimitType.COST.value,
         max_value=10.0, interval_unit=TimeInterval.MONTH.value, interval_value=1,
         username="test_user", created_at=now, updated_at=now
@@ -139,7 +141,7 @@ def test_check_quota_denied_single_limit(quota_service: QuotaService, mock_backe
     
     # Define a side_effect function for mock_backend.get_usage_limits
     def get_usage_limits_side_effect_denied(scope: Optional[LimitScope] = None, model: Optional[str] = None, 
-                                            username: Optional[str] = None, caller_name: Optional[str] = None):
+                                            username: Optional[str] = None, caller_name: Optional[str] = None, project_name: Optional[str] = None):
         if scope == LimitScope.USER and username == "test_user":
             return [limit] 
         return []
@@ -171,12 +173,12 @@ def test_check_quota_denied_single_limit(quota_service: QuotaService, mock_backe
 def test_check_quota_multiple_limits_one_exceeded(quota_service: QuotaService, mock_backend: MagicMock):
     """Test check_quota with multiple limits, where one is exceeded."""
     now = datetime.now(timezone.utc)
-    cost_limit = UsageLimitData(
+    cost_limit = UsageLimitDTO(
         id=1, scope=LimitScope.USER.value, limit_type=LimitType.COST.value,
         max_value=10.0, interval_unit=TimeInterval.MONTH.value, interval_value=1,
         username="test_user", created_at=now, updated_at=now
     )
-    request_limit = UsageLimitData(
+    request_limit = UsageLimitDTO(
         id=2, scope=LimitScope.USER.value, limit_type=LimitType.REQUESTS.value,
         max_value=100.0, interval_unit=TimeInterval.DAY.value, interval_value=1,
         username="test_user", created_at=now, updated_at=now
@@ -184,7 +186,7 @@ def test_check_quota_multiple_limits_one_exceeded(quota_service: QuotaService, m
     mock_backend.get_usage_limits.return_value = [cost_limit, request_limit]
 
     # Scenario: Cost is fine, but requests are exceeded
-    def get_accounting_side_effect(start_time, limit_type, model, username, caller_name):
+    def get_accounting_side_effect(start_time, limit_type, model, username, caller_name, project_name, filter_project_null):
         if limit_type == LimitType.COST:
             return 5.0 # Well within $10 cost limit
         elif limit_type == LimitType.REQUESTS:
@@ -203,7 +205,7 @@ def test_check_quota_multiple_limits_one_exceeded(quota_service: QuotaService, m
 
     # Define a side_effect for get_usage_limits
     def get_usage_limits_side_effect_multiple(scope: Optional[LimitScope] = None, model: Optional[str] = None, 
-                                              username: Optional[str] = None, caller_name: Optional[str] = None):
+                                              username: Optional[str] = None, caller_name: Optional[str] = None, project_name: Optional[str] = None):
         if scope == LimitScope.USER and username == "test_user":
             return [cost_limit, request_limit] # Return both user-specific limits
         return []
@@ -279,9 +281,10 @@ def test_check_quota_different_scopes(quota_service: QuotaService, mock_backend:
         for actual_kwargs_item in actual_calls_kwargs_list:
             match = True
             if not (actual_kwargs_item.get('scope') == expected_kwargs_item['scope'] and
-                    actual_kwargs_item.get('model') == expected_kwargs_item['model'] and
-                    actual_kwargs_item.get('username') == expected_kwargs_item['username'] and
-                    actual_kwargs_item.get('caller_name') == expected_kwargs_item['caller_name']):
+                    actual_kwargs_item.get('model') == expected_kwargs_item.get('model') and
+                    actual_kwargs_item.get('username') == expected_kwargs_item.get('username') and
+                    actual_kwargs_item.get('caller_name') == expected_kwargs_item.get('caller_name') and
+                    actual_kwargs_item.get('project_name') == expected_kwargs_item.get('project_name')):
                 match = False
             
             if match:
@@ -300,7 +303,7 @@ def test_check_quota_different_scopes(quota_service: QuotaService, mock_backend:
 def test_check_quota_token_limits(quota_service: QuotaService, mock_backend: MagicMock):
     """Test check_quota for input token limits."""
     now = datetime.now(timezone.utc)
-    token_limit = UsageLimitData(
+    token_limit = UsageLimitDTO(
         id=1, scope=LimitScope.MODEL.value, limit_type=LimitType.INPUT_TOKENS.value,
         max_value=1000.0, interval_unit=TimeInterval.HOUR.value, interval_value=1,
         model="text-davinci-003", created_at=now, updated_at=now
@@ -326,7 +329,7 @@ def test_check_quota_token_limits(quota_service: QuotaService, mock_backend: Mag
 
     # Define a side_effect for get_usage_limits
     def get_usage_limits_side_effect_model(scope: Optional[LimitScope] = None, model: Optional[str] = None, 
-                                           username: Optional[str] = None, caller_name: Optional[str] = None):
+                                           username: Optional[str] = None, caller_name: Optional[str] = None, project_name: Optional[str] = None):
         if scope == LimitScope.MODEL and model == "text-davinci-003":
             return [token_limit] # Return the model-specific limit
         return []

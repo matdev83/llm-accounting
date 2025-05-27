@@ -10,8 +10,7 @@ from typing import Dict, List, Optional, Tuple
 from .backends.base import BaseBackend, UsageEntry, UsageStats
 from .backends.mock_backend import MockBackend
 from .backends.sqlite import SQLiteBackend
-# Updated import: UsageLimit changed to UsageLimitData
-from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimitData
+from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimitDTO
 from .services.quota_service import QuotaService
 from .audit_log import AuditLogger
 
@@ -57,6 +56,7 @@ class LLMAccounting:
         username: str = "",
         cached_tokens: int = 0,
         reasoning_tokens: int = 0,
+        project: Optional[str] = None,
     ) -> None:
         """Track a new LLM usage entry"""
         self.backend._ensure_connected()
@@ -75,6 +75,7 @@ class LLMAccounting:
             username=username,
             cached_tokens=cached_tokens,
             reasoning_tokens=reasoning_tokens,
+            project=project,
         )
         self.backend.insert_usage(entry)
 
@@ -108,25 +109,21 @@ class LLMAccounting:
     def check_quota(
         self,
         model: str,
-        username: str,
-        caller_name: str,
-        input_tokens: int, # Assuming this is a measure like prompt_tokens
-        # Removed output_tokens as it's not typically known before the call
-        cost: float = 0.0, # Cost can be estimated or actual if known post-call
+        username: Optional[str],
+        caller_name: Optional[str],
+        input_tokens: int,
+        cost: float = 0.0,
+        project_name: Optional[str] = None,
     ) -> Tuple[bool, Optional[str]]:
         """Check if the current request exceeds any defined quotas."""
         self.backend._ensure_connected()
-        # Assuming QuotaService.check_quota expects input_tokens and cost for its checks
         return self.quota_service.check_quota(
-            model=model, 
-            username=username, 
-            caller_name=caller_name, 
-            # Pass relevant metrics for quota checking.
-            # The exact parameters depend on QuotaService's implementation.
-            # For this example, let's assume it primarily uses input_tokens and cost.
-            # If it needs more context (like request type), that would be added here.
-            input_tokens=input_tokens, 
-            cost=cost
+            model=model,
+            username=username,
+            caller_name=caller_name,
+            input_tokens=input_tokens,
+            cost=cost,
+            project_name=project_name
         )
 
     def set_usage_limit(
@@ -139,21 +136,20 @@ class LLMAccounting:
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
+        project_name: Optional[str] = None,
     ) -> None:
         """Sets a new usage limit."""
         self.backend._ensure_connected()
-        # Changed UsageLimit to UsageLimitData
-        # UsageLimitData expects raw string values for enum fields as per its definition
-        limit = UsageLimitData(
-            scope=scope.value,
-            limit_type=limit_type.value,
+        limit = UsageLimitDTO(
+            scope=scope.value if isinstance(scope, LimitScope) else scope,
+            limit_type=limit_type.value if isinstance(limit_type, LimitType) else limit_type,
             max_value=max_value,
-            interval_unit=interval_unit.value,
+            interval_unit=interval_unit.value if isinstance(interval_unit, TimeInterval) else interval_unit,
             interval_value=interval_value,
             model=model,
             username=username,
             caller_name=caller_name,
-            # id, created_at, updated_at are auto-managed by the backend/DB
+            project_name=project_name,
         )
         self.backend.insert_usage_limit(limit)
 
@@ -163,10 +159,17 @@ class LLMAccounting:
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
-    ) -> List[UsageLimitData]: # Changed return type hint
+        project_name: Optional[str] = None,
+    ) -> List[UsageLimitDTO]:
         """Retrieves configured usage limits."""
         self.backend._ensure_connected()
-        return self.backend.get_usage_limits(scope, model, username, caller_name)
+        return self.backend.get_usage_limits(
+            scope=scope,
+            model=model,
+            username=username,
+            caller_name=caller_name,
+            project_name=project_name
+        )
 
     def delete_usage_limit(self, limit_id: int) -> None:
         """Deletes a usage limit by its ID."""
@@ -195,5 +198,5 @@ __all__ = [
     "LimitScope",
     "LimitType",
     "TimeInterval",
-    "UsageLimitData", # Changed from UsageLimit
+    "UsageLimitDTO",
 ]

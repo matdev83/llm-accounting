@@ -4,9 +4,8 @@ import pytest
 
 from llm_accounting import LLMAccounting
 from llm_accounting.backends.sqlite import SQLiteBackend
-# Updated import: UsageLimit changed to UsageLimitData
 from llm_accounting.models.limits import (LimitScope, LimitType, TimeInterval,
-                                          UsageLimitData)
+                                          UsageLimitDTO)
 
 
 @pytest.fixture
@@ -22,11 +21,6 @@ def sqlite_backend_for_accounting(temp_db_path):
 def accounting_instance(sqlite_backend_for_accounting):
     """Create an LLMAccounting instance with a temporary SQLite backend"""
     acc = LLMAccounting(backend=sqlite_backend_for_accounting)
-    # Manually enter and exit context for testing purposes
-    # No need to call __enter__ and __exit__ if the backend is already initialized
-    # and managed by its own fixture. LLMAccounting's context manager
-    # is primarily for managing the backend's lifecycle if not done externally.
-    # However, the original test did this, so keeping it for now unless it causes issues.
     acc.__enter__() 
     yield acc
     acc.__exit__(None, None, None)
@@ -34,14 +28,12 @@ def accounting_instance(sqlite_backend_for_accounting):
 
 def test_global_limit(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
     # Use the backend directly to add UsageLimitData for setup
-    # Changed UsageLimit to UsageLimitData
-    limit_to_set = UsageLimitData(
+    limit_to_set = UsageLimitDTO(
         scope=LimitScope.GLOBAL.value,
         limit_type=LimitType.REQUESTS.value,
         max_value=10,
         interval_unit=TimeInterval.MINUTE.value,
         interval_value=1
-        # id, created_at, updated_at are not needed here as they are set by backend/DB
     )
     sqlite_backend_for_accounting.insert_usage_limit(limit_to_set)
 
@@ -64,7 +56,6 @@ def test_global_limit(accounting_instance: LLMAccounting, sqlite_backend_for_acc
     assert not allowed, "11th request should be denied"
     assert message is not None, "Denial message should not be None"
     
-    # Expected message based on QuotaService format for GLOBAL limits
     expected_message_part_1 = "GLOBAL limit: 10.00 requests per 1 minute"
     expected_message_part_2 = "current usage: 10.00, request: 1.00"
     

@@ -46,10 +46,16 @@ def add_tail_parser(subparsers):
 
 def add_select_parser(subparsers):
     select_parser = subparsers.add_parser(
-        "select", help="Execute a custom SELECT query on the database"
+        "select", help="Execute a custom SELECT query on the database or filter entries"
     )
     select_parser.add_argument(
-        "--query", type=str, required=True, help="Custom SQL SELECT query to execute"
+        "--query", type=str, help="Custom SQL SELECT query to execute. If not provided, basic filtering will be used."
+    )
+    select_parser.add_argument(
+        "--project",
+        type=str,
+        default=None,
+        help="Filter usage entries by project name. Use 'NULL' to find entries with no project.",
     )
     select_parser.add_argument(
         "--format",
@@ -113,6 +119,12 @@ def add_track_parser(subparsers):
         default=0,
         help="Number of tokens used for model reasoning",
     )
+    track_parser.add_argument(
+        "--project", # This is for tracking usage, distinct from --project-name for limits
+        type=str,
+        default=None,
+        help="The project name to associate with this usage entry.",
+    )
     track_parser.set_defaults(func=run_track)
 
 
@@ -121,7 +133,7 @@ def add_limits_parser(subparsers):
         "limits", help="Manage usage limits (set, list, delete)"
     )
     limits_subparsers = limits_parser.add_subparsers(
-        dest="limits_command", help="Limits commands"
+        dest="limits_command", help="Limits commands", required=True # Make subcommand required
     )
 
     # Set limit subparser
@@ -129,9 +141,9 @@ def add_limits_parser(subparsers):
     set_parser.add_argument(
         "--scope",
         type=str,
-        choices=[e.value for e in LimitScope],
+        choices=[e.value for e in LimitScope], # LimitScope enum now includes PROJECT
         required=True,
-        help="Scope of the limit (GLOBAL, MODEL, USER, CALLER)",
+        help="Scope of the limit (GLOBAL, MODEL, USER, CALLER, PROJECT)",
     )
     set_parser.add_argument(
         "--limit-type",
@@ -157,18 +169,39 @@ def add_limits_parser(subparsers):
         help="Value of the time interval (e.g., 1 for '1 day')",
     )
     set_parser.add_argument(
-        "--model", type=str, help="Model name for MODEL scope limits"
+        "--model", type=str, help="Model name for MODEL scope limits. Can be combined with PROJECT scope."
     )
     set_parser.add_argument(
-        "--username", type=str, help="Username for USER scope limits"
+        "--username", type=str, help="Username for USER scope limits. Can be combined with PROJECT scope."
     )
     set_parser.add_argument(
-        "--caller-name", type=str, help="Caller name for CALLER scope limits"
+        "--caller-name", type=str, help="Caller name for CALLER scope limits. Can be combined with PROJECT scope."
+    )
+    set_parser.add_argument(
+        "--project-name", # New argument for project-specific limits
+        type=str, 
+        help="The project name for a PROJECT-specific limit. Required if scope is PROJECT."
     )
     set_parser.set_defaults(func=set_limit)
 
     # List limits subparser
     list_parser = limits_subparsers.add_parser("list", help="List all usage limits")
+    # Add arguments to filter list by scope, model, username, caller_name, project_name
+    list_parser.add_argument(
+        "--scope", type=str, choices=[e.value for e in LimitScope], help="Filter by scope."
+    )
+    list_parser.add_argument(
+        "--model", type=str, help="Filter by model name."
+    )
+    list_parser.add_argument(
+        "--username", type=str, help="Filter by username."
+    )
+    list_parser.add_argument(
+        "--caller-name", type=str, help="Filter by caller name."
+    )
+    list_parser.add_argument(
+        "--project-name", type=str, help="Filter by project name."
+    )
     list_parser.set_defaults(func=list_limits)
 
     # Delete limit subparser

@@ -3,8 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-# Updated import statement
-from ..models.limits import LimitScope, LimitType, UsageLimitData
+from ..models.limits import LimitScope, LimitType, UsageLimitDTO
 
 
 @dataclass
@@ -25,6 +24,7 @@ class UsageEntry:
     timestamp: Optional[datetime] = None
     caller_name: str = ""
     username: str = ""
+    project: Optional[str] = None
     # Additional token details
     cached_tokens: int = 0
     reasoning_tokens: int = 0
@@ -122,7 +122,11 @@ class BaseBackend(ABC):
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
-    ) -> List[UsageLimitData]:  # Updated return type hint
+        project_name: Optional[str] = None,
+        filter_project_null: Optional[bool] = None,
+        filter_username_null: Optional[bool] = None,
+        filter_caller_name_null: Optional[bool] = None,
+    ) -> List[UsageLimitDTO]:
         """Retrieve usage limits based on specified filters."""
         pass
 
@@ -134,6 +138,8 @@ class BaseBackend(ABC):
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
+        project_name: Optional[str] = None,
+        filter_project_null: Optional[bool] = None, # New parameter
     ) -> float:
         """
         Retrieve aggregated API request data for quota calculation.
@@ -143,7 +149,7 @@ class BaseBackend(ABC):
         pass
 
     @abstractmethod
-    def insert_usage_limit(self, limit: UsageLimitData) -> None:  # Updated argument type hint
+    def insert_usage_limit(self, limit: UsageLimitDTO) -> None:
         """Insert a new usage limit entry."""
         pass
 

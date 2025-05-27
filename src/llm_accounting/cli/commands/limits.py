@@ -1,14 +1,18 @@
 import argparse
 from typing import Any, Dict, List, Optional
 
-# Updated import: UsageLimit changed to UsageLimitData
-from llm_accounting import LimitScope, LimitType, LLMAccounting, TimeInterval, UsageLimitData
-from llm_accounting.services.quota_service import QuotaService # This import seems unused, but will keep it as is.
+from llm_accounting import LLMAccounting
+from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval, UsageLimitDTO
+from llm_accounting.services.quota_service import QuotaService
 from llm_accounting.cli.utils import console
 
 def set_limit(args: argparse.Namespace, accounting: LLMAccounting):
     """Sets a new usage limit."""
     try:
+        if args.scope.upper() == LimitScope.PROJECT.value and not args.project_name:
+            console.print(f"[red]Error: --project-name is required when scope is {LimitScope.PROJECT.value}.[/red]")
+            return
+
         accounting.set_usage_limit(
             scope=LimitScope(args.scope.upper()),
             limit_type=LimitType(args.limit_type.lower()),
@@ -18,28 +22,37 @@ def set_limit(args: argparse.Namespace, accounting: LLMAccounting):
             model=args.model,
             username=args.username,
             caller_name=args.caller_name,
+            project_name=args.project_name
         )
         console.print(f"[green]Usage limit set successfully.[/green]")
+    except ValueError as ve:
+        console.print(f"[red]Error setting limit: {ve}[/red]")
     except Exception as e:
-        console.print(f"[red]Error setting limit: {e}[/red]")
+        console.print(f"[red]An unexpected error occurred while setting limit: {e}[/red]")
 
 def list_limits(args: argparse.Namespace, accounting: LLMAccounting):
-    """Lists all configured usage limits."""
+    """Lists all configured usage limits, with optional filters."""
     try:
-        # The 'limits' variable will now hold List[UsageLimitData]
-        limits: List[UsageLimitData] = accounting.get_usage_limits(
-            scope=LimitScope(args.scope.upper()) if args.scope else None,
-            model=args.model,
-            username=args.username,
-            caller_name=args.caller_name
-        )
+        filters: Dict[str, Any] = {}
+        if args.scope:
+            filters['scope'] = LimitScope(args.scope.upper())
+        if args.model:
+            filters['model'] = args.model
+        if args.username:
+            filters['username'] = args.username
+        if args.caller_name:
+            filters['caller_name'] = args.caller_name
+        if args.project_name:
+            filters['project_name'] = args.project_name
+        
+        limits: List[UsageLimitDTO] = accounting.get_usage_limits(**filters)
+        
         if not limits:
-            console.print("[yellow]No usage limits configured.[/yellow]")
+            console.print("[yellow]No usage limits found matching the criteria.[/yellow]")
             return
 
         console.print("[bold]Configured Usage Limits:[/bold]")
-        # No change needed for attribute access as UsageLimitData mirrors UsageLimit fields
-        for limit in limits: # limit is implicitly UsageLimitData here
+        for limit in limits:
             scope_details = []
             if limit.model is not None:
                 scope_details.append(f"Model: {limit.model}")
@@ -47,6 +60,8 @@ def list_limits(args: argparse.Namespace, accounting: LLMAccounting):
                 scope_details.append(f"User: {limit.username}")
             if limit.caller_name is not None:
                 scope_details.append(f"Caller: {limit.caller_name}")
+            if limit.project_name is not None:
+                scope_details.append(f"Project: {limit.project_name}")
             
             scope_str = f" ({', '.join(scope_details)})" if scope_details else ""
             
@@ -57,8 +72,10 @@ def list_limits(args: argparse.Namespace, accounting: LLMAccounting):
                 f"[cyan]Max Value:[/cyan] {limit.max_value}, "
                 f"[cyan]Interval:[/cyan] {limit.interval_value} {limit.interval_unit}"
             )
+    except ValueError as ve:
+        console.print(f"[red]Error listing limits: {ve}[/red]")
     except Exception as e:
-        console.print(f"[red]Error listing limits: {e}[/red]")
+        console.print(f"[red]An unexpected error occurred while listing limits: {e}[/red]")
 
 def delete_limit(args: argparse.Namespace, accounting: LLMAccounting):
     """Deletes a usage limit by its ID."""
@@ -66,4 +83,4 @@ def delete_limit(args: argparse.Namespace, accounting: LLMAccounting):
         accounting.delete_usage_limit(args.id)
         console.print(f"[green]Usage limit with ID {args.id} deleted successfully.[/green]")
     except Exception as e:
-        console.print(f"[red]Error deleting limit: {e}[/red]")
+        console.print(f"[red]Error deleting limit (ID: {args.id}): {e}[/red]")

@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
-from typing_extensions import override # Changed import for override
+from typing_extensions import override
 
-from .base import BaseBackend, UsageEntry, UsageStats, LimitScope, LimitType # LimitScope and LimitType are from base
-from ..models.limits import UsageLimitData # Changed from UsageLimit to UsageLimitData
+from .base import BaseBackend, UsageEntry, UsageStats
+from ..models.limits import LimitScope, LimitType, UsageLimitDTO
 
 
 class MockBackend(BaseBackend):
@@ -14,8 +14,8 @@ class MockBackend(BaseBackend):
 
     def __init__(self):
         self.entries: List[UsageEntry] = []
-        self.limits: List[UsageLimitData] = [] # Changed to store UsageLimitData
-        self.next_limit_id: int = 1 # Added for assigning IDs
+        self.limits: List[UsageLimitDTO] = []
+        self.next_limit_id: int = 1
         self.initialized = False
         self.closed = False
 
@@ -79,7 +79,7 @@ class MockBackend(BaseBackend):
     def purge(self) -> None:
         """Mocks deleting all usage entries."""
         self.entries = []
-        self.limits = [] # Also purge limits
+        self.limits = []
         print("MockBackend: All usage entries and limits purged.")
 
     @override
@@ -87,25 +87,24 @@ class MockBackend(BaseBackend):
         """Mocks getting the n most recent usage entries."""
         print(f"MockBackend: Getting last {n} usage entries.")
         if not self.entries:
-            # Creating UsageEntry with all required fields if model is not None
             return [
                 UsageEntry(
                     model="mock_model_1",
                     prompt_tokens=10,
                     completion_tokens=20,
-                    total_tokens=30, # Added for completeness
+                    total_tokens=30,
                     cost=0.01,
                     execution_time=0.05,
-                    timestamp=datetime.now() # Added for completeness
+                    timestamp=datetime.now()
                 ),
                 UsageEntry(
                     model="mock_model_2",
                     prompt_tokens=15,
                     completion_tokens=25,
-                    total_tokens=40, # Added for completeness
+                    total_tokens=40,
                     cost=0.02,
                     execution_time=0.08,
-                    timestamp=datetime.now() # Added for completeness
+                    timestamp=datetime.now()
                 ),
             ][:n]
         return self.entries[-n:]
@@ -128,9 +127,8 @@ class MockBackend(BaseBackend):
         raise ValueError("MockBackend only supports SELECT queries for execute_query.")
 
     @override
-    def insert_usage_limit(self, limit: UsageLimitData) -> None: # Changed type hint to UsageLimitData
+    def insert_usage_limit(self, limit: UsageLimitDTO) -> None:
         """Mocks inserting a usage limit."""
-        # Assign an ID if it's not set (common for new limits)
         if limit.id is None:
             limit.id = self.next_limit_id
             self.next_limit_id += 1
@@ -147,7 +145,6 @@ class MockBackend(BaseBackend):
         else:
             print(f"MockBackend: No usage limit found with ID {limit_id} to delete.")
 
-
     @override
     def get_usage_limits(
         self,
@@ -155,14 +152,14 @@ class MockBackend(BaseBackend):
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
-    ) -> List[UsageLimitData]: # Changed return type hint
+        project_name: Optional[str] = None,
+    ) -> List[UsageLimitDTO]:
         """Mocks retrieving usage limits."""
-        print(f"MockBackend: Getting usage limits with filters: scope={scope}, model={model}, username={username}, caller_name={caller_name}")
-        
+        print(f"MockBackend: Getting usage limits with filters: scope={scope}, model={model}, username={username}, caller_name={caller_name}, project_name={project_name}")
+
         filtered_limits = self.limits
-        
+
         if scope:
-            # Assuming scope in UsageLimitData is stored as string, compare with scope.value
             filtered_limits = [limit for limit in filtered_limits if limit.scope == scope.value]
         if model:
             filtered_limits = [limit for limit in filtered_limits if limit.model == model]
@@ -170,7 +167,9 @@ class MockBackend(BaseBackend):
             filtered_limits = [limit for limit in filtered_limits if limit.username == username]
         if caller_name:
             filtered_limits = [limit for limit in filtered_limits if limit.caller_name == caller_name]
-            
+        if project_name:
+            filtered_limits = [limit for limit in filtered_limits if limit.project_name == project_name]
+
         return filtered_limits
 
     @override
@@ -181,38 +180,24 @@ class MockBackend(BaseBackend):
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
+        project_name: Optional[str] = None,
     ) -> float:
         """
         Mocks getting accounting entries for quota calculation.
         """
-        print(f"MockBackend: Getting accounting entries for quota (type: {limit_type.value}) from {start_time} with filters: model={model}, username={username}, caller_name={caller_name}")
-        # Simulate some basic filtering for mock purposes
+        print(f"MockBackend: Getting accounting entries for quota (type: {limit_type.value}) from {start_time} with filters: model={model}, username={username}, caller_name={caller_name}, project_name={project_name}")
         mock_value = 100.0
         if limit_type == LimitType.REQUESTS:
-            mock_value = 10.0 # e.g., 10 requests
+            mock_value = 10.0
         elif limit_type == LimitType.COST:
-            mock_value = 5.0 # e.g., $5 cost
-        
-        # Further refine mock_value based on filters if desired for more complex tests
+            mock_value = 5.0
+
         if model == "specific_model_for_quota_test":
             mock_value /= 2
-        
+
         return mock_value
 
-    # This method is not part of BaseBackend, but if it exists in MockBackend, it should also be consistent.
-    # For this exercise, we assume it's not strictly required to be updated unless specified.
-    # If it were to be updated:
-    # def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
-    #     print(f"MockBackend: Getting usage costs for user {user_id} from {start_date} to {end_date}")
-    #     return 50.0
-    
-    # Ensure all abstract methods from BaseBackend are implemented.
-    # If `get_usage_costs` was an abstract method in BaseBackend, it would need @override and consistent types.
-    # Currently, it seems like an extra method in MockBackend.
-
-    # Adding a dummy `get_usage_costs` to ensure it exists if other tests rely on it.
-    # This specific method was not part of the subtask description to modify for UsageLimitData.
     def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
         """Mocks getting usage costs for a user."""
         print(f"MockBackend: Getting usage costs for user {user_id} from {start_date} to {end_date}")
-        return 50.0 # Dummy value
+        return 50.0

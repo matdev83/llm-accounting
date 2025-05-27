@@ -7,6 +7,7 @@ A Python package for tracking and analyzing LLM usage across different models an
 ## Features
 
 - Track usage of different LLM models
+- Track usage by project
 - Record token counts (prompt, completion, total)
 - Track costs and execution times
 - Support for local token counting
@@ -57,6 +58,7 @@ accounting.track_usage(
     execution_time=1.5,
     caller_name="my_app",  # Optional: name of the calling application
     username="john_doe",   # Optional: name of the user
+    project="my_project",  # Optional: name of the project
     timestamp=None         # Optional: if None, current time will be used
 )
 
@@ -90,6 +92,7 @@ llm-accounting track \
     --execution-time 1.5 \
     --caller-name my_app \
     --username john_doe \
+    --project my_project \
     --timestamp "2024-01-01T12:00:00" \
     --cached-tokens 20 \
     --reasoning-tokens 10
@@ -152,6 +155,18 @@ llm-accounting limits set \
     --limit-type input_tokens \
     --max-value 50000 \
     --interval-unit week \
+    --interval-value 1
+```
+
+To set a cost limit of $10.00 per day for a specific project:
+
+```bash
+llm-accounting limits set \
+    --scope PROJECT \
+    --project my_project \
+    --limit-type cost \
+    --max-value 10.00 \
+    --interval-unit day \
     --interval-value 1
 ```
 
@@ -233,6 +248,7 @@ The database schema generally includes the following tables and key fields (spec
 - `timestamp`: TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP - Timestamp of the usage.
 - `caller_name`: VARCHAR(255) - Optional identifier for the calling application/script.
 - `username`: VARCHAR(255) - Optional identifier for the user.
+- `project_name`: VARCHAR(255) - Optional identifier for the project.
 - `cached_tokens`: INTEGER - Number of tokens retrieved from cache.
 - `reasoning_tokens`: INTEGER - Number of tokens used for model reasoning/tool use.
 

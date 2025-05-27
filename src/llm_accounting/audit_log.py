@@ -18,6 +18,7 @@ def initialize_audit_db_schema(conn: sqlite3.Connection):
         prompt_text TEXT,
         response_text TEXT,
         remote_completion_id TEXT,
+        project TEXT DEFAULT NULL,
         log_type TEXT NOT NULL CHECK(log_type IN ('prompt', 'response'))
     )
     """)
@@ -76,7 +77,8 @@ class AuditLogger:
     # Generic log_event method (can be kept or removed if specific methods are preferred)
     def log_event(self, app_name: str, user_name: str, model: str, log_type: str,
                   prompt_text: Optional[str] = None, response_text: Optional[str] = None,
-                  remote_completion_id: Optional[str] = None, timestamp: Optional[datetime] = None):
+                  remote_completion_id: Optional[str] = None, project: Optional[str] = None,
+                  timestamp: Optional[datetime] = None):
         """
         Logs an event to the audit log.
         """
@@ -90,13 +92,14 @@ class AuditLogger:
         cursor.execute("""
             INSERT INTO audit_log_entries (
                 timestamp, app_name, user_name, model, prompt_text,
-                response_text, remote_completion_id, log_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                response_text, remote_completion_id, project, log_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (ts, app_name, user_name, model, prompt_text,
-              response_text, remote_completion_id, log_type))
+              response_text, remote_completion_id, project, log_type))
         self.conn.commit()
 
-    def log_prompt(self, app_name: str, user_name: str, model: str, prompt_text: str, timestamp: Optional[datetime] = None):
+    def log_prompt(self, app_name: str, user_name: str, model: str, prompt_text: str,
+                   project: Optional[str] = None, timestamp: Optional[datetime] = None):
         """
         Logs a prompt event to the audit log.
         """
@@ -108,13 +111,14 @@ class AuditLogger:
         
         cursor.execute("""
             INSERT INTO audit_log_entries (
-                timestamp, app_name, user_name, model, prompt_text, log_type
-            ) VALUES (?, ?, ?, ?, ?, ?)
-        """, (ts, app_name, user_name, model, prompt_text, 'prompt'))
+                timestamp, app_name, user_name, model, prompt_text, project, log_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (ts, app_name, user_name, model, prompt_text, project, 'prompt'))
         self.conn.commit()
 
     def log_response(self, app_name: str, user_name: str, model: str, response_text: str,
-                     remote_completion_id: Optional[str] = None, timestamp: Optional[datetime] = None):
+                     remote_completion_id: Optional[str] = None, project: Optional[str] = None,
+                     timestamp: Optional[datetime] = None):
         """
         Logs a response event to the audit log.
         """
@@ -127,10 +131,10 @@ class AuditLogger:
         cursor.execute("""
             INSERT INTO audit_log_entries (
                 timestamp, app_name, user_name, model, response_text,
-                remote_completion_id, log_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                remote_completion_id, project, log_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (ts, app_name, user_name, model, response_text,
-              remote_completion_id, 'response'))
+              remote_completion_id, project, 'response'))
         self.conn.commit()
 
     def get_db_path(self) -> str:
