@@ -1,17 +1,12 @@
 import logging
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone # Added timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import logging
-import sqlite3
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
-from llm_accounting.models.limits import UsageLimit
-
+# Removed: from llm_accounting.models.limits import UsageLimit
+# Added:
+from ..models.limits import UsageLimitData
 from .base import BaseBackend, LimitScope, LimitType, UsageEntry, UsageStats
 from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
                              get_period_stats_query, insert_usage_query,
@@ -92,30 +87,39 @@ class SQLiteBackend(BaseBackend):
         self._ensure_connected()
         assert self.conn is not None
         self.conn.execute("DELETE FROM accounting_entries")
+        self.conn.execute("DELETE FROM usage_limits") # Added to also purge usage_limits
         self.conn.commit()
 
-    def insert_usage_limit(self, limit: UsageLimit) -> None:
+    def insert_usage_limit(self, limit_data: UsageLimitData) -> None: # Signature updated
         """Insert a new usage limit entry into the database."""
         self._ensure_connected()
         assert self.conn is not None
-        self.conn.execute(
-            """
-            INSERT INTO usage_limits (scope, limit_type, max_value, interval_unit, interval_value, model, username, caller_name, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                limit.scope,
-                limit.limit_type,
-                limit.max_value,
-                limit.interval_unit,
-                limit.interval_value,
-                limit.model,
-                limit.username,
-                limit.caller_name,
-                limit.created_at.isoformat(),
-                limit.updated_at.isoformat(),
-            ),
-        )
+
+        columns = ["scope", "limit_type", "max_value", "interval_unit", "interval_value", "model", "username", "caller_name"]
+        params = [
+            limit_data.scope,
+            limit_data.limit_type,
+            limit_data.max_value,
+            limit_data.interval_unit,
+            limit_data.interval_value,
+            limit_data.model,
+            limit_data.username,
+            limit_data.caller_name,
+        ]
+
+        if limit_data.created_at is not None:
+            columns.append("created_at")
+            params.append(limit_data.created_at.isoformat())
+
+        if limit_data.updated_at is not None:
+            columns.append("updated_at")
+            params.append(limit_data.updated_at.isoformat())
+
+        column_names = ", ".join(columns)
+        placeholders = ", ".join(["?"] * len(params))
+        query = f"INSERT INTO usage_limits ({column_names}) VALUES ({placeholders})"
+
+        self.conn.execute(query, tuple(params))
         self.conn.commit()
 
     def tail(self, n: int = 10) -> List[UsageEntry]:
@@ -165,7 +169,7 @@ class SQLiteBackend(BaseBackend):
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
-    ) -> List[UsageLimit]:
+    ) -> List[UsageLimitData]: # Return type updated
         self._ensure_connected()
         assert self.conn is not None
         query = "SELECT id, scope, limit_type, model, username, caller_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits WHERE 1=1"
@@ -173,13 +177,24 @@ class SQLiteBackend(BaseBackend):
 
         if scope:
             query += " AND scope = ?"
-            params.append(scope.value)
+            params.append(scope.value) # scope is an enum, use .value
         if model:
             query += " AND model = ?"
             params.append(model)
-        if username:
+        
+        # Modified username handling for IS NULL vs specific value
+        if username is not None:
             query += " AND username = ?"
             params.append(username)
+        else:
+            # If username is explicitly None in the filter, query for limits where username IS NULL
+            # This is relevant for general CALLER or GLOBAL limits that are not user-specific.
+            # However, get_usage_limits for GLOBAL/MODEL scopes typically don't pass username.
+            # This 'else' branch is mainly for distinguishing general CALLER limits (username IS NULL)
+            # from specific user-caller limits when scope=LimitScope.CALLER.
+            if scope == LimitScope.CALLER or scope == LimitScope.GLOBAL: # Ensure this applies only where relevant
+                 query += " AND username IS NULL"
+
         if caller_name:
             query += " AND caller_name = ?"
             params.append(caller_name)
@@ -188,7 +203,7 @@ class SQLiteBackend(BaseBackend):
         limits = []
         for row in cursor.fetchall():
             limits.append(
-                UsageLimit(
+                UsageLimitData( # Instantiation updated
                     id=row[0],
                     scope=row[1],
                     limit_type=row[2],
@@ -198,8 +213,9 @@ class SQLiteBackend(BaseBackend):
                     max_value=row[6],
                     interval_unit=row[7],
                     interval_value=row[8],
-                    created_at=datetime.fromisoformat(row[9]) if row[9] else None,
-                    updated_at=datetime.fromisoformat(row[10]) if row[10] else None,
+                    # Ensure created_at and updated_at are timezone-aware (UTC) after parsing
+                    created_at=(datetime.fromisoformat(row[9]).replace(tzinfo=timezone.utc) if row[9] else None),
+                    updated_at=(datetime.fromisoformat(row[10]).replace(tzinfo=timezone.utc) if row[10] else None),
                 )
             )
         return limits
@@ -227,7 +243,9 @@ class SQLiteBackend(BaseBackend):
             raise ValueError(f"Unknown limit type: {limit_type}")
 
         query = f"SELECT {select_clause} FROM accounting_entries WHERE timestamp >= ?"
-        params = [start_time.isoformat()]
+        # Convert datetime to string for query
+        params: List[Any] = [start_time.isoformat()]
+
 
         if model:
             query += " AND model = ?"

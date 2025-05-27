@@ -10,20 +10,8 @@ from typing import Dict, List, Optional, Tuple
 from .backends.base import BaseBackend, UsageEntry, UsageStats
 from .backends.mock_backend import MockBackend
 from .backends.sqlite import SQLiteBackend
-from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimit
-"""Main package initialization for LLM Accounting system.
-
-This package provides core functionality for tracking and managing API usage quotas
-and rate limits across multiple services.
-"""
-import logging
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple
-
-from .backends.base import BaseBackend, UsageEntry, UsageStats
-from .backends.mock_backend import MockBackend
-from .backends.sqlite import SQLiteBackend
-from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimit
+# Updated import: UsageLimit changed to UsageLimitData
+from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimitData
 from .services.quota_service import QuotaService
 from .audit_log import AuditLogger
 
@@ -122,13 +110,23 @@ class LLMAccounting:
         model: str,
         username: str,
         caller_name: str,
-        input_tokens: int,
-        cost: float = 0.0,
+        input_tokens: int, # Assuming this is a measure like prompt_tokens
+        # Removed output_tokens as it's not typically known before the call
+        cost: float = 0.0, # Cost can be estimated or actual if known post-call
     ) -> Tuple[bool, Optional[str]]:
         """Check if the current request exceeds any defined quotas."""
         self.backend._ensure_connected()
+        # Assuming QuotaService.check_quota expects input_tokens and cost for its checks
         return self.quota_service.check_quota(
-            model, username, caller_name, input_tokens, cost
+            model=model, 
+            username=username, 
+            caller_name=caller_name, 
+            # Pass relevant metrics for quota checking.
+            # The exact parameters depend on QuotaService's implementation.
+            # For this example, let's assume it primarily uses input_tokens and cost.
+            # If it needs more context (like request type), that would be added here.
+            input_tokens=input_tokens, 
+            cost=cost
         )
 
     def set_usage_limit(
@@ -144,7 +142,9 @@ class LLMAccounting:
     ) -> None:
         """Sets a new usage limit."""
         self.backend._ensure_connected()
-        limit = UsageLimit(
+        # Changed UsageLimit to UsageLimitData
+        # UsageLimitData expects raw string values for enum fields as per its definition
+        limit = UsageLimitData(
             scope=scope.value,
             limit_type=limit_type.value,
             max_value=max_value,
@@ -153,6 +153,7 @@ class LLMAccounting:
             model=model,
             username=username,
             caller_name=caller_name,
+            # id, created_at, updated_at are auto-managed by the backend/DB
         )
         self.backend.insert_usage_limit(limit)
 
@@ -162,7 +163,7 @@ class LLMAccounting:
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
-    ) -> List[UsageLimit]:
+    ) -> List[UsageLimitData]: # Changed return type hint
         """Retrieves configured usage limits."""
         self.backend._ensure_connected()
         return self.backend.get_usage_limits(scope, model, username, caller_name)
@@ -194,5 +195,5 @@ __all__ = [
     "LimitScope",
     "LimitType",
     "TimeInterval",
-    "UsageLimit",
+    "UsageLimitData", # Changed from UsageLimit
 ]

@@ -5,59 +5,38 @@ from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
 
 from ..base import UsageEntry, UsageStats
-from ...models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
+# Corrected import path for models
+from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType, TimeInterval, UsageLimitData
 
 logger = logging.getLogger(__name__)
 
 class LimitManager:
     def __init__(self, backend_instance, data_inserter_instance):
         self.backend = backend_instance
-        self.data_inserter = data_inserter_instance
+        self.data_inserter = data_inserter_instance # This is DataInserter instance
 
     def get_usage_limits(self,
                          scope: Optional[LimitScope] = None,
                          model: Optional[str] = None,
                          username: Optional[str] = None,
-                         caller_name: Optional[str] = None) -> List[UsageLimit]:
+                         caller_name: Optional[str] = None) -> List[UsageLimitData]: # Return type changed
         """
         Retrieves usage limits from the `usage_limits` table based on specified filter criteria.
-
-        Allows filtering by `scope`, `model_name`, `username`, and `caller_name`.
-        Results are ordered by `created_at` in descending order.
-        Enum values stored as strings in the DB are converted back to their Enum types.
-
-        Args:
-            scope: Optional `LimitScope` enum to filter by.
-            model_name: Optional model name string to filter by. (Note: `UsageLimit` dataclass uses `model` field)
-            username: Optional username string to filter by.
-            caller_name: Optional caller name string to filter by.
-
-        Returns:
-            A list of `UsageLimit` objects matching the filters. Returns an empty list if no
-            limits match or if no filters are provided and the table is empty.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            ValueError: If a value from the database cannot be converted to its corresponding Enum type.
-            psycopg2.Error: If any error occurs during SQL execution (and is re-raised).
-            Exception: For any other unexpected errors (and is re-raised).
+        Returns a list of UsageLimitData objects.
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None
 
-        base_query = "SELECT * FROM usage_limits"
-        conditions = []
-        params = []
-
-        # Dynamically build the WHERE clause based on provided filters.
+        base_query = "SELECT id, scope, limit_type, model_name, username, caller_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits" # Explicitly listed columns
         conditions = []
         params = []
 
         if scope:
             conditions.append("scope = %s")
-            params.append(scope.value) # Store enum by its value.
+            params.append(scope.value)
         if model:
-            conditions.append("model_name = %s") # DB column is model_name
+            # DB column is model_name, but UsageLimitData expects 'model'
+            conditions.append("model_name = %s") 
             params.append(model)
         if username:
             conditions.append("username = %s")
@@ -69,130 +48,134 @@ class LimitManager:
         query = base_query
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
-        query += " ORDER BY created_at DESC;" # Most recent limits first.
+        query += " ORDER BY created_at DESC;"
 
-        limits = []
+        limits_data = [] # Changed variable name
         try:
-            # Uses RealDictCursor for easy mapping to UsageLimit dataclass.
             with self.backend.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(query, tuple(params))
                 for row_dict in cur:
-                    data = dict(row_dict) # Make a mutable copy.
-                    # Convert string representations from DB back to Enum objects.
-                    # This might raise ValueError if DB data is inconsistent with Enum definitions.
-                    data['scope'] = LimitScope(data['scope'])
-                    data['limit_type'] = LimitType(data['limit_type'])
-                    data['interval_unit'] = TimeInterval(data['interval_unit'])
+                    # Convert string representations from DB back to Enum values for internal logic if needed,
+                    # but UsageLimitData expects raw strings for enum fields.
+                    # The original code converted to Enums then to UsageLimit. We'll map directly to UsageLimitData.
                     
-                    # The UsageLimit dataclass expects a field 'model', but the DB stores it as 'model_name'.
-                    # This maps 'model_name' from the DB row to the 'model' field for dataclass instantiation.
-                    if 'model_name' in data and 'model' not in data:
-                         data['model'] = data.pop('model_name')
+                    # Handle potential None for datetime fields before parsing
+                    created_at_dt = datetime.fromisoformat(row_dict['created_at']) if row_dict['created_at'] else None
+                    updated_at_dt = datetime.fromisoformat(row_dict['updated_at']) if row_dict['updated_at'] else None
 
-                    limits.append(UsageLimit(**data))
-            return limits
+                    limits_data.append(UsageLimitData(
+                        id=row_dict['id'],
+                        scope=row_dict['scope'], # raw string
+                        limit_type=row_dict['limit_type'], # raw string
+                        max_value=row_dict['max_value'],
+                        interval_unit=row_dict['interval_unit'], # raw string
+                        interval_value=row_dict['interval_value'],
+                        model=row_dict['model_name'], # map model_name from DB to model in dataclass
+                        username=row_dict['username'],
+                        caller_name=row_dict['caller_name'],
+                        created_at=created_at_dt,
+                        updated_at=updated_at_dt
+                    ))
+            return limits_data
         except psycopg2.Error as e:
             logger.error(f"Error getting usage limits: {e}")
             raise
-        except ValueError as e: # Handles errors from Enum string conversion.
-            logger.error(f"Error converting database value to Enum for usage limits: {e}")
+        except ValueError as e: 
+            logger.error(f"Error converting database value for usage limits: {e}")
             raise
         except Exception as e:
             logger.error(f"An unexpected error occurred getting usage limits: {e}")
             raise
 
-    def set_usage_limit(self, user_id: str, limit_amount: float, limit_type_str: str = "COST") -> None:
+    # New method to be called by NeonBackend.insert_usage_limit
+    def insert_usage_limit(self, limit_data: UsageLimitData) -> None:
         """
-        A simplified way to set a usage limit for a user. It creates a `UsageLimit` object
-        with `USER` scope and `MONTHLY` interval by default, then calls `insert_usage_limit`.
-
-        This method primarily serves as a convenience. For setting limits with more specific
-        scopes, intervals, or other attributes, `insert_usage_limit` should be used directly
-        with a fully configured `UsageLimit` object.
-
-        Note: This method attempts an INSERT. If a usage limit that would violate unique
-        constraints (e.g. for the same user, scope, type, model, caller) already exists,
-        this method will likely raise a `psycopg2.Error` (specifically, an IntegrityError).
-        A robust update/insert (upsert) mechanism is not implemented here but would typically
-        use `INSERT ... ON CONFLICT DO UPDATE` in PostgreSQL.
-
-        Args:
-            user_id: The identifier for the user.
-            limit_amount: The maximum value for the limit (e.g., cost amount, token count).
-            limit_type_str: String representation of the limit type (e.g., "cost", "requests").
-                            Defaults to "cost". Must be a valid `LimitType` enum value.
-
-        Raises:
-            ConnectionError: If the database connection is not active.
-            ValueError: If `limit_type_str` is not a valid `LimitType`.
-            psycopg2.Error: If an error occurs during the underlying `insert_usage_limit` call.
-            Exception: For other unexpected errors.
+        Converts UsageLimitData to an SQLAlchemy UsageLimit model and passes it to DataInserter.
         """
-        logger.info(f"Setting usage limit for user '{user_id}', amount {limit_amount}, "
-                    f"type '{limit_type_str}'.")
-        self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        logger.info(f"LimitManager converting UsageLimitData to SQLAlchemy model for insertion: {limit_data}")
+        
+        # Convert UsageLimitData to SQLAlchemy UsageLimit model
+        # Note: UsageLimit constructor takes enum values for scope, limit_type, interval_unit
+        sqlalchemy_limit = UsageLimit(
+            scope=LimitScope(limit_data.scope), # Convert string back to Enum for SQLAlchemy model
+            limit_type=LimitType(limit_data.limit_type), # Convert string back to Enum
+            max_value=limit_data.max_value,
+            interval_unit=TimeInterval(limit_data.interval_unit), # Convert string back to Enum
+            interval_value=limit_data.interval_value,
+            model=limit_data.model,
+            username=limit_data.username,
+            caller_name=limit_data.caller_name,
+            # id is auto-generated by DB
+            # created_at and updated_at can be passed if available in limit_data and not None
+            # The UsageLimit model's __init__ handles default datetimes if not provided
+            created_at=limit_data.created_at if limit_data.created_at else datetime.now(), # Ensure datetime object
+            updated_at=limit_data.updated_at if limit_data.updated_at else datetime.now()  # Ensure datetime object
+        )
+        
+        # If limit_data has an ID, it might imply an update, but UsageLimit's __init__ takes id.
+        # For a create operation, ID should typically not be set or be None.
+        # The existing UsageLimit.__init__ accepts an id.
+        if limit_data.id is not None:
+            sqlalchemy_limit.id = limit_data.id
 
         try:
-            # Convert the string representation of limit_type to the Enum member.
+            # self.data_inserter is an instance of DataInserter class from data_inserter.py
+            # Assuming DataInserter.insert_usage_limit expects an SQLAlchemy UsageLimit object
+            self.data_inserter.insert_usage_limit(sqlalchemy_limit)
+            logger.info(f"Successfully requested insert of usage limit via DataInserter.")
+        except psycopg2.Error as db_err:
+            logger.error(f"Database error during insert_usage_limit in LimitManager: {db_err}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error during insert_usage_limit in LimitManager: {e}")
+            raise
+
+    def set_usage_limit(self, user_id: str, limit_amount: float, limit_type_str: str = "COST") -> None:
+        """
+        Simplified way to set a USER scope, MONTHLY interval limit.
+        This method still creates an SQLAlchemy UsageLimit object directly.
+        It's a convenience method and doesn't use UsageLimitData for its direct input.
+        """
+        logger.info(f"Setting usage limit for user '{user_id}', amount {limit_amount}, type '{limit_type_str}'.")
+        
+        try:
             limit_type_enum = LimitType(limit_type_str)
-        except ValueError: # Raised if limit_type_str is not a valid LimitType value.
-            logger.error(f"Invalid limit_type string: {limit_type_str}. "
-                        f"Must be one of {LimitType._member_names_}")
+        except ValueError:
+            logger.error(f"Invalid limit_type string: {limit_type_str}. Must be one of {LimitType._member_names_}")
             raise ValueError(f"Invalid limit_type string: {limit_type_str}")
 
-        # Create a UsageLimit object with default scope (USER) and interval (MONTHLY).
-        usage_limit = UsageLimit(
-            scope=LimitScope.USER.value,
-            limit_type=limit_type_enum.value,
+        # Create SQLAlchemy UsageLimit object directly
+        usage_limit_model = UsageLimit(
+            scope=LimitScope.USER, # Enum directly
+            limit_type=limit_type_enum, # Enum directly
             max_value=limit_amount,
-            interval_unit=TimeInterval.MONTH.value,
-            interval_value=1, # Interval value for monthly is 1 (e.g., 1 month).
+            interval_unit=TimeInterval.MONTH, # Enum directly
+            interval_value=1,
             username=user_id,
-            model=None, # No specific model for this simplified limit.
-            caller_name=None, # No specific caller for this simplified limit.
-            created_at=datetime.now(), # Set creation timestamp.
-            updated_at=datetime.now()  # Set update timestamp.
+            model=None,
+            caller_name=None,
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
 
         try:
-            # Call the more general insert_usage_limit method.
-            self.data_inserter.insert_usage_limit(usage_limit)
-            logger.info(f"Successfully set usage limit for user '{user_id}' "
-                        f"via insert_usage_limit call.")
+            self.data_inserter.insert_usage_limit(usage_limit_model) # DataInserter expects SQLAlchemy model
+            logger.info(f"Successfully set usage limit for user '{user_id}' via DataInserter.")
         except psycopg2.Error as db_err:
             logger.error(f"Database error setting usage limit for user '{user_id}': {db_err}")
-            raise # Re-raise to allow higher-level handling.
+            raise
         except Exception as e:
             logger.error(f"Unexpected error setting usage limit for user '{user_id}': {e}")
             raise
 
-    def get_usage_limit(self, user_id: str) -> Optional[List[UsageLimit]]:
+    def get_usage_limit(self, user_id: str) -> Optional[List[UsageLimitData]]: # Return type changed
         """
-        Retrieves all usage limits defined for a specific user.
-
-        This method is a convenience wrapper around `get_usage_limits`, pre-setting
-        the `username` filter.
-
-        Args:
-            user_id: The identifier of the user whose limits are to be retrieved.
-
-        Returns:
-            A list of `UsageLimit` objects associated with the user, or an empty list
-            if no limits are found. Can return `None` if an underlying issue occurs,
-            though current implementation of get_usage_limits re-raises errors.
-
-        Raises:
-            ConnectionError: If the database connection is not active (from underlying call).
-            psycopg2.Error: If an error occurs during SQL execution (from underlying call).
-            Exception: For other unexpected errors (from underlying call).
+        Retrieves all usage limits (as UsageLimitData) for a specific user.
         """
         logger.info(f"Retrieving all usage limits for user_id: {user_id}.")
         try:
-            # Delegates to the more generic get_usage_limits method.
+            # Calls the updated get_usage_limits which returns List[UsageLimitData]
             return self.get_usage_limits(username=user_id)
         except Exception as e:
-            # Log the error and re-raise. Depending on desired API contract,
-            # one might choose to return None or an empty list here.
             logger.error(f"Error retrieving usage limits for user '{user_id}': {e}")
             raise

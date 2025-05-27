@@ -89,8 +89,8 @@ def initialize_db_schema(conn: sqlite3.Connection) -> None:
             max_value REAL NOT NULL,
             interval_unit TEXT NOT NULL,
             interval_value INTEGER NOT NULL,
-            created_at TEXT,
-            updated_at TEXT
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )"""
     )
 
