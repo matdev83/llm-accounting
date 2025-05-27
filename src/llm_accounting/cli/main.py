@@ -34,6 +34,21 @@ def main():
              "Required when --db-backend is 'neon'. "
              "Can also be provided via NEON_CONNECTION_STRING environment variable.",
     )
+    parser.add_argument(
+        "--project-name",
+        type=str,
+        help="Default project name to associate with usage entries. Can be overridden by command-specific --project.",
+    )
+    parser.add_argument(
+        "--app-name",
+        type=str,
+        help="Default application name to associate with usage entries. Can be overridden by command-specific --caller-name.",
+    )
+    parser.add_argument(
+        "--user-name",
+        type=str,
+        help="Default user name to associate with usage entries. Can be overridden by command-specific --username. Defaults to current system user.",
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -56,7 +71,10 @@ def main():
         accounting = get_accounting(
             db_backend=args.db_backend,
             db_file=args.db_file,
-            neon_connection_string=args.neon_connection_string
+            neon_connection_string=args.neon_connection_string,
+            project_name=args.project_name,
+            app_name=args.app_name,
+            user_name=args.user_name,
         )
         with accounting:
             args.func(args, accounting)

@@ -1,4 +1,7 @@
+import os
+import platform
 from rich.console import Console
+from typing import Optional
 
 from llm_accounting import LLMAccounting
 
@@ -23,7 +26,14 @@ def format_tokens(value: int) -> str:
     return f"{value:,}" if value else "0"
 
 
-def get_accounting(db_backend: str, db_file: str = None, neon_connection_string: str = None):
+def get_accounting(
+    db_backend: str,
+    db_file: Optional[str] = None,
+    neon_connection_string: Optional[str] = None,
+    project_name: Optional[str] = None,
+    app_name: Optional[str] = None,
+    user_name: Optional[str] = None,
+):
     """Get an LLMAccounting instance with the specified backend"""
     if db_backend == "sqlite":
         if not db_file:
@@ -39,7 +49,21 @@ def get_accounting(db_backend: str, db_file: str = None, neon_connection_string:
         console.print(f"[red]Error: Unknown database backend '{db_backend}'.[/red]")
         raise SystemExit(1)
 
-    acc = LLMAccounting(backend=backend)
+    # Determine default username if not provided
+    if user_name is None:
+        if platform.system() == "Windows":
+            default_user_name = os.environ.get("USERNAME")
+        else:
+            default_user_name = os.environ.get("USER")
+    else:
+        default_user_name = user_name
+
+    acc = LLMAccounting(
+        backend=backend,
+        project_name=project_name,
+        app_name=app_name,
+        user_name=default_user_name,
+    )
     return acc
 
 

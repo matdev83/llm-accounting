@@ -20,10 +20,19 @@ logger = logging.getLogger(__name__)
 class LLMAccounting:
     """Main interface for LLM usage tracking"""
 
-    def __init__(self, backend: Optional[BaseBackend] = None):
+    def __init__(
+        self,
+        backend: Optional[BaseBackend] = None,
+        project_name: Optional[str] = None,
+        app_name: Optional[str] = None,
+        user_name: Optional[str] = None,
+    ):
         """Initialize with an optional backend. If none provided, uses SQLiteBackend."""
         self.backend = backend or SQLiteBackend()
         self.quota_service = QuotaService(self.backend)
+        self.project_name = project_name
+        self.app_name = app_name
+        self.user_name = user_name
 
     def __enter__(self):
         """Initialize the backend when entering context"""
@@ -52,8 +61,8 @@ class LLMAccounting:
         cost: float = 0.0,
         execution_time: float = 0.0,
         timestamp: Optional[datetime] = None,
-        caller_name: str = "",
-        username: str = "",
+        caller_name: Optional[str] = None, # Changed to Optional[str]
+        username: Optional[str] = None, # Changed to Optional[str]
         cached_tokens: int = 0,
         reasoning_tokens: int = 0,
         project: Optional[str] = None,
@@ -71,11 +80,11 @@ class LLMAccounting:
             cost=cost,
             execution_time=execution_time,
             timestamp=timestamp,
-            caller_name=caller_name,
-            username=username,
+            caller_name=caller_name if caller_name is not None else self.app_name, # Use instance default
+            username=username if username is not None else self.user_name, # Use instance default
             cached_tokens=cached_tokens,
             reasoning_tokens=reasoning_tokens,
-            project=project,
+            project=project if project is not None else self.project_name, # Use instance default
         )
         self.backend.insert_usage(entry)
 

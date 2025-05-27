@@ -22,8 +22,8 @@ class UsageEntry:
     cost: float = 0.0
     execution_time: float = 0.0
     timestamp: Optional[datetime] = None
-    caller_name: str = ""
-    username: str = ""
+    caller_name: Optional[str] = None
+    username: Optional[str] = None
     project: Optional[str] = None
     # Additional token details
     cached_tokens: int = 0

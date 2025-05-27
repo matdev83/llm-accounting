@@ -46,9 +46,15 @@ from llm_accounting import LLMAccounting
 from datetime import datetime, timedelta
 
 # Default backend (SQLite) is used if no backend is provided
-accounting = LLMAccounting()
+# You can also set default project, app, and user names here
+accounting = LLMAccounting(
+    project_name="my_default_project", # Optional: default project for all entries
+    app_name="my_default_app",         # Optional: default caller name for all entries
+    user_name="my_default_user"        # Optional: default username for all entries
+)
 
 # Track usage (model name is required, timestamp is optional)
+# Parameters provided here will override the defaults set in the constructor
 accounting.track_usage(
     model="gpt-4",  # Required: name of the LLM model
     prompt_tokens=100,
@@ -56,9 +62,9 @@ accounting.track_usage(
     total_tokens=150,
     cost=0.002,
     execution_time=1.5,
-    caller_name="my_app",  # Optional: name of the calling application
-    username="john_doe",   # Optional: name of the user
-    project="my_project",  # Optional: name of the project
+    caller_name="my_app",  # Optional: name of the calling application (overrides default app_name)
+    username="john_doe",   # Optional: name of the user (overrides default user_name)
+    project="my_project",  # Optional: name of the project (overrides default project_name)
     timestamp=None         # Optional: if None, current time will be used
 )
 
@@ -80,6 +86,17 @@ accounting.close()
 *Note: The `LLMAccounting` class and its methods are synchronous. If you are integrating `llm-accounting` into an asynchronous application, you should run its synchronous calls in a separate thread (e.g., using `asyncio.to_thread`) to avoid blocking the event loop.*
 
 ### CLI Usage
+
+#### Global CLI Options
+
+The following options can be used with any `llm-accounting` command:
+
+*   `--db-file <path>`: Specifies the SQLite database file path. Only applicable when `--db-backend` is `sqlite`.
+*   `--db-backend <backend>`: Selects the database backend (`sqlite` or `neon`). Defaults to `sqlite`.
+*   `--neon-connection-string <string>`: Connection string for the Neon database. Required when `--db-backend` is `neon`. Can also be provided via `NEON_CONNECTION_STRING` environment variable.
+*   `--project-name <name>`: Default project name to associate with usage entries. Can be overridden by command-specific `--project`.
+*   `--app-name <name>`: Default application name to associate with usage entries. Can be overridden by command-specific `--caller-name`.
+*   `--user-name <name>`: Default user name to associate with usage entries. Can be overridden by command-specific `--username`. Defaults to current system user.
 
 ```bash
 # Track a new usage entry (model name is required, timestamp is optional)
