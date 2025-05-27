@@ -139,7 +139,7 @@ class BaseBackend(ABC):
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
         project_name: Optional[str] = None,
-        filter_project_null: Optional[bool] = None, # New parameter
+        filter_project_null: Optional[bool] = None,  # New parameter
     ) -> float:
         """
         Retrieve aggregated API request data for quota calculation.
