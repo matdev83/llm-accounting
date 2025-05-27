@@ -65,4 +65,4 @@ def test_model_limit_priority(accounting_instance, sqlite_backend_for_accounting
     # Check 6th request should be blocked
     allowed, message = accounting_instance.check_quota("gpt-4", "user1", "app1", 1000, 0.25)
     assert not allowed
-    assert "MODEL limit: 5.00 requests per 1 hour" in message
+    assert "MODEL limit exceeded for model 'gpt-4'. Max: 5.00 requests per 1 hour." in message

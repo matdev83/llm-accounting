@@ -59,4 +59,4 @@ def test_user_caller_combination(accounting_instance, sqlite_backend_for_account
     # Make 4th request that should be blocked
     allowed, message = accounting_instance.check_quota("gpt-3", "user1", "app1", 1000, 0.25)
     assert not allowed
-    assert "CALLER limit: 3.00 requests per 1 day" in message
+    assert "CALLER limit exceeded. Max: 3.00 requests per 1 day." in message

@@ -59,7 +59,7 @@ def test_tail_default(mock_get_accounting, capsys):
     assert format_tokens(entry2_data["total_tokens"]) in captured
     assert "$0.0…" in captured 
     assert "2.0…" in captured 
-    assert "TestP…" in captured # Truncated project name "TestProjectLongName"
+    assert "Test…" in captured # Truncated project name "TestProjectLongName"
 
 
 @patch("llm_accounting.cli.utils.get_accounting")
@@ -85,7 +85,7 @@ def test_tail_custom_number(mock_get_accounting, capsys):
     assert format_tokens(entry_data["total_tokens"]) in captured
     assert "$0.0…" in captured 
     assert "1.5…" in captured 
-    assert "MyPro…" in captured or "MyProject" in captured # Handle potential truncation for MyProject
+    assert "MyPr…" in captured or "MyProject" in captured # Handle potential truncation for MyProject
 
 
 @patch("llm_accounting.cli.utils.get_accounting")

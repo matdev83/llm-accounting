@@ -52,7 +52,7 @@ def test_multiple_limit_types(accounting_instance, sqlite_backend_for_accounting
     # Test token limit
     allowed, message = accounting_instance.check_quota("gpt-4", "user2", "app2", 15000, 0.0)
     assert not allowed
-    assert "USER limit: 10000.00 input_tokens per 1 day" in message
+    assert "USER limit exceeded. Max: 10000.00 input_tokens per 1 day." in message
 
     # Test cost limit
     # Add requests totaling $49.00
@@ -72,4 +72,4 @@ def test_multiple_limit_types(accounting_instance, sqlite_backend_for_accounting
     # Check exceeding cost limit - should be blocked BEFORE adding
     allowed, message = accounting_instance.check_quota("gpt-4", "user2", "app2", 200, 1.01)
     assert not allowed
-    assert "USER limit: 50.00 cost per 1 week" in message
+    assert "USER limit exceeded. Max: 50.00 cost per 1 week." in message

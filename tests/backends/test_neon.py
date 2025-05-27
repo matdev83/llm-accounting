@@ -475,7 +475,7 @@ class TestNeonBackend(unittest.TestCase):
         self.mock_cursor.execute.assert_called_once()
         args, params = self.mock_cursor.execute.call_args[0] # call_args is a tuple (args, kwargs)
         
-        self.assertIn("SELECT * FROM usage_limits WHERE", args)
+        self.assertIn("SELECT id, scope, limit_type, model_name, username, caller_name, project_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits WHERE", args)
         self.assertIn("scope = %s", args)
         self.assertIn("model_name = %s", args)
         self.assertIn("username = %s", args)
@@ -493,7 +493,7 @@ class TestNeonBackend(unittest.TestCase):
         self.backend.initialize()
         self.mock_cursor.__iter__.return_value = iter([])
         self.backend.get_usage_limits()
-        self.mock_cursor.execute.assert_called_once_with("SELECT * FROM usage_limits ORDER BY created_at DESC;", tuple())
+        self.mock_cursor.execute.assert_called_once_with("SELECT id, scope, limit_type, model_name, username, caller_name, project_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits ORDER BY created_at DESC;", tuple())
 
     def test_get_usage_limits_no_data(self):
         # self.backend._create_tables = MagicMock() # Old mock

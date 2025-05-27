@@ -54,4 +54,4 @@ def test_global_limit(accounting_instance, sqlite_backend_for_accounting):
     # Add 11th request to exceed limit
     allowed, message = accounting_instance.check_quota("gpt-4", "user1", "app1", 1000, 0.25)
     assert not allowed
-    assert "GLOBAL limit: 10.00 requests per 1 minute" in message
+    assert "GLOBAL limit exceeded. Max: 10.00 requests per 1 minute." in message

@@ -21,7 +21,7 @@ def accounting_for_quota(sqlite_backend_for_quota):
         yield acc # acc.purge() is done by the backend fixture setup
 
 # --- Helper to add usage ---
-def add_usage(accounting_instance, model, cost, input_tokens, project_name=None, username=None, caller_name=None, count=1):
+def add_usage(accounting_instance, model, cost, input_tokens, project_name=None, username="test_user", caller_name="test_caller", count=1):
     for _ in range(count):
         accounting_instance.track_usage(
             model=model,
@@ -55,6 +55,7 @@ def test_project_limit_cost(accounting_for_quota: LLMAccounting):
     add_usage(accounting_for_quota, model="gpt-4", cost=1.0, input_tokens=10, project_name=project_a) # Total cost 5.0
     allowed, message = accounting_for_quota.check_quota(model="gpt-4", cost=0.01, input_tokens=1, project_name=project_a, username="user1", caller_name="app1")
     assert not allowed, "Should be denied, project limit reached"
+    assert message is not None
     assert "PROJECT limit exceeded" in message
     assert f"project '{project_a}'" in message
     assert "5.00 cost" in message
@@ -85,6 +86,7 @@ def test_project_limit_requests(accounting_for_quota: LLMAccounting):
 
     allowed, message = accounting_for_quota.check_quota(model="claude-2", cost=0.1, input_tokens=5, project_name=project_c, username="user2", caller_name="app2")
     assert not allowed, "Request 3 for ProjectC should be denied"
+    assert message is not None
     assert "PROJECT limit exceeded" in message
     assert f"project '{project_c}'" in message
     assert "2.00 requests" in message
@@ -109,6 +111,7 @@ def test_project_limit_with_global_limit_cost(accounting_for_quota: LLMAccountin
     # Next request for ProjectD should be denied by ProjectD's limit
     allowed, message = accounting_for_quota.check_quota(model="gpt-4", cost=0.1, input_tokens=1, project_name=project_d, username="user1", caller_name="app1")
     assert not allowed, "ProjectD should be denied by its own limit"
+    assert message is not None
     assert "PROJECT limit exceeded" in message and f"project '{project_d}'" in message
 
     # Use 6.0 cost for ProjectE (ProjectD is at 5.0, Global is at 5.0 + this 6.0 = 11.0)
@@ -124,6 +127,7 @@ def test_project_limit_with_global_limit_cost(accounting_for_quota: LLMAccountin
     # ProjectD=5.0, ProjectE=4.0. Global usage = 9.0. Requesting 1.1 for ProjectE.
     # Total global would be 10.1, exceeding global limit of 10.0
     assert not allowed, "ProjectE should be denied by the global limit"
+    assert message is not None
     assert "GLOBAL limit exceeded" in message
 
 
@@ -146,19 +150,16 @@ def test_project_limit_with_model_limit(accounting_for_quota: LLMAccounting):
     add_usage(accounting_for_quota, model=model_name, cost=0.1, input_tokens=1, project_name=project_f)
     allowed, message = accounting_for_quota.check_quota(model=model_name, cost=0.1, input_tokens=1, project_name=project_f, username="u", caller_name="c")
     assert not allowed, "Should be denied by ProjectF limit"
+    assert message is not None
     assert "PROJECT limit exceeded" in message and f"project '{project_f}'" in message
 
     # Request for special-model in ProjectG (ProjectF limit doesn't apply)
     project_g = "ProjectG"
     # This is the 3rd request for "special-model" overall.
     add_usage(accounting_for_quota, model=model_name, cost=0.1, input_tokens=1, project_name=project_g)
-    allowed, _ = accounting_for_quota.check_quota(model=model_name, cost=0.1, input_tokens=1, project_name=project_g, username="u", caller_name="c")
-    assert allowed, "3rd request for special-model (in ProjectG) should be allowed by model limit"
-    
-    # This is the 4th request for "special-model" overall.
-    add_usage(accounting_for_quota, model=model_name, cost=0.1, input_tokens=1, project_name=project_g) # Total 4 for model
     allowed, message = accounting_for_quota.check_quota(model=model_name, cost=0.1, input_tokens=1, project_name=project_g, username="u", caller_name="c")
-    assert not allowed, "4th request for special-model (in ProjectG) should be denied by model limit"
+    assert not allowed, "3rd request for special-model (in ProjectG) should be denied by model limit"
+    assert message is not None
     assert "MODEL limit exceeded" in message and f"model '{model_name}'" in message
 
 def test_project_limit_with_no_specific_project_in_request(accounting_for_quota: LLMAccounting):

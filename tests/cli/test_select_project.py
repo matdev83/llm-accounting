@@ -34,10 +34,10 @@ def make_cli_test_entry(**kwargs):
         'prompt_tokens': entry.prompt_tokens,
         'completion_tokens': entry.completion_tokens,
         'total_tokens': entry.total_tokens,
-        'local_prompt_tokens': kwargs.get('local_prompt_tokens'),
-        'local_completion_tokens': kwargs.get('local_completion_tokens'),
-        'local_total_tokens': kwargs.get('local_total_tokens'),
-        'project': entry.project,
+        'local_prompt_tokens': kwargs.get('local_prompt_tokens', 0),
+        'local_completion_tokens': kwargs.get('local_completion_tokens', 0),
+        'local_total_tokens': kwargs.get('local_total_tokens', 0),
+        'project': entry.project if entry.project is not None else "", # Ensure project is empty string if None
         'cost': entry.cost,
         'execution_time': entry.execution_time,
         'caller_name': entry.caller_name,
@@ -62,14 +62,29 @@ def test_select_no_project_filter_displays_project_column(mock_get_accounting, c
     """Test `select` with no project filter shows project column and all entries."""
     mock_get_accounting.return_value = LLMAccounting(backend=sqlite_backend_with_project_data)
 
-    with patch.object(sys, 'argv', ['cli_main', "select"]): # No --query, so should use default SELECT *
+    with patch.object(sys, 'argv', ['cli_main', "select", "--format", "csv"]): # Use CSV format for predictable output
         cli_main()
     
-    captured = capsys.readouterr().out
-    assert "ProjectAlpha" in captured
-    assert "ProjectBeta" in captured
-    assert "model_no_project" in captured # Entry with project=NULL
-    assert "project" in captured.lower() # Check for 'project' column header
+    captured = capsys.readouterr().out.strip().splitlines() # Get lines of CSV output
+
+    # Expected CSV header (order might vary, but these columns should be present)
+    header = captured[0].split(',')
+    assert "id" in header
+    assert "model" in header
+    assert "project" in header
+    assert "cost" in header
+
+    # Expected data rows (order might vary, so check for presence of key elements)
+    # id,timestamp,model,prompt_tokens,completion_tokens,total_tokens,local_prompt_tokens,local_completion_tokens,local_total_tokens,project,cost,execution_time,caller_name,username,cached_tokens,reasoning_tokens
+    
+    # Entry 1: modelA_alpha, ProjectAlpha
+    assert any(f"modelA_alpha,,,,,,,ProjectAlpha," in line for line in captured) # Check for project name
+    # Entry 2: modelB_beta, ProjectBeta
+    assert any(f"modelB_beta,,,,,,,ProjectBeta," in line for line in captured)
+    # Entry 3: modelC_alpha, ProjectAlpha
+    assert any(f"modelC_alpha,,,,,,,ProjectAlpha," in line for line in captured)
+    # Entry 4: model_no_project, None (empty string in CSV)
+    assert any(f"model_no_project,,,,,,,,0.4," in line for line in captured) # Project is empty string in CSV
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_select_filter_by_project_name(mock_get_accounting, capsys, sqlite_backend_with_project_data):
@@ -77,34 +92,48 @@ def test_select_filter_by_project_name(mock_get_accounting, capsys, sqlite_backe
     mock_get_accounting.return_value = LLMAccounting(backend=sqlite_backend_with_project_data)
     project_to_filter = "ProjectAlpha"
 
-    with patch.object(sys, 'argv', ['cli_main', "select", "--project", project_to_filter]):
+    with patch.object(sys, 'argv', ['cli_main', "select", "--project", project_to_filter, "--format", "csv"]):
         cli_main()
         
-    captured = capsys.readouterr().out
-    assert project_to_filter in captured
-    assert "modelA_alpha" in captured # Belongs to ProjectAlpha
-    assert "modelC_alpha" in captured # Belongs to ProjectAlpha
-    assert "ProjectBeta" not in captured
-    assert "modelB_beta" not in captured
-    assert "model_no_project" not in captured
+    captured = capsys.readouterr().out.strip().splitlines()
+
+    # Expected CSV header
+    header = captured[0].split(',')
+    assert "id" in header
+    assert "model" in header
+    assert "project" in header
+
+    # Check for ProjectAlpha entries
+    assert any(f"modelA_alpha,,,,,,,ProjectAlpha," in line for line in captured)
+    assert any(f"modelC_alpha,,,,,,,ProjectAlpha," in line for line in captured)
+
+    # Check that other project entries are NOT present
+    assert not any(f"modelB_beta,,,,,,,ProjectBeta," in line for line in captured)
+    assert not any(f"model_no_project,,,,,,,,," in line for line in captured)
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_select_filter_by_project_null(mock_get_accounting, capsys, sqlite_backend_with_project_data):
     """Test `select --project NULL` filters for entries with no project."""
     mock_get_accounting.return_value = LLMAccounting(backend=sqlite_backend_with_project_data)
 
-    with patch.object(sys, 'argv', ['cli_main', "select", "--project", "NULL"]):
+    with patch.object(sys, 'argv', ['cli_main', "select", "--project", "NULL", "--format", "csv"]):
         cli_main()
         
-    captured = capsys.readouterr().out
-    assert "model_no_project" in captured # This entry has project=NULL
-    assert "ProjectAlpha" not in captured # modelA_alpha and modelC_alpha should not be here
-    assert "ProjectBeta" not in captured  # modelB_beta should not be here
-    # Check that the project column for the displayed entry shows 'N/A' or similar for None
-    # This depends on how run_select formats None values for the table. It was "N/A".
-    # A bit hard to assert precisely without parsing the table, but we know "model_no_project" is there.
-    # And we can check its project value was indeed NULL from the fixture.
-    # The main check is that only "model_no_project" is present.
+    captured = capsys.readouterr().out.strip().splitlines()
+
+    # Expected CSV header
+    header = captured[0].split(',')
+    assert "id" in header
+    assert "model" in header
+    assert "project" in header
+
+    # Check for the entry with project=NULL (which is an empty string in CSV)
+    assert any(f"model_no_project,,,,,,,,0.4," in line for line in captured)
+
+    # Check that other project entries are NOT present
+    assert not any(f"modelA_alpha,,,,,,,ProjectAlpha," in line for line in captured)
+    assert not any(f"modelB_beta,,,,,,,ProjectBeta," in line for line in captured)
+    assert not any(f"modelC_alpha,,,,,,,ProjectAlpha," in line for line in captured)
 
 @pytest.fixture
 def sqlite_backend_with_project_data(sqlite_backend):

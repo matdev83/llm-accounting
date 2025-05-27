@@ -1,6 +1,7 @@
 import sys
 import pytest
 from unittest.mock import patch, MagicMock, ANY
+from datetime import datetime
 from llm_accounting import LLMAccounting
 from llm_accounting.cli.main import main as cli_main
 from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval, UsageLimit
@@ -148,7 +149,7 @@ def test_cli_limits_delete_project_limit(mock_get_accounting, fresh_sqlite_backe
     # Delete the limit
     with patch.object(sys, 'argv', ['cli_main', "limits", "delete", "--id", str(limit_id_to_delete)]):
         cli_main()
-    captured = capsys.readouterr().out
+    captured = capsys.readouterr()
     assert f"Usage limit with ID {limit_id_to_delete} deleted successfully." in captured.out
 
     # Verify it's deleted

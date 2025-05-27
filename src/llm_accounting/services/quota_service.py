@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional, Tuple
 
 from ..backends.base import BaseBackend
-from ..models.limits import LimitScope, LimitType
+from ..models.limits import LimitScope, LimitType, TimeInterval
 
 
 class QuotaService:
@@ -191,6 +191,9 @@ class QuotaService:
                 scope_name = limit.scope.upper() if isinstance(limit.scope, str) else limit.scope.value.upper()
                 limit_details = f" for model '{limit.model}'" if limit.scope == LimitScope.MODEL.value and limit.model else ""
                 limit_details += f" for project '{limit.project_name}'" if limit.scope == LimitScope.PROJECT.value and limit.project_name else ""
+                # If it's a project scope limit and a model is specified, include model details
+                if limit.scope == LimitScope.PROJECT.value and limit.model:
+                    limit_details += f" for model '{limit.model}'"
                 # ... add more details for USER, CALLER if needed for message clarity ...
                 
                 return (
