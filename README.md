@@ -578,21 +578,21 @@ Here's how you can implement your own custom backend, using the `MockBackend` as
 
 2.  **Integrate with `LLMAccounting`**: Once your custom backend is implemented, you can pass an instance of it to the `LLMAccounting` constructor:
 
-    ```python
-    from llm_accounting import LLMAccounting
-    from my_custom_backend import MyCustomBackend # Import your custom backend
+```python
+from llm_accounting import LLMAccounting
+from my_custom_backend import MyCustomBackend # Import your custom backend
 
-    # Instantiate your custom backend
-    custom_backend = MyCustomBackend()
+# Instantiate your custom backend
+custom_backend = MyCustomBackend()
 
-    # Pass it to LLMAccounting
-    accounting_custom = LLMAccounting(backend=custom_backend)
+# Pass it to LLMAccounting
+accounting_custom = LLMAccounting(backend=custom_backend)
 
-    # Now, all accounting operations will use your custom backend
-    accounting_custom.track_usage(model="custom_model", prompt_tokens=10, cost=0.001)
-    stats = accounting_custom.get_period_stats(datetime.now(), datetime.now())
-    print(f"Custom backend stats: {stats.sum_cost}")
-    accounting_custom.close()
+# Now, all accounting operations will use your custom backend
+accounting_custom.track_usage(model="custom_model", prompt_tokens=10, cost=0.001)
+stats = accounting_custom.get_period_stats(datetime.now(), datetime.now())
+print(f"Custom backend stats: {stats.sum_cost}")
+accounting_custom.close()
 ```
 
 By following this pattern, you can extend `llm-accounting` to work seamlessly with virtually any data storage solution, providing maximum flexibility for your application's needs.
