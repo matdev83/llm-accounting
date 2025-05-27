@@ -1,7 +1,9 @@
 import os
+from datetime import datetime, timedelta
 from llm_accounting import LLMAccounting
 from llm_accounting.backends.sqlite import SQLiteBackend
 from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval
+from llm_accounting.audit_log import AuditLogger
 import time
 
 # Define custom database filenames
@@ -36,7 +38,6 @@ with LLMAccounting(backend=sqlite_backend) as accounting:
     print("Usage tracked successfully.")
 
     # Verify stats (optional)
-    from datetime import datetime, timedelta
     end_time = datetime.now()
     start_time = end_time - timedelta(days=1)
     stats = accounting.get_period_stats(start_time, end_time)
@@ -83,7 +84,6 @@ with LLMAccounting(backend=sqlite_backend) as accounting:
         time.sleep(0.1) 
 
 print(f"\nInitializing AuditLogger with custom DB: {custom_audit_db_filename}")
-from llm_accounting.audit_log import AuditLogger
 
 # Initialize AuditLogger with the custom filename
 with AuditLogger(db_path=custom_audit_db_filename) as audit_logger:

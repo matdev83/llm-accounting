@@ -1,16 +1,13 @@
 import logging
-import psycopg2
-import psycopg2.extras # For RealDictCursor
 from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
 
 from ..base import UsageEntry, UsageStats
-from ...models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
+from ...models.limits import UsageLimit, UsageLimitDTO, LimitScope, LimitType, TimeInterval
 
 from .query_reader import QueryReader
 from .limit_manager import LimitManager
 from .quota_reader import QuotaReader
-from .data_inserter import DataInserter # Assuming DataInserter is available in NeonBackend
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +35,7 @@ class QueryExecutor:
                          scope: Optional[LimitScope] = None,
                          model: Optional[str] = None,
                          username: Optional[str] = None,
-                         caller_name: Optional[str] = None) -> List[UsageLimit]:
+                         caller_name: Optional[str] = None) -> List[UsageLimitDTO]:
         return self._limit_manager.get_usage_limits(scope, model, username, caller_name)
 
     def get_accounting_entries_for_quota(self,
@@ -58,5 +55,5 @@ class QueryExecutor:
     def set_usage_limit(self, user_id: str, limit_amount: float, limit_type_str: str = "COST") -> None:
         self._limit_manager.set_usage_limit(user_id, limit_amount, limit_type_str)
 
-    def get_usage_limit(self, user_id: str) -> Optional[List[UsageLimit]]:
+    def get_usage_limit(self, user_id: str) -> Optional[List[UsageLimitDTO]]:
         return self._limit_manager.get_usage_limit(user_id)
