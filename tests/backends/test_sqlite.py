@@ -307,7 +307,7 @@ def test_datetime_precision_and_timezone_handling(sqlite_backend: SQLiteBackend)
     assert retrieved_aware.created_at.utcoffset() == timedelta(0)
 
     # Test with naive datetime (conventionally UTC)
-    naive_dt = datetime.utcnow().replace(microsecond=654321)
+    naive_dt = datetime.now(timezone.utc).replace(microsecond=654321)
     limit_naive = UsageLimitData(
         scope=LimitScope.USER.value, limit_type=LimitType.REQUESTS.value, max_value=1, interval_unit="hour", interval_value=1, username="naive_user",
         created_at=naive_dt, updated_at=naive_dt # Inserted as naive
