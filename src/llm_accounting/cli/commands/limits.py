@@ -1,9 +1,8 @@
 import argparse
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from llm_accounting import LLMAccounting
 from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval, UsageLimitDTO
-from llm_accounting.services.quota_service import QuotaService
 from llm_accounting.cli.utils import console
 
 def set_limit(args: argparse.Namespace, accounting: LLMAccounting):

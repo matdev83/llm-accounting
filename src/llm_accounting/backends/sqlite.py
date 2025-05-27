@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
-from ..models.limits import UsageLimit, LimitScope, LimitType, UsageLimitDTO
+from ..models.limits import LimitScope, LimitType, UsageLimitDTO
 from .base import BaseBackend, UsageEntry, UsageStats
 from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
                              get_period_stats_query, insert_usage_query,

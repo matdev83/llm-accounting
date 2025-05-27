@@ -1,22 +1,23 @@
 import logging
 import os
 import psycopg2
-import psycopg2.extras # For RealDictCursor
-import psycopg2.extensions # For connection type
+import psycopg2.extras  # For RealDictCursor
+import psycopg2.extensions  # For connection type
 from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
 
 from .base import BaseBackend, UsageEntry, UsageStats
-from ..models.limits import UsageLimitDTO, LimitScope, LimitType, TimeInterval
+from ..models.limits import UsageLimitDTO, LimitScope, LimitType
 
 from .neon_backend_parts.connection_manager import ConnectionManager
 from .neon_backend_parts.schema_manager import SchemaManager
 from .neon_backend_parts.data_inserter import DataInserter
 from .neon_backend_parts.data_deleter import DataDeleter
 from .neon_backend_parts.query_executor import QueryExecutor
-from .neon_backend_parts.limit_manager import LimitManager # Import LimitManager
+from .neon_backend_parts.limit_manager import LimitManager  # Import LimitManager
 
 logger = logging.getLogger(__name__)
+
 
 class NeonBackend(BaseBackend):
     conn: Optional[psycopg2.extensions.connection] = None
@@ -49,7 +50,6 @@ class NeonBackend(BaseBackend):
         self.query_executor = QueryExecutor(self)
         # Instantiate LimitManager, passing the backend instance and data_inserter instance
         self.limit_manager = LimitManager(self, self.data_inserter)
-
 
     def initialize(self) -> None:
         """
@@ -99,15 +99,16 @@ class NeonBackend(BaseBackend):
     def purge(self) -> None:
         self.data_deleter.purge()
 
-    def get_usage_limits(self,
-                         scope: Optional[LimitScope] = None,
-                         model: Optional[str] = None,
-                         username: Optional[str] = None,
-                         caller_name: Optional[str] = None,
-                         project_name: Optional[str] = None,
-                         filter_project_null: Optional[bool] = None,
-                         filter_username_null: Optional[bool] = None,
-                         filter_caller_name_null: Optional[bool] = None) -> List[UsageLimitDTO]:
+    def get_usage_limits(
+            self,
+            scope: Optional[LimitScope] = None,
+            model: Optional[str] = None,
+            username: Optional[str] = None,
+            caller_name: Optional[str] = None,
+            project_name: Optional[str] = None,
+            filter_project_null: Optional[bool] = None,
+            filter_username_null: Optional[bool] = None,
+            filter_caller_name_null: Optional[bool] = None) -> List[UsageLimitDTO]:
         """
         Retrieves usage limits (as UsageLimitData objects) from the `usage_limits` table
         based on specified filter criteria. Delegates to LimitManager.
@@ -124,14 +125,15 @@ class NeonBackend(BaseBackend):
             filter_caller_name_null=filter_caller_name_null
         )
 
-    def get_accounting_entries_for_quota(self,
-                                   start_time: datetime,
-                                   limit_type: LimitType,
-                                   model: Optional[str] = None,
-                                   username: Optional[str] = None,
-                                   caller_name: Optional[str] = None,
-                                   project_name: Optional[str] = None,
-                                   filter_project_null: Optional[bool] = None) -> float:
+    def get_accounting_entries_for_quota(
+            self,
+            start_time: datetime,
+            limit_type: LimitType,
+            model: Optional[str] = None,
+            username: Optional[str] = None,
+            caller_name: Optional[str] = None,
+            project_name: Optional[str] = None,
+            filter_project_null: Optional[bool] = None) -> float:
         self._ensure_connected()
         if self.conn is None:
             raise ConnectionError("Database connection is not established.")
@@ -214,7 +216,11 @@ class NeonBackend(BaseBackend):
     def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
         return self.query_executor.get_usage_costs(user_id, start_date, end_date)
 
-    def set_usage_limit(self, user_id: str, limit_amount: float, limit_type_str: str = "COST") -> None:
+    def set_usage_limit(
+            self,
+            user_id: str,
+            limit_amount: float,
+            limit_type_str: str = "COST") -> None:
         """
         A simplified way to set a usage limit for a user.
         Delegates to QueryExecutor.
@@ -224,7 +230,6 @@ class NeonBackend(BaseBackend):
               This one might need to be refactored or deprecated.
         """
         self.query_executor.set_usage_limit(user_id, limit_amount, limit_type_str)
-
 
     def get_usage_limit(self, user_id: str) -> Optional[List[UsageLimitDTO]]:
         """

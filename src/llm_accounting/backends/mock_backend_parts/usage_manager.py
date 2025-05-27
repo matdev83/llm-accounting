@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import List
-from typing_extensions import override
 
-from ..base import UsageEntry, UsageStats
+from ..base import UsageEntry
+
 
 class MockUsageManager:
     def __init__(self, parent_backend):
@@ -11,17 +11,17 @@ class MockUsageManager:
     def insert_usage(self, entry: UsageEntry) -> None:
         """Mocks inserting a new usage entry."""
         self.parent_backend.entries.append(entry)
-        print(f"MockBackend: Inserted usage for model {entry.model}")
+        print(f"MockBackend: Inserted usage for model {entry.model}")  # noqa: T201
 
     def purge(self) -> None:
         """Mocks deleting all usage entries."""
         self.parent_backend.entries = []
         self.parent_backend.limits = []
-        print("MockBackend: All usage entries and limits purged.")
+        print("MockBackend: All usage entries and limits purged.")  # noqa: T201
 
     def tail(self, n: int = 10) -> List[UsageEntry]:
         """Mocks getting the n most recent usage entries."""
-        print(f"MockBackend: Getting last {n} usage entries.")
+        print(f"MockBackend: Getting last {n} usage entries.")  # noqa: T201
         if not self.parent_backend.entries:
             return [
                 UsageEntry(

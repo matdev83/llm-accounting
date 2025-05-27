@@ -1,6 +1,5 @@
-import logging
 import sqlite3
-from datetime import datetime, timedelta, timezone # Ensure timezone is imported
+from datetime import datetime, timedelta, timezone  # Ensure timezone is imported
 from pathlib import Path
 from typing import List
 
@@ -10,13 +9,11 @@ from llm_accounting.backends.base import UsageEntry
 from llm_accounting.backends.sqlite import SQLiteBackend
 from llm_accounting.models.limits import UsageLimitDTO, LimitScope, LimitType, TimeInterval
 
-
-logger = logging.getLogger(__name__)
-
-
 @pytest.fixture
 def now_utc() -> datetime:
     return datetime.now(timezone.utc).replace(microsecond=0)
+
+
 
 def test_initialize(sqlite_backend):
     """Test database initialization"""

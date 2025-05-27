@@ -1,10 +1,9 @@
 import logging
 import psycopg2
 import psycopg2.extras # For RealDictCursor
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, List
 from datetime import datetime
 
-from ..base import UsageEntry, UsageStats
 # Corrected import path for models
 from llm_accounting.models.limits import UsageLimit, LimitScope, LimitType, TimeInterval, UsageLimitDTO
 

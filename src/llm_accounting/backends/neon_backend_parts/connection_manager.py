@@ -1,7 +1,5 @@
 import logging
 import psycopg2
-import os
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 

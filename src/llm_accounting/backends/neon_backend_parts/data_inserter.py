@@ -1,9 +1,8 @@
 import logging
 import psycopg2
 from datetime import datetime
-from typing import Optional
 
-from ...models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
+from ...models.limits import UsageLimit
 from ..base import UsageEntry
 
 logger = logging.getLogger(__name__)
