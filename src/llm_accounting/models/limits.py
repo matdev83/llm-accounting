@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
+from dataclasses import dataclass # Added import
 
 from sqlalchemy import Column, DateTime, Float, Integer, String
 from sqlalchemy.schema import UniqueConstraint
@@ -29,6 +30,21 @@ class TimeInterval(Enum):
     DAY = "day"
     WEEK = "week"
     MONTH = "monthly"
+
+
+@dataclass
+class UsageLimitData:
+    scope: str
+    limit_type: str
+    max_value: float
+    interval_unit: str
+    interval_value: int
+    model: Optional[str] = None
+    username: Optional[str] = None
+    caller_name: Optional[str] = None
+    id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class UsageLimit(Base):

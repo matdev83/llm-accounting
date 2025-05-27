@@ -1,9 +1,9 @@
 import argparse
 from typing import Any, Dict, List, Optional
 
-from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval
-from llm_accounting.services.quota_service import QuotaService
-from llm_accounting import LLMAccounting
+# Updated import: UsageLimit changed to UsageLimitData
+from llm_accounting import LimitScope, LimitType, LLMAccounting, TimeInterval, UsageLimitData
+from llm_accounting.services.quota_service import QuotaService # This import seems unused, but will keep it as is.
 from llm_accounting.cli.utils import console
 
 def set_limit(args: argparse.Namespace, accounting: LLMAccounting):
@@ -26,13 +26,20 @@ def set_limit(args: argparse.Namespace, accounting: LLMAccounting):
 def list_limits(args: argparse.Namespace, accounting: LLMAccounting):
     """Lists all configured usage limits."""
     try:
-        limits = accounting.get_usage_limits()
+        # The 'limits' variable will now hold List[UsageLimitData]
+        limits: List[UsageLimitData] = accounting.get_usage_limits(
+            scope=LimitScope(args.scope.upper()) if args.scope else None,
+            model=args.model,
+            username=args.username,
+            caller_name=args.caller_name
+        )
         if not limits:
             console.print("[yellow]No usage limits configured.[/yellow]")
             return
 
         console.print("[bold]Configured Usage Limits:[/bold]")
-        for limit in limits:
+        # No change needed for attribute access as UsageLimitData mirrors UsageLimit fields
+        for limit in limits: # limit is implicitly UsageLimitData here
             scope_details = []
             if limit.model is not None:
                 scope_details.append(f"Model: {limit.model}")

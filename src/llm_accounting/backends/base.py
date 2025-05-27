@@ -3,12 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
-
-from llm_accounting.models.limits import LimitScope, LimitType, UsageLimit
+# Updated import statement
+from ..models.limits import LimitScope, LimitType, UsageLimitData
 
 
 @dataclass
@@ -126,7 +122,7 @@ class BaseBackend(ABC):
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
-    ) -> List[UsageLimit]:
+    ) -> List[UsageLimitData]:  # Updated return type hint
         """Retrieve usage limits based on specified filters."""
         pass
 
@@ -147,7 +143,7 @@ class BaseBackend(ABC):
         pass
 
     @abstractmethod
-    def insert_usage_limit(self, limit: UsageLimit) -> None:
+    def insert_usage_limit(self, limit: UsageLimitData) -> None:  # Updated argument type hint
         """Insert a new usage limit entry."""
         pass
 
