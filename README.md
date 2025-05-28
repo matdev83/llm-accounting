@@ -282,6 +282,18 @@ The database schema generally includes the following tables and key fields (spec
 - `created_at`: TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 - `updated_at`: TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 
+**`audit_log_entries` Table (for detailed event logging):**
+- `id`: SERIAL PRIMARY KEY
+- `timestamp`: TIMESTAMPTZ NOT NULL
+- `app_name`: VARCHAR(255) NOT NULL
+- `user_name`: VARCHAR(255) NOT NULL
+- `model`: VARCHAR(255) NOT NULL
+- `prompt_text`: TEXT
+- `response_text`: TEXT
+- `remote_completion_id`: VARCHAR(255)
+- `project`: VARCHAR(255)
+- `log_type`: TEXT NOT NULL (e.g., 'prompt', 'response', 'event')
+
 *Note: The `id` fields are managed internally by the database.*
 
 ## Backend Configuration
@@ -388,6 +400,27 @@ with AuditLogger(db_path=custom_audit_db_filename) as audit_logger:
         prompt_text="Hello, how are you?"
     )
     print("Prompt logged successfully.")
+
+    # Example usage: log a response
+    audit_logger.log_response(
+        app_name="my_app",
+        user_name="test_user",
+        model="gpt-3.5-turbo",
+        response_text="I am doing well, thank you!",
+        remote_completion_id="comp_123"
+    )
+    print("Response logged successfully.")
+
+    # Example usage: get audit log entries
+    print("\nRetrieving audit log entries...")
+    entries = audit_logger.get_entries(limit=5)
+    for entry in entries:
+        print(f"  [{entry.timestamp}] App: {entry.app_name}, User: {entry.user_name}, Model: {entry.model}, Type: {entry.log_type}")
+        if entry.prompt_text:
+            print(f"    Prompt: {entry.prompt_text[:50]}...")
+        if entry.response_text:
+            print(f"    Response: {entry.response_text[:50]}...")
+    print(f"Retrieved {len(entries)} audit log entries.")
 
 # Clean up the created database files (for example purposes)
 print("\nCleaning up created database files...")

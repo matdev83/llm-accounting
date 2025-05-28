@@ -74,13 +74,13 @@ class SchemaManager:
                 CREATE TABLE IF NOT EXISTS audit_log_entries (
                     id SERIAL PRIMARY KEY,
                     timestamp TIMESTAMPTZ NOT NULL,
-                    app_name TEXT NOT NULL,
-                    user_name TEXT NOT NULL,
-                    model TEXT NOT NULL,
+                    app_name VARCHAR(255) NOT NULL,
+                    user_name VARCHAR(255) NOT NULL,
+                    model VARCHAR(255) NOT NULL,
                     prompt_text TEXT,
                     response_text TEXT,
-                    remote_completion_id TEXT,
-                    project TEXT,
+                    remote_completion_id VARCHAR(255),
+                    project VARCHAR(255),
                     log_type TEXT NOT NULL -- Consider: CHECK(log_type IN ('prompt', 'response', 'event'))
                 )
                 """
