@@ -72,9 +72,9 @@ class QueryExecutor:
     ) -> List[AuditLogEntry]:
         """
         Retrieves audit log entries based on specified filter criteria.
-        The connection is managed by the calling NeonBackend method.
+        The connection is managed by the calling PostgreSQLBackend method.
         """
-        # self.backend._ensure_connected() is assumed to be called by NeonBackend
+        # self.backend._ensure_connected() is assumed to be called by PostgreSQLBackend
         assert self.backend.conn is not None, "Database connection is not established."
 
         query_parts = ["SELECT id, timestamp, app_name, user_name, model, prompt_text, response_text, remote_completion_id, project, log_type FROM audit_log_entries"]
@@ -136,7 +136,7 @@ class QueryExecutor:
             logger.info(f"Successfully retrieved {len(results)} audit log entries.")
         except psycopg2.Error as e:
             logger.error(f"Error retrieving audit log entries: {e}")
-            # Re-raise to allow NeonBackend to handle transaction control (though this is a read operation)
+            # Re-raise to allow PostgreSQLBackend to handle transaction control (though this is a read operation)
             raise 
         except Exception as e:
             logger.error(f"An unexpected error occurred retrieving audit log entries: {e}")

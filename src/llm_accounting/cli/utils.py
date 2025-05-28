@@ -6,7 +6,7 @@ from typing import Optional
 from llm_accounting import LLMAccounting
 
 from ..backends.sqlite import SQLiteBackend
-from ..backends.neon import NeonBackend
+from ..backends.postgresql import PostgreSQLBackend
 
 console = Console()
 
@@ -29,7 +29,7 @@ def format_tokens(value: int) -> str:
 def get_accounting(
     db_backend: str,
     db_file: Optional[str] = None,
-    neon_connection_string: Optional[str] = None,
+    postgresql_connection_string: Optional[str] = None,
     project_name: Optional[str] = None,
     app_name: Optional[str] = None,
     user_name: Optional[str] = None,
@@ -40,11 +40,11 @@ def get_accounting(
             console.print("[red]Error: --db-file is required for sqlite backend.[/red]")
             raise SystemExit(1)
         backend = SQLiteBackend(db_path=db_file)
-    elif db_backend == "neon":
-        if not neon_connection_string:
-            console.print("[red]Error: --neon-connection-string is required for neon backend.[/red]")
+    elif db_backend == "postgresql":
+        if not postgresql_connection_string:
+            console.print("[red]Error: --postgresql-connection-string is required for postgresql backend.[/red]")
             raise SystemExit(1)
-        backend = NeonBackend(neon_connection_string=neon_connection_string)
+        backend = PostgreSQLBackend(postgresql_connection_string=postgresql_connection_string)
     else:
         console.print(f"[red]Error: Unknown database backend '{db_backend}'.[/red]")
         raise SystemExit(1)

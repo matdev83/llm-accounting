@@ -11,7 +11,7 @@ A Python package for tracking and analyzing LLM usage across different models an
 - Record token counts (prompt, completion, total)
 - Track costs and execution times
 - Support for local token counting
-- Pluggable backend system (SQLite included, Neon/PostgreSQL fully supported)
+- Pluggable backend system (SQLite included, PostgreSQL fully supported)
 - CLI interface for viewing and tracking usage statistics
 - Support for tracking caller application and username
 - Automatic database schema migration (for supported backends)
@@ -31,8 +31,8 @@ For specific database backends, install the corresponding optional dependencies:
 # For SQLite (default)
 pip install llm-accounting[sqlite]
 
-# For Neon/PostgreSQL
-pip install llm-accounting[neon]
+# For PostgreSQL
+pip install llm-accounting[postgresql]
 ```
 
 ## Usage
@@ -92,8 +92,8 @@ accounting.close()
 The following options can be used with any `llm-accounting` command:
 
 *   `--db-file <path>`: Specifies the SQLite database file path. Only applicable when `--db-backend` is `sqlite`.
-*   `--db-backend <backend>`: Selects the database backend (`sqlite` or `neon`). Defaults to `sqlite`.
-*   `--neon-connection-string <string>`: Connection string for the Neon database. Required when `--db-backend` is `neon`. Can also be provided via `NEON_CONNECTION_STRING` environment variable.
+*   `--db-backend <backend>`: Selects the database backend (`sqlite` or `postgresql`). Defaults to `sqlite`.
+*   `--postgresql-connection-string <string>`: Connection string for the PostgreSQL database. Required when `--db-backend` is `postgresql`. Can also be provided via `POSTGRESQL_CONNECTION_STRING` environment variable.
 *   `--project-name <name>`: Default project name to associate with usage entries. Can be overridden by command-specific `--project`.
 *   `--app-name <name>`: Default application name to associate with usage entries. Can be overridden by command-specific `--caller-name`.
 *   `--user-name <name>`: Default user name to associate with usage entries. Can be overridden by command-specific `--username`. Defaults to current system user.
@@ -205,19 +205,19 @@ llm-accounting limits delete --id 1
 
 ### Database Backend Selection via CLI
 
-You can specify the database backend directly via the CLI using the `--db-backend` option. This allows you to switch between `sqlite` (default) and `neon` without modifying code.
+You can specify the database backend directly via the CLI using the `--db-backend` option. This allows you to switch between `sqlite` (default) and `postgresql` without modifying code.
 
 ```bash
 # Use SQLite backend (default behavior, --db-backend can be omitted)
 llm-accounting --db-backend sqlite --db-file my_sqlite_db.sqlite stats --daily
 
-# Use Neon backend
-# Requires NEON_CONNECTION_STRING environment variable to be set, or provide it directly
-llm-accounting --db-backend neon --neon-connection-string "postgresql://user:pass@host.neon.tech/dbname?sslmode=require" stats --daily
+# Use PostgreSQL backend
+# Requires POSTGRESQL_CONNECTION_STRING environment variable to be set, or provide it directly
+llm-accounting --db-backend postgresql --postgresql-connection-string "postgresql://user:pass@localhost:5432/mydatabase" stats --daily
 
-# Example: Track usage with Neon backend
-llm-accounting --db-backend neon \
-    --neon-connection-string "postgresql://user:pass@host.neon.tech/dbname?sslmode=require" \
+# Example: Track usage with PostgreSQL backend
+llm-accounting --db-backend postgresql \
+    --postgresql-connection-string "postgresql://user:pass@localhost:5432/mydatabase" \
     track \
     --model gpt-4 \
     --prompt-tokens 10 \
@@ -249,7 +249,7 @@ llm-accounting stats --daily
 
 ## Database Schema
 
-The database schema generally includes the following tables and key fields (specifics might vary slightly by backend, but `NeonBackend` adheres to this structure):
+The database schema generally includes the following tables and key fields (specifics might vary slightly by backend, but `PostgreSQLBackend` adheres to this structure):
 
 **`accounting_entries` Table:**
 - `id`: SERIAL PRIMARY KEY - Unique identifier for the entry.
@@ -401,106 +401,103 @@ if os.path.exists(custom_audit_db_filename):
 print("\nExample complete.")
 ```
 
-### Neon Backend (PostgreSQL)
+### PostgreSQL Backend
 
-The `NeonBackend` provides a reference implementation for using a cloud-based PostgreSQL database with `llm-accounting`. It is specifically designed to work well with [Neon](https://neon.tech/) serverless Postgres, but it can also be used with any other standard PostgreSQL instance.
+The `PostgreSQLBackend` provides a reference implementation for using a PostgreSQL database with `llm-accounting`. It can be used with any standard PostgreSQL instance, including locally deployed ones, or with hosted/cloud PostgreSQL instances like [Neon](https://neon.tech/).
 
-**1. Set Up Your Neon Database (User's Responsibility):**
+**1. Set Up Your PostgreSQL Database (User's Responsibility):**
 
-To use `NeonBackend` with Neon, you'll need to set up your own database instance:
+To use `PostgreSQLBackend`, you'll need access to a PostgreSQL database instance. This can be:
 
-*   **Sign Up**: Go to [https://neon.tech/](https://neon.tech/) and sign up for an account. The free tier is suitable for experimentation and development.
-*   **Create a Project**: In the Neon console, create a new project. This will be your serverless Postgres instance.
-*   **Obtain Connection String**: Once the project is created, find your database's connection string (URI format). It will look something like this:
+*   **A local PostgreSQL server**: Install PostgreSQL on your machine and create a database.
+*   **A hosted PostgreSQL service**: Use a cloud provider like Neon, AWS RDS, Google Cloud SQL, Azure Database for PostgreSQL, etc.
+
+Once you have a database, obtain its connection string (URI format). It will look something like this:
+    ```
+    postgresql://<user>:<password>@<host>:<port>/<dbname>
+    ```
+    For cloud services like Neon, `sslmode=require` might be necessary:
     ```
     postgresql://<user>:<password>@<host>.neon.tech:<port>/<dbname>?sslmode=require
     ```
-    *Note: Neon typically requires `sslmode=require`.*
 
 **2. Install Dependencies:**
 
-The `NeonBackend` requires the `psycopg2-binary` package to communicate with PostgreSQL databases. You can install it as an extra dependency:
+The `PostgreSQLBackend` requires the `psycopg2-binary` package to communicate with PostgreSQL databases. You can install it as an extra dependency:
 
 ```bash
-pip install llm-accounting[neon]
+pip install llm-accounting[postgresql]
 ```
 
 **3. Configuration:**
 
-The `NeonBackend` primarily expects the database connection string to be available via the `NEON_CONNECTION_STRING` environment variable.
+The `PostgreSQLBackend` primarily expects the database connection string to be available via the `POSTGRESQL_CONNECTION_STRING` environment variable.
 
 ```bash
-export NEON_CONNECTION_STRING="postgresql://your_user:your_password@your_host.neon.tech:5432/your_dbname?sslmode=require"
+export POSTGRESQL_CONNECTION_STRING="postgresql://your_user:your_password@your_host:5432/your_dbname"
 ```
 
-Replace the placeholder values with your actual Neon connection string.
+Replace the placeholder values with your actual PostgreSQL connection string.
 
-Alternatively, if you are instantiating `NeonBackend` manually in your code, you can pass the connection string directly to its constructor (though using the environment variable is often preferred for flexibility).
+Alternatively, if you are instantiating `PostgreSQLBackend` manually in your code, you can pass the connection string directly to its constructor (though using the environment variable is often preferred for flexibility).
 
 **4. Usage Example:**
 
-To use the `NeonBackend`, you need to instantiate it and pass it to the `LLMAccounting` class:
+To use the `PostgreSQLBackend`, you need to instantiate it and pass it to the `LLMAccounting` class:
 
 ```python
 from llm_accounting import LLMAccounting
-from llm_accounting.backends.neon import NeonBackend # Import the NeonBackend
+from llm_accounting.backends.postgresql import PostgreSQLBackend # Import the PostgreSQLBackend
 # from datetime import datetime # if you are passing timestamps or querying by date
 
-# Option 1: Connection string from environment variable NEON_CONNECTION_STRING
-# Ensure NEON_CONNECTION_STRING is set in your environment before running the script.
-# For example: export NEON_CONNECTION_STRING="your_neon_uri_here"
+# Option 1: Connection string from environment variable POSTGRESQL_CONNECTION_STRING
+# Ensure POSTGRESQL_CONNECTION_STRING is set in your environment before running the script.
+# For example: export POSTGRESQL_CONNECTION_STRING="your_postgresql_uri_here"
 
-neon_backend_env = NeonBackend() # Reads from environment variable
-accounting_neon_env = LLMAccounting(backend=neon_backend_env)
+postgresql_backend_env = PostgreSQLBackend() # Reads from environment variable
+accounting_postgresql_env = LLMAccounting(backend=postgresql_backend_env)
 
 # The backend will automatically manage its connection.
 
-# Option 1: Connection string from environment variable NEON_CONNECTION_STRING
-# Ensure NEON_CONNECTION_STRING is set in your environment before running the script.
-# For example: export NEON_CONNECTION_STRING="your_neon_uri_here"
-
-neon_backend_env = NeonBackend() # Reads from environment variable
-accounting_neon_env = LLMAccounting(backend=neon_backend_env)
-
 # Example: Track usage
-accounting_neon_env.track_usage(
+accounting_postgresql_env.track_usage(
     model="gpt-3.5-turbo",
     prompt_tokens=50,
     completion_tokens=100,
     cost=0.00015
 )
-print("Usage tracked with Neon backend (from env var).")
+print("Usage tracked with PostgreSQL backend (from env var).")
 
 # Example: Get stats for a period
 end_date = datetime.now()
 start_date = end_date - timedelta(days=7) # Last 7 days
-stats = accounting_neon_env.get_period_stats(start_date, end_date)
-print(f"Neon backend stats: {stats.sum_cost}")
+stats = accounting_postgresql_env.get_period_stats(start_date, end_date)
+print(f"PostgreSQL backend stats: {stats.sum_cost}")
 
 # Option 2: Pass connection string directly
 # Replace with your actual connection string if testing this way.
-neon_connection_str = "postgresql://user:pass@host.neon.tech/dbname?sslmode=require" 
-neon_backend_direct = NeonBackend(neon_connection_string=neon_connection_str)
-accounting_neon_direct = LLMAccounting(backend=neon_backend_direct)
+postgresql_connection_str = "postgresql://user:pass@localhost:5432/mydatabase"
+postgresql_backend_direct = PostgreSQLBackend(postgresql_connection_string=postgresql_connection_str)
+accounting_postgresql_direct = LLMAccounting(backend=postgresql_backend_direct)
 
-accounting_neon_direct.track_usage(
+accounting_postgresql_direct.track_usage(
     model="gpt-4",
     prompt_tokens=200,
     completion_tokens=400,
     cost=0.006
 )
-print("Usage tracked with Neon backend (direct connection string).")
+print("Usage tracked with PostgreSQL backend (direct connection string).")
 
 # It's good practice to explicitly close the accounting instances when done.
-accounting_neon_env.close()
-accounting_neon_direct.close()
+accounting_postgresql_env.close()
+accounting_postgresql_direct.close()
 ```
 
 **Error Handling/Notes:**
 
-*   The `NeonBackend` includes error handling for common database connection and operation issues, raising `ConnectionError` or `psycopg2.Error` as appropriate.
-*   Ensure your Neon database instance is active and accessible from the environment where your application is running.
-*   Refer to the Neon documentation for details on managing your database, connection pooling, and security best practices.
+*   The `PostgreSQLBackend` includes error handling for common database connection and operation issues, raising `ConnectionError` or `psycopg2.Error` as appropriate.
+*   Ensure your PostgreSQL database instance is active and accessible from the environment where your application is running.
+*   Refer to your PostgreSQL documentation (or cloud provider's documentation like Neon) for details on managing your database, connection pooling, and security best practices.
 
 ### Custom Backend Implementation
 

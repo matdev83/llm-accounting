@@ -9,39 +9,39 @@ from datetime import datetime
 from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry # Added AuditLogEntry
 from ..models.limits import UsageLimitDTO, LimitScope, LimitType
 
-from .neon_backend_parts.connection_manager import ConnectionManager
-from .neon_backend_parts.schema_manager import SchemaManager
-from .neon_backend_parts.data_inserter import DataInserter
-from .neon_backend_parts.data_deleter import DataDeleter
-from .neon_backend_parts.query_executor import QueryExecutor
-from .neon_backend_parts.limit_manager import LimitManager  # Import LimitManager
+from .postgresql_backend_parts.connection_manager import ConnectionManager
+from .postgresql_backend_parts.schema_manager import SchemaManager
+from .postgresql_backend_parts.data_inserter import DataInserter
+from .postgresql_backend_parts.data_deleter import DataDeleter
+from .postgresql_backend_parts.query_executor import QueryExecutor
+from .postgresql_backend_parts.limit_manager import LimitManager  # Import LimitManager
 
 logger = logging.getLogger(__name__)
 
 
-class NeonBackend(BaseBackend):
+class PostgreSQLBackend(BaseBackend):
     conn: Optional[psycopg2.extensions.connection] = None
     """
     A backend for llm-accounting that uses a PostgreSQL database, specifically
     tailored for Neon serverless Postgres but compatible with standard PostgreSQL instances.
     """
 
-    def __init__(self, neon_connection_string: Optional[str] = None):
+    def __init__(self, postgresql_connection_string: Optional[str] = None):
         """
-        Initializes the NeonBackend.
+        Initializes the PostgreSQLBackend.
         """
-        if neon_connection_string:
-            self.connection_string = neon_connection_string
+        if postgresql_connection_string:
+            self.connection_string = postgresql_connection_string
         else:
-            self.connection_string = os.environ.get("NEON_CONNECTION_STRING")
+            self.connection_string = os.environ.get("POSTGRESQL_CONNECTION_STRING")
 
         if not self.connection_string:
             raise ValueError(
-                "Neon connection string not provided and NEON_CONNECTION_STRING "
+                "PostgreSQL connection string not provided and POSTGRESQL_CONNECTION_STRING "
                 "environment variable is not set."
             )
         self.conn = None
-        logger.info("NeonBackend initialized with connection string.")
+        logger.info("PostgreSQLBackend initialized with connection string.")
 
         self.connection_manager = ConnectionManager(self)
         self.schema_manager = SchemaManager(self)
@@ -279,14 +279,14 @@ class NeonBackend(BaseBackend):
             # Consider re-raising a more generic error or a specific application error
             raise RuntimeError(f"Failed to log audit event due to database error: {e}") from e
         except Exception as e:
-            logger.error(f"Unexpected error logging audit event: {e}")
+            logger.error(f"Failed to log audit event due to database error: {e}")
             if self.conn and not self.conn.closed:
                 try:
                     self.conn.rollback()
-                    logger.info("Transaction rolled back due to unexpected error logging audit event.")
+                    logger.info("Transaction rolled back due to error logging audit event.")
                 except psycopg2.Error as rb_err:
                     logger.error(f"Error during rollback attempt: {rb_err}")
-            raise RuntimeError(f"Unexpected error occurred while logging audit event: {e}") from e
+            raise RuntimeError(f"Failed to log audit event due to database error: {e}") from e
 
     def get_audit_log_entries(
         self,

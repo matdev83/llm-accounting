@@ -23,7 +23,7 @@ def make_cli_test_entry(**kwargs):
     
     # Make it behave like a dictionary for execute_query results
     # This matches how SQLiteBackend's execute_query returns list[dict]
-    # and how NeonBackend's execute_query also returns list[dict]
+    # and how PostgreSQLBackend's execute_query also returns list[dict]
     # The select command formats these dicts.
     
     # Create a dictionary representation for when this mock entry is part of `execute_query`'s return

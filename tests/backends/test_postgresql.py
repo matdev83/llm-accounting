@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock, call
 import os
 from datetime import datetime, timezone
 
-from src.llm_accounting.backends.neon import NeonBackend
+from src.llm_accounting.backends.postgresql import PostgreSQLBackend
 from src.llm_accounting.backends.base import UsageEntry, UsageStats, AuditLogEntry # Added AuditLogEntry
 from src.llm_accounting.models.limits import UsageLimitDTO, LimitScope, LimitType, TimeInterval
 from typing import List, Optional
@@ -12,49 +12,49 @@ from datetime import datetime, timezone, timedelta # Import timedelta
 import psycopg2
 
 
-class TestNeonBackend(unittest.TestCase):
+class TestPostgreSQLBackend(unittest.TestCase):
 
     def setUp(self):
-        self.patcher_psycopg2 = patch('src.llm_accounting.backends.neon_backend_parts.connection_manager.psycopg2')
+        self.patcher_psycopg2 = patch('src.llm_accounting.backends.postgresql_backend_parts.connection_manager.psycopg2')
         self.mock_psycopg2_module = self.patcher_psycopg2.start()
 
         class MockPsycopg2Error(Exception): pass
         self.mock_psycopg2_module.Error = MockPsycopg2Error
         self.mock_psycopg2_module.OperationalError = MockPsycopg2Error
 
-        self.original_neon_conn_string = os.environ.get('NEON_CONNECTION_STRING')
-        os.environ['NEON_CONNECTION_STRING'] = 'dummy_dsn_from_env'
+        self.original_postgresql_conn_string = os.environ.get('POSTGRESQL_CONNECTION_STRING')
+        os.environ['POSTGRESQL_CONNECTION_STRING'] = 'dummy_dsn_from_env'
 
         # Patch SchemaManager, DataInserter, DataDeleter, QueryExecutor, and LimitManager
-        # These are instantiated within NeonBackend's __init__
-        self.patcher_schema_manager = patch('src.llm_accounting.backends.neon.SchemaManager')
+        # These are instantiated within PostgreSQLBackend's __init__
+        self.patcher_schema_manager = patch('src.llm_accounting.backends.postgresql.SchemaManager')
         self.mock_schema_manager_class = self.patcher_schema_manager.start()
         self.mock_schema_manager_instance = MagicMock(name="mock_schema_manager_instance")
         self.mock_schema_manager_class.return_value = self.mock_schema_manager_instance
 
-        self.patcher_data_inserter = patch('src.llm_accounting.backends.neon.DataInserter')
+        self.patcher_data_inserter = patch('src.llm_accounting.backends.postgresql.DataInserter')
         self.mock_data_inserter_class = self.patcher_data_inserter.start()
         self.mock_data_inserter_instance = MagicMock(name="mock_data_inserter_instance")
         self.mock_data_inserter_class.return_value = self.mock_data_inserter_instance
         
         # Mock for LimitManager (this is key for the tests being updated)
-        self.patcher_limit_manager = patch('src.llm_accounting.backends.neon.LimitManager')
+        self.patcher_limit_manager = patch('src.llm_accounting.backends.postgresql.LimitManager')
         self.mock_limit_manager_class = self.patcher_limit_manager.start()
         self.mock_limit_manager_instance = MagicMock(name="mock_limit_manager_instance")
         self.mock_limit_manager_class.return_value = self.mock_limit_manager_instance
 
-        # Mocks for other managers if their methods are called directly by NeonBackend methods under test
-        self.patcher_data_deleter = patch('src.llm_accounting.backends.neon.DataDeleter')
+        # Mocks for other managers if their methods are called directly by PostgreSQLBackend methods under test
+        self.patcher_data_deleter = patch('src.llm_accounting.backends.postgresql.DataDeleter')
         self.mock_data_deleter_class = self.patcher_data_deleter.start()
         self.mock_data_deleter_instance = MagicMock(name="mock_data_deleter_instance")
         self.mock_data_deleter_class.return_value = self.mock_data_deleter_instance
 
-        self.patcher_query_executor = patch('src.llm_accounting.backends.neon.QueryExecutor')
+        self.patcher_query_executor = patch('src.llm_accounting.backends.postgresql.QueryExecutor')
         self.mock_query_executor_class = self.patcher_query_executor.start()
         self.mock_query_executor_instance = MagicMock(name="mock_query_executor_instance")
         self.mock_query_executor_class.return_value = self.mock_query_executor_instance
         
-        self.backend = NeonBackend()
+        self.backend = PostgreSQLBackend()
 
         self.mock_conn = MagicMock(spec=psycopg2.extensions.connection)
         self.mock_psycopg2_module.connect.return_value = self.mock_conn
@@ -72,10 +72,10 @@ class TestNeonBackend(unittest.TestCase):
         if self.backend.conn and not self.backend.conn.closed:
             self.backend.conn.close()
 
-        if self.original_neon_conn_string is None:
-            if 'NEON_CONNECTION_STRING' in os.environ: del os.environ['NEON_CONNECTION_STRING']
+        if self.original_postgresql_conn_string is None:
+            if 'POSTGRESQL_CONNECTION_STRING' in os.environ: del os.environ['POSTGRESQL_CONNECTION_STRING']
         else:
-            os.environ['NEON_CONNECTION_STRING'] = self.original_neon_conn_string
+            os.environ['POSTGRESQL_CONNECTION_STRING'] = self.original_postgresql_conn_string
 
     def test_init_success(self):
         self.assertEqual(self.backend.connection_string, 'dummy_dsn_from_env')
@@ -93,7 +93,7 @@ class TestNeonBackend(unittest.TestCase):
 
     def test_initialize_connection_error(self):
         self.mock_psycopg2_module.connect.side_effect = self.mock_psycopg2_module.Error("Connection failed")
-        with self.assertRaisesRegex(ConnectionError, r"Failed to connect to Neon/PostgreSQL database \(see logs for details\)\."):
+        with self.assertRaisesRegex(ConnectionError, r"Failed to connect to PostgreSQL database \(see logs for details\)\."):
             self.backend.initialize()
         self.assertIsNone(self.backend.conn)
 
@@ -281,34 +281,34 @@ class TestNeonBackend(unittest.TestCase):
         self.mock_query_executor_instance.get_model_stats.assert_called_once_with(start_dt, end_dt)
         self.assertEqual(model_stats, expected_model_stats)
 
-    # --- Convenience methods (not part of BaseBackend but in NeonBackend) ---
+    # --- Convenience methods (not part of BaseBackend but in PostgreSQLBackend) ---
     # These might need adjustments based on whether they use LimitManager or QueryExecutor now.
-    # The previous version of NeonBackend had set_usage_limit and get_usage_limit calling QueryExecutor.
+    # The previous version of PostgreSQLBackend had set_usage_limit and get_usage_limit calling QueryExecutor.
     # Let's assume they still do, or if they were meant to be part of the "limits" interface,
     # they should now also use LimitManager.
     # For now, let's assume they remain delegated to QueryExecutor as per the original structure
     # unless the subtask implies changing *all* limit-related methods.
     # The subtask was specific to insert_usage_limit and get_usage_limits (BaseBackend methods).
 
-    def test_neon_specific_set_usage_limit_delegates_to_query_executor(self):
+    def test_postgresql_specific_set_usage_limit_delegates_to_query_executor(self):
         self.backend.initialize()
         user_id = "test_user_specific"
         limit_amount = 300.0
         limit_type_str = "requests"
         
-        # This is NeonBackend.set_usage_limit, not the BaseBackend one.
+        # This is PostgreSQLBackend.set_usage_limit, not the BaseBackend one.
         self.backend.set_usage_limit(user_id, limit_amount, limit_type_str)
         
         self.mock_query_executor_instance.set_usage_limit.assert_called_once_with(user_id, limit_amount, limit_type_str)
 
-    def test_neon_specific_get_usage_limit_delegates_to_limit_manager(self):
-        # This convenience method was updated in NeonBackend to use LimitManager.
+    def test_postgresql_specific_get_usage_limit_delegates_to_limit_manager(self):
+        # This convenience method was updated in PostgreSQLBackend to use LimitManager.
         self.backend.initialize()
         user_id = "user_specific_get"
         expected_data = [UsageLimitDTO(id=10, scope=LimitScope.USER.value, username=user_id, limit_type="cost", max_value=10, interval_unit="day", interval_value=1)]
         self.mock_limit_manager_instance.get_usage_limit.return_value = expected_data
         
-        # This is NeonBackend.get_usage_limit (the specific one, not BaseBackend's get_usage_limits)
+        # This is PostgreSQLBackend.get_usage_limit (the specific one, not BaseBackend's get_usage_limits)
         result = self.backend.get_usage_limit(user_id)
         
         self.mock_limit_manager_instance.get_usage_limit.assert_called_once_with(user_id, project_name=None)
@@ -374,7 +374,7 @@ class TestNeonBackend(unittest.TestCase):
         self.mock_conn.reset_mock()
         self.mock_data_inserter_instance.insert_audit_log_event.side_effect = self.mock_psycopg2_module.Error("DB error on insert")
         
-        with self.assertRaisesRegex(RuntimeError, "Unexpected error occurred while logging audit event: DB error on insert"):
+        with self.assertRaisesRegex(RuntimeError, r"Failed to log audit event due to database error: DB error on insert"):
             self.backend.log_audit_event(sample_entry)
         
         self.mock_data_inserter_instance.insert_audit_log_event.assert_called_once_with(sample_entry)

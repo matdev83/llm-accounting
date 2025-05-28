@@ -24,15 +24,15 @@ def main():
         "--db-backend",
         type=str,
         default="sqlite",
-        choices=["sqlite", "neon"],
-        help="Select the database backend (sqlite or neon). Defaults to 'sqlite'.",
+        choices=["sqlite", "postgresql"],
+        help="Select the database backend (sqlite or postgresql). Defaults to 'sqlite'.",
     )
     parser.add_argument(
-        "--neon-connection-string",
+        "--postgresql-connection-string",
         type=str,
-        help="Connection string for the Neon database. "
-             "Required when --db-backend is 'neon'. "
-             "Can also be provided via NEON_CONNECTION_STRING environment variable.",
+        help="Connection string for the PostgreSQL database. "
+             "Required when --db-backend is 'postgresql'. "
+             "Can also be provided via POSTGRESQL_CONNECTION_STRING environment variable.",
     )
     parser.add_argument(
         "--project-name",
@@ -71,7 +71,7 @@ def main():
         accounting = get_accounting(
             db_backend=args.db_backend,
             db_file=args.db_file,
-            neon_connection_string=args.neon_connection_string,
+            postgresql_connection_string=args.postgresql_connection_string,
             project_name=args.project_name,
             app_name=args.app_name,
             user_name=args.user_name,

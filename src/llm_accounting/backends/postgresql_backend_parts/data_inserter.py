@@ -110,7 +110,7 @@ class DataInserter:
         """
         Prepares the SQL for inserting an audit log entry.
         The actual execution, connection management, and transaction control (commit/rollback)
-        are handled by the calling NeonBackend method.
+        are handled by the calling PostgreSQLBackend method.
 
         Args:
             entry: An `AuditLogEntry` dataclass object containing the data to be inserted.
@@ -119,7 +119,7 @@ class DataInserter:
             psycopg2.Error: If any error occurs during SQL preparation/execution by the cursor.
             Exception: For any other unexpected errors during the process.
         """
-        # self.backend._ensure_connected() is assumed to be called by the NeonBackend.
+        # self.backend._ensure_connected() is assumed to be called by the PostgreSQLBackend.
         assert self.backend.conn is not None, "Database connection is not established."
 
         sql = """
@@ -145,13 +145,13 @@ class DataInserter:
             # The 'with' statement ensures the cursor is closed after use.
             with self.backend.conn.cursor() as cur:
                 cur.execute(sql, params)
-            # Commit and rollback are handled by the calling NeonBackend method.
+            # Commit and rollback are handled by the calling PostgreSQLBackend method.
             logger.info(f"Successfully prepared SQL for audit log event for user '{entry.user_name}', app '{entry.app_name}'.")
         except psycopg2.Error as e:
             logger.error(f"Error preparing SQL for audit log event: {e}")
-            # Re-raise to allow the NeonBackend method to handle transaction control (rollback).
+            # Re-raise to allow the PostgreSQLBackend method to handle transaction control (rollback).
             raise
         except Exception as e:
             logger.error(f"An unexpected error occurred while preparing SQL for audit log event: {e}")
-            # Re-raise to allow the NeonBackend method to handle transaction control.
+            # Re-raise to allow the PostgreSQLBackend method to handle transaction control.
             raise
