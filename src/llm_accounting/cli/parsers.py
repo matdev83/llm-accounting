@@ -5,6 +5,7 @@ from llm_accounting.cli.commands.tail import run_tail
 from llm_accounting.cli.commands.track import run_track
 from llm_accounting.cli.commands.limits import set_limit, list_limits, delete_limit
 from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval
+from llm_accounting.cli.commands.log_event import run_log_event
 
 
 def add_stats_parser(subparsers):
@@ -210,3 +211,18 @@ def add_limits_parser(subparsers):
         "--id", type=int, required=True, help="ID of the limit to delete"
     )
     delete_parser.set_defaults(func=delete_limit)
+
+
+def add_log_event_parser(subparsers):
+    """Adds the parser for the log-event command."""
+    parser = subparsers.add_parser("log-event", help="Log an audit event")
+    parser.add_argument("--app-name", type=str, required=True, help="Name of the application")
+    parser.add_argument("--user-name", type=str, required=True, help="Name of the user")
+    parser.add_argument("--model", type=str, required=True, help="Name of the model used")
+    parser.add_argument("--log-type", type=str, required=True, help="Type of log event (e.g., 'completion', 'feedback')")
+    parser.add_argument("--prompt-text", type=str, help="Text of the prompt")
+    parser.add_argument("--response-text", type=str, help="Text of the response")
+    parser.add_argument("--remote-completion-id", type=str, help="Remote ID of the completion")
+    parser.add_argument("--project", type=str, help="Project associated with the event")
+    parser.add_argument("--timestamp", type=str, help="Timestamp of the event (YYYY-MM-DD HH:MM:SS or ISO format, default: current time)")
+    parser.set_defaults(func=run_log_event)

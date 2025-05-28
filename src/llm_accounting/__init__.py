@@ -33,6 +33,7 @@ class LLMAccounting:
         self.project_name = project_name
         self.app_name = app_name
         self.user_name = user_name
+        self.audit_logger = AuditLogger(self.backend)
 
     def __enter__(self):
         """Initialize the backend when entering context"""
