@@ -3,7 +3,7 @@ import psycopg2
 from datetime import datetime
 
 from ...models.limits import UsageLimit
-from ..base import UsageEntry
+from ..base import UsageEntry, AuditLogEntry # Added AuditLogEntry
 
 logger = logging.getLogger(__name__)
 
@@ -104,4 +104,54 @@ class DataInserter:
             logger.error(f"An unexpected error occurred inserting usage limit: {e}")
             if self.backend.conn and not self.backend.conn.closed:
                 self.backend.conn.rollback()
+            raise
+
+    def insert_audit_log_event(self, entry: AuditLogEntry) -> None:
+        """
+        Prepares the SQL for inserting an audit log entry.
+        The actual execution, connection management, and transaction control (commit/rollback)
+        are handled by the calling NeonBackend method.
+
+        Args:
+            entry: An `AuditLogEntry` dataclass object containing the data to be inserted.
+
+        Raises:
+            psycopg2.Error: If any error occurs during SQL preparation/execution by the cursor.
+            Exception: For any other unexpected errors during the process.
+        """
+        # self.backend._ensure_connected() is assumed to be called by the NeonBackend.
+        assert self.backend.conn is not None, "Database connection is not established."
+
+        sql = """
+            INSERT INTO audit_log_entries (
+                timestamp, app_name, user_name, model, prompt_text,
+                response_text, remote_completion_id, project, log_type
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        params = (
+            entry.timestamp,  # psycopg2 handles datetime objects for TIMESTAMPTZ
+            entry.app_name,
+            entry.user_name,
+            entry.model,
+            entry.prompt_text,
+            entry.response_text,
+            entry.remote_completion_id,
+            entry.project,
+            entry.log_type,
+        )
+        
+        try:
+            # The cursor is obtained from the backend's connection.
+            # The 'with' statement ensures the cursor is closed after use.
+            with self.backend.conn.cursor() as cur:
+                cur.execute(sql, params)
+            # Commit and rollback are handled by the calling NeonBackend method.
+            logger.info(f"Successfully prepared SQL for audit log event for user '{entry.user_name}', app '{entry.app_name}'.")
+        except psycopg2.Error as e:
+            logger.error(f"Error preparing SQL for audit log event: {e}")
+            # Re-raise to allow the NeonBackend method to handle transaction control (rollback).
+            raise
+        except Exception as e:
+            logger.error(f"An unexpected error occurred while preparing SQL for audit log event: {e}")
+            # Re-raise to allow the NeonBackend method to handle transaction control.
             raise

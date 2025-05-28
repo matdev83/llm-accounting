@@ -1,6 +1,8 @@
 import sqlite3
 from pathlib import Path
 
+from ..base import AuditLogEntry # Assuming AuditLogEntry is in base.py
+
 
 def validate_db_filename(filename: str):
     """Validate database filename meets requirements"""
@@ -139,5 +141,21 @@ def initialize_db_schema(conn: sqlite3.Connection) -> None:
     
     if 'project_name' not in usage_limits_columns:
         conn.execute('ALTER TABLE usage_limits ADD COLUMN project_name TEXT DEFAULT NULL')
+
+    # Create audit_log_entries table if it doesn't exist
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS audit_log_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            app_name TEXT NOT NULL,
+            user_name TEXT NOT NULL,
+            model TEXT NOT NULL,
+            prompt_text TEXT,
+            response_text TEXT,
+            remote_completion_id TEXT,
+            project TEXT,
+            log_type TEXT NOT NULL
+        )"""
+    )
 
     conn.commit()

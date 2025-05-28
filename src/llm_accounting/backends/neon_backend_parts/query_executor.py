@@ -1,8 +1,10 @@
 import logging
 from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
+import psycopg2 # For error handling
+import psycopg2.extras # For RealDictCursor
 
-from ..base import UsageEntry, UsageStats
+from ..base import UsageEntry, UsageStats, AuditLogEntry # Added AuditLogEntry
 from ...models.limits import UsageLimit, UsageLimitDTO, LimitScope, LimitType, TimeInterval
 
 from .query_reader import QueryReader
@@ -57,3 +59,87 @@ class QueryExecutor:
 
     def get_usage_limit(self, user_id: str) -> Optional[List[UsageLimitDTO]]:
         return self._limit_manager.get_usage_limit(user_id)
+
+    def get_audit_log_entries(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        app_name: Optional[str] = None,
+        user_name: Optional[str] = None,
+        project: Optional[str] = None,
+        log_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[AuditLogEntry]:
+        """
+        Retrieves audit log entries based on specified filter criteria.
+        The connection is managed by the calling NeonBackend method.
+        """
+        # self.backend._ensure_connected() is assumed to be called by NeonBackend
+        assert self.backend.conn is not None, "Database connection is not established."
+
+        query_parts = ["SELECT id, timestamp, app_name, user_name, model, prompt_text, response_text, remote_completion_id, project, log_type FROM audit_log_entries"]
+        conditions = []
+        params: List[Any] = []
+
+        if start_date:
+            conditions.append("timestamp >= %s")
+            params.append(start_date)
+        if end_date:
+            conditions.append("timestamp <= %s")
+            params.append(end_date)
+        if app_name:
+            conditions.append("app_name = %s")
+            params.append(app_name)
+        if user_name:
+            conditions.append("user_name = %s")
+            params.append(user_name)
+        if project:
+            conditions.append("project = %s")
+            params.append(project)
+        if log_type:
+            conditions.append("log_type = %s")
+            params.append(log_type)
+
+        if conditions:
+            query_parts.append("WHERE " + " AND ".join(conditions))
+
+        query_parts.append("ORDER BY timestamp DESC") # Default ordering
+
+        if limit is not None:
+            query_parts.append("LIMIT %s")
+            params.append(limit)
+
+        final_query = " ".join(query_parts)
+        
+        results = []
+        try:
+            # The cursor will be managed (opened and closed) by the 'with' statement.
+            # RealDictCursor allows accessing columns by name.
+            with self.backend.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(final_query, tuple(params))
+                rows = cur.fetchall()
+                for row_dict in rows:
+                    results.append(
+                        AuditLogEntry(
+                            id=row_dict["id"],
+                            timestamp=row_dict["timestamp"], # TIMESTAMPTZ from DB -> timezone-aware datetime
+                            app_name=row_dict["app_name"],
+                            user_name=row_dict["user_name"],
+                            model=row_dict["model"],
+                            prompt_text=row_dict["prompt_text"],
+                            response_text=row_dict["response_text"],
+                            remote_completion_id=row_dict["remote_completion_id"],
+                            project=row_dict["project"],
+                            log_type=row_dict["log_type"],
+                        )
+                    )
+            logger.info(f"Successfully retrieved {len(results)} audit log entries.")
+        except psycopg2.Error as e:
+            logger.error(f"Error retrieving audit log entries: {e}")
+            # Re-raise to allow NeonBackend to handle transaction control (though this is a read operation)
+            raise 
+        except Exception as e:
+            logger.error(f"An unexpected error occurred retrieving audit log entries: {e}")
+            raise
+            
+        return results

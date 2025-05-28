@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
 from ..models.limits import LimitScope, LimitType, UsageLimitDTO
+from ..base import AuditLogEntry # Corrected import path
 from .base import BaseBackend, UsageEntry, UsageStats
 from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
                              get_period_stats_query, insert_usage_query,
@@ -291,3 +292,119 @@ class SQLiteBackend(BaseBackend):
         """
         if self.conn is None:
             self.initialize()
+
+    def initialize_audit_log_schema(self) -> None:
+        """Ensure the audit log schema (e.g., tables) is initialized."""
+        # The main initialize() method already creates all schemas including audit_log_entries
+        # via initialize_db_schema.
+        self._ensure_connected()
+        # Optionally, explicitly call initialize_db_schema if it's idempotent and needed for clarity
+        # initialize_db_schema(self.conn)
+
+    def log_audit_event(self, entry: AuditLogEntry) -> None:
+        """Insert a new audit log entry."""
+        self._ensure_connected()
+        assert self.conn is not None
+
+        query = """
+            INSERT INTO audit_log_entries (
+                timestamp, app_name, user_name, model, prompt_text,
+                response_text, remote_completion_id, project, log_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        params = (
+            entry.timestamp.isoformat(),
+            entry.app_name,
+            entry.user_name,
+            entry.model,
+            entry.prompt_text,
+            entry.response_text,
+            entry.remote_completion_id,
+            entry.project,
+            entry.log_type,
+        )
+        try:
+            self.conn.execute(query, params)
+            self.conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Failed to log audit event: {e}")
+            # Depending on policy, might re-raise or handle
+            raise
+
+    def get_audit_log_entries(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        app_name: Optional[str] = None,
+        user_name: Optional[str] = None,
+        project: Optional[str] = None,
+        log_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[AuditLogEntry]:
+        """Retrieve audit log entries based on filter criteria."""
+        self._ensure_connected()
+        assert self.conn is not None
+
+        original_row_factory = self.conn.row_factory
+        self.conn.row_factory = sqlite3.Row
+
+        query_parts = ["SELECT id, timestamp, app_name, user_name, model, prompt_text, response_text, remote_completion_id, project, log_type FROM audit_log_entries"]
+        conditions = []
+        params: List[Any] = []
+
+        if start_date:
+            conditions.append("timestamp >= ?")
+            params.append(start_date.isoformat())
+        if end_date:
+            conditions.append("timestamp <= ?")
+            params.append(end_date.isoformat())
+        if app_name:
+            conditions.append("app_name = ?")
+            params.append(app_name)
+        if user_name:
+            conditions.append("user_name = ?")
+            params.append(user_name)
+        if project:
+            conditions.append("project = ?")
+            params.append(project)
+        if log_type:
+            conditions.append("log_type = ?")
+            params.append(log_type)
+
+        if conditions:
+            query_parts.append("WHERE " + " AND ".join(conditions))
+
+        query_parts.append("ORDER BY timestamp DESC")
+
+        if limit is not None:
+            query_parts.append("LIMIT ?")
+            params.append(limit)
+
+        final_query = " ".join(query_parts)
+        
+        results = []
+        try:
+            cursor = self.conn.execute(final_query, params)
+            for row in cursor.fetchall():
+                results.append(
+                    AuditLogEntry(
+                        id=row["id"],
+                        timestamp=datetime.fromisoformat(row["timestamp"]),
+                        app_name=row["app_name"],
+                        user_name=row["user_name"],
+                        model=row["model"],
+                        prompt_text=row["prompt_text"],
+                        response_text=row["response_text"],
+                        remote_completion_id=row["remote_completion_id"],
+                        project=row["project"],
+                        log_type=row["log_type"],
+                    )
+                )
+        except sqlite3.Error as e:
+            logger.error(f"Failed to get audit log entries: {e}")
+            # Depending on policy, might re-raise or handle
+            raise
+        finally:
+            self.conn.row_factory = original_row_factory
+            
+        return results

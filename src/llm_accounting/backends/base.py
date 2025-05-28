@@ -7,6 +7,31 @@ from ..models.limits import LimitScope, LimitType, UsageLimitDTO
 
 
 @dataclass
+class AuditLogEntry:
+    """Represents a single audit log entry"""
+
+    id: Optional[int]  # typically assigned by the database
+    timestamp: datetime
+    app_name: str
+    user_name: str
+    model: str
+    prompt_text: Optional[str]
+    response_text: Optional[str]
+    remote_completion_id: Optional[str]
+    project: Optional[str]
+    log_type: str  # e.g., 'prompt', 'response', 'event'
+
+    def __post_init__(self):
+        # Ensure timestamp is set, similar to UsageEntry, though it's not Optional here.
+        # This is more of a placeholder if we decide to add default logic later.
+        if self.timestamp is None:
+            # This case should ideally not be hit if timestamp is always provided.
+            # from datetime import timezone # Import here if not at top level
+            # self.timestamp = datetime.now(timezone.utc)
+            pass # Keep as is, timestamp is non-optional
+
+
+@dataclass
 class UsageEntry:
     """Represents a single LLM usage entry"""
 
@@ -165,4 +190,28 @@ class BaseBackend(ABC):
         Implementations should handle connection establishment or re-establishment.
         This method should be idempotent.
         """
+        pass
+
+    @abstractmethod
+    def initialize_audit_log_schema(self) -> None:
+        """Ensure the audit log schema (e.g., tables) is initialized."""
+        pass
+
+    @abstractmethod
+    def log_audit_event(self, entry: AuditLogEntry) -> None:
+        """Insert a new audit log entry."""
+        pass
+
+    @abstractmethod
+    def get_audit_log_entries(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        app_name: Optional[str] = None,
+        user_name: Optional[str] = None,
+        project: Optional[str] = None,
+        log_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[AuditLogEntry]:
+        """Retrieve audit log entries based on filter criteria."""
         pass

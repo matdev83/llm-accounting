@@ -69,6 +69,20 @@ class SchemaManager:
                     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 )
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS audit_log_entries (
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMPTZ NOT NULL,
+                    app_name TEXT NOT NULL,
+                    user_name TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    prompt_text TEXT,
+                    response_text TEXT,
+                    remote_completion_id TEXT,
+                    project TEXT,
+                    log_type TEXT NOT NULL -- Consider: CHECK(log_type IN ('prompt', 'response', 'event'))
+                )
                 """
             )
             # A cursor is obtained to execute SQL commands.
@@ -77,7 +91,7 @@ class SchemaManager:
                 for command in commands:
                     cur.execute(command)
                 self.backend.conn.commit() # Commit the transaction to make table creations permanent.
-            logger.info("Database tables (accounting_entries, usage_limits) checked/created successfully.")
+            logger.info("Database tables (accounting_entries, usage_limits, audit_log_entries) checked/created successfully.")
         except ConnectionError as e:
             logger.error(f"Connection error during table creation: {e}")
             raise # Re-raise the connection error

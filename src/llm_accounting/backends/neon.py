@@ -6,7 +6,7 @@ import psycopg2.extensions  # For connection type
 from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
 
-from .base import BaseBackend, UsageEntry, UsageStats
+from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry # Added AuditLogEntry
 from ..models.limits import UsageLimitDTO, LimitScope, LimitType
 
 from .neon_backend_parts.connection_manager import ConnectionManager
@@ -243,3 +243,84 @@ class NeonBackend(BaseBackend):
 
     def _ensure_connected(self) -> None:
         self.connection_manager.ensure_connected()
+
+    # Audit Log Methods Implementation
+
+    def initialize_audit_log_schema(self) -> None:
+        """
+        Ensures the audit log schema is initialized.
+        In this backend, the main initialize() method handles all schema creation.
+        This method primarily ensures the connection is active.
+        """
+        self.connection_manager.ensure_connected()
+        # self.schema_manager._create_schema_if_not_exists() # This is called by initialize()
+        logger.info("Audit log schema initialization check (delegated to main initialize).")
+
+    def log_audit_event(self, entry: AuditLogEntry) -> None:
+        """
+        Logs an audit event to the database.
+        Manages connection, transaction commit, and rollback.
+        """
+        self.connection_manager.ensure_connected()
+        assert self.conn is not None, "Database connection is not established for logging audit event."
+
+        try:
+            self.data_inserter.insert_audit_log_event(entry)
+            self.conn.commit()
+            logger.info(f"Audit event logged successfully for user '{entry.user_name}', app '{entry.app_name}'.")
+        except psycopg2.Error as e:
+            logger.error(f"Database error logging audit event: {e}")
+            if self.conn and not self.conn.closed:
+                try:
+                    self.conn.rollback()
+                    logger.info("Transaction rolled back due to error logging audit event.")
+                except psycopg2.Error as rb_err:
+                    logger.error(f"Error during rollback attempt: {rb_err}")
+            # Consider re-raising a more generic error or a specific application error
+            raise RuntimeError(f"Failed to log audit event due to database error: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error logging audit event: {e}")
+            if self.conn and not self.conn.closed:
+                try:
+                    self.conn.rollback()
+                    logger.info("Transaction rolled back due to unexpected error logging audit event.")
+                except psycopg2.Error as rb_err:
+                    logger.error(f"Error during rollback attempt: {rb_err}")
+            raise RuntimeError(f"Unexpected error occurred while logging audit event: {e}") from e
+
+    def get_audit_log_entries(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        app_name: Optional[str] = None,
+        user_name: Optional[str] = None,
+        project: Optional[str] = None,
+        log_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[AuditLogEntry]:
+        """
+        Retrieves audit log entries based on specified filter criteria.
+        Delegates to QueryExecutor and manages connection.
+        """
+        self.connection_manager.ensure_connected()
+        assert self.conn is not None, "Database connection is not established for retrieving audit log entries."
+
+        try:
+            entries = self.query_executor.get_audit_log_entries(
+                start_date=start_date,
+                end_date=end_date,
+                app_name=app_name,
+                user_name=user_name,
+                project=project,
+                log_type=log_type,
+                limit=limit,
+            )
+            logger.info(f"Retrieved {len(entries)} audit log entries.")
+            return entries
+        except psycopg2.Error as e:
+            logger.error(f"Database error retrieving audit log entries: {e}")
+            # For read operations, rollback is typically not needed unless part of a larger transaction
+            raise RuntimeError(f"Failed to retrieve audit log entries due to database error: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error retrieving audit log entries: {e}")
+            raise RuntimeError(f"Unexpected error occurred while retrieving audit log entries: {e}") from e
