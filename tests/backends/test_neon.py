@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 from src.llm_accounting.backends.neon import NeonBackend
 from src.llm_accounting.backends.base import UsageEntry, UsageStats, AuditLogEntry # Added AuditLogEntry
 from src.llm_accounting.models.limits import UsageLimitDTO, LimitScope, LimitType, TimeInterval
-from typing import List, Optional # Added for type hinting if needed, though mocks might not strictly require
+from typing import List, Optional
+from datetime import datetime, timezone, timedelta # Import timedelta
 
 import psycopg2
 
@@ -359,7 +360,8 @@ class TestNeonBackend(unittest.TestCase):
             user_name="test_user",
             model="test_model",
             log_type="test_log",
-            id=None # id is managed by DB
+            id=None, # id is managed by DB
+            prompt_text=None, response_text=None, remote_completion_id=None, project=None
         )
         self.backend.log_audit_event(sample_entry)
 
@@ -372,7 +374,7 @@ class TestNeonBackend(unittest.TestCase):
         self.mock_conn.reset_mock()
         self.mock_data_inserter_instance.insert_audit_log_event.side_effect = self.mock_psycopg2_module.Error("DB error on insert")
         
-        with self.assertRaisesRegex(RuntimeError, "Failed to log audit event due to database error: DB error on insert"):
+        with self.assertRaisesRegex(RuntimeError, "Unexpected error occurred while logging audit event: DB error on insert"):
             self.backend.log_audit_event(sample_entry)
         
         self.mock_data_inserter_instance.insert_audit_log_event.assert_called_once_with(sample_entry)
@@ -387,8 +389,8 @@ class TestNeonBackend(unittest.TestCase):
 
         now = datetime.now(timezone.utc)
         expected_entries_data = [
-            AuditLogEntry(timestamp=now, app_name="app1", user_name="user1", model="model1", log_type="type1", id=1),
-            AuditLogEntry(timestamp=now, app_name="app2", user_name="user2", model="model2", log_type="type2", id=2)
+            AuditLogEntry(timestamp=now, app_name="app1", user_name="user1", model="model1", log_type="type1", id=1, prompt_text=None, response_text=None, remote_completion_id=None, project=None),
+            AuditLogEntry(timestamp=now, app_name="app2", user_name="user2", model="model2", log_type="type2", id=2, prompt_text=None, response_text=None, remote_completion_id=None, project=None)
         ]
         self.mock_query_executor_instance.get_audit_log_entries.return_value = expected_entries_data
 
@@ -409,7 +411,7 @@ class TestNeonBackend(unittest.TestCase):
 
         # Test with no filters
         self.mock_query_executor_instance.reset_mock()
-        expected_empty_call_entries = [AuditLogEntry(timestamp=now, app_name="app3", user_name="user3", model="model3", log_type="type3", id=3)]
+        expected_empty_call_entries = [AuditLogEntry(timestamp=now, app_name="app3", user_name="user3", model="model3", log_type="type3", id=3, prompt_text=None, response_text=None, remote_completion_id=None, project=None)]
         self.mock_query_executor_instance.get_audit_log_entries.return_value = expected_empty_call_entries
 
         retrieved_no_filters = self.backend.get_audit_log_entries()

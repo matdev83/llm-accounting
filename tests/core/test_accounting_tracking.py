@@ -127,8 +127,8 @@ def test_track_usage_with_caller_and_user(accounting):
 
         # Check first entry (most recent)
         assert entries[0].model == "gpt-3.5-turbo"
-        assert entries[0].caller_name == ""
-        assert entries[0].username == ""
+        assert entries[0].caller_name is None
+        assert entries[0].username is None
 
         # Check second entry
         assert entries[1].model == "gpt-4"

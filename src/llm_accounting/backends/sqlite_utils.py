@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-from ..base import AuditLogEntry # Assuming AuditLogEntry is in base.py
+from .base import AuditLogEntry
 
 
 def validate_db_filename(filename: str):
@@ -73,8 +73,8 @@ def initialize_db_schema(conn: sqlite3.Connection) -> None:
             project TEXT DEFAULT NULL,
             cost REAL NOT NULL,
             execution_time REAL NOT NULL,
-            caller_name TEXT NOT NULL DEFAULT '',
-            username TEXT NOT NULL DEFAULT '',
+            caller_name TEXT DEFAULT NULL,
+            username TEXT DEFAULT NULL,
             cached_tokens INTEGER NOT NULL DEFAULT 0,
             reasoning_tokens INTEGER NOT NULL DEFAULT 0
         )"""
@@ -116,11 +116,11 @@ def initialize_db_schema(conn: sqlite3.Connection) -> None:
         )
     if "caller_name" not in accounting_columns:
         conn.execute(
-            'ALTER TABLE accounting_entries ADD COLUMN caller_name TEXT NOT NULL DEFAULT ""'
+            'ALTER TABLE accounting_entries ADD COLUMN caller_name TEXT DEFAULT NULL'
         )
     if "username" not in accounting_columns:
         conn.execute(
-            'ALTER TABLE accounting_entries ADD COLUMN username TEXT NOT NULL DEFAULT ""'
+            'ALTER TABLE accounting_entries ADD COLUMN username TEXT DEFAULT NULL'
         )
     if "cached_tokens" not in accounting_columns:
         conn.execute(

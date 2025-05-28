@@ -5,8 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
 from ..models.limits import LimitScope, LimitType, UsageLimitDTO
-from ..base import AuditLogEntry # Corrected import path
-from .base import BaseBackend, UsageEntry, UsageStats
+from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry
 from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
                              get_period_stats_query, insert_usage_query,
                              tail_query)
@@ -340,6 +339,7 @@ class SQLiteBackend(BaseBackend):
         project: Optional[str] = None,
         log_type: Optional[str] = None,
         limit: Optional[int] = None,
+        filter_project_null: Optional[bool] = None,
     ) -> List[AuditLogEntry]:
         """Retrieve audit log entries based on filter criteria."""
         self._ensure_connected()
@@ -364,9 +364,16 @@ class SQLiteBackend(BaseBackend):
         if user_name:
             conditions.append("user_name = ?")
             params.append(user_name)
-        if project:
+        
+        # Handle project filtering
+        if project is not None:
             conditions.append("project = ?")
             params.append(project)
+        elif filter_project_null is True:
+            conditions.append("project IS NULL")
+        elif filter_project_null is False:
+            conditions.append("project IS NOT NULL")
+
         if log_type:
             conditions.append("log_type = ?")
             params.append(log_type)
@@ -389,7 +396,7 @@ class SQLiteBackend(BaseBackend):
                 results.append(
                     AuditLogEntry(
                         id=row["id"],
-                        timestamp=datetime.fromisoformat(row["timestamp"]),
+                        timestamp=datetime.fromisoformat(row["timestamp"]).replace(tzinfo=timezone.utc),
                         app_name=row["app_name"],
                         user_name=row["user_name"],
                         model=row["model"],
