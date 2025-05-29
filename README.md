@@ -652,6 +652,10 @@ We will be adding examples of projects that utilize `llm-accounting` in the near
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+## Development
+
+For a detailed overview of the project's internal structure, including module organization, key classes, and design patterns, please refer to the [Development Structure document](docs/STRUCTURE.md). This document is essential for contributors and anyone looking to understand or modify the `llm-accounting` package's codebase.
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
