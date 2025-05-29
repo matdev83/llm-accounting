@@ -1,21 +1,25 @@
-import sqlite3
+import sqlite3 # Keep for type hints if any raw sqlite3 usage remains by mistake, but should be phased out
 import typing
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import text # Added import
 
 from llm_accounting.backends.sqlite import SQLiteBackend
 
 
 @pytest.fixture
 def test_db():
-    """Fixture setting up an in-memory test database with sample data"""
+    """Fixture setting up an in-memory test database with sample data using SQLAlchemy connection."""
     # Use a unique in-memory database for each test to avoid locking issues
-    backend = SQLiteBackend("file::memory:")
-    backend.initialize()
-    conn = typing.cast(sqlite3.Connection, backend.conn)
+    backend = SQLiteBackend("file::memory:") # Uses "sqlite:///:memory:" for SQLAlchemy engine
+    backend.initialize() # This initializes self.engine and self.conn (SQLAlchemy connection)
+    
+    # conn is now an SQLAlchemy Connection object
+    conn = backend.conn 
+    assert conn is not None, "SQLAlchemy connection not initialized in SQLiteBackend"
 
-    conn.executescript("""
+    create_table_sql_script = """
         CREATE TABLE IF NOT EXISTS accounting_entries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -33,18 +37,31 @@ def test_db():
             cached_tokens INTEGER NOT NULL DEFAULT 0,
             reasoning_tokens INTEGER NOT NULL DEFAULT 0
         );
+    """
+    # Execute DDL (CREATE TABLE)
+    # DDL statements usually don't need to be part of an explicit transaction commit with SQLAlchemy,
+    # or are auto-committed by some drivers/DBs.
+    conn.execute(text(create_table_sql_script))
+
+    insert_sql_template = text("""
+        INSERT INTO accounting_entries 
+        (model, username, timestamp, prompt_tokens, completion_tokens, total_tokens, cost, execution_time, cached_tokens, reasoning_tokens) 
+        VALUES (:model, :username, :timestamp, :prompt_tokens, :completion_tokens, :total_tokens, :cost, :execution_time, :cached_tokens, :reasoning_tokens)
     """)
-    conn.executemany(
-        "INSERT INTO accounting_entries (model, username, timestamp, prompt_tokens, completion_tokens, total_tokens, cost, execution_time, cached_tokens, reasoning_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [
-            ("gpt-4", "user1", "2024-01-01 10:00", 100, 150, 250, 0.06, 1.5, 0, 0),
-            ("gpt-4", "user2", "2024-01-01 11:00", 150, 100, 250, 0.09, 2.1, 0, 0),
-            ("gpt-3.5", "user1", "2024-01-01 12:00", 50, 75, 125, 0.002, 0.8, 0, 0),
-            ("gpt-3.5", "user3", "2024-01-01 13:00", 75, 50, 125, 0.003, 1.2, 0, 0),
-        ]
-    )
-    conn.commit()
-    print(f"Data inserted. Rows in accounting_entries: {conn.execute('SELECT COUNT(*) FROM accounting_entries').fetchone()[0]}")
+    
+    data_to_insert = [
+        {"model": "gpt-4", "username": "user1", "timestamp": "2024-01-01 10:00", "prompt_tokens": 100, "completion_tokens": 150, "total_tokens": 250, "cost": 0.06, "execution_time": 1.5, "cached_tokens": 0, "reasoning_tokens": 0},
+        {"model": "gpt-4", "username": "user2", "timestamp": "2024-01-01 11:00", "prompt_tokens": 150, "completion_tokens": 100, "total_tokens": 250, "cost": 0.09, "execution_time": 2.1, "cached_tokens": 0, "reasoning_tokens": 0},
+        {"model": "gpt-3.5", "username": "user1", "timestamp": "2024-01-01 12:00", "prompt_tokens": 50, "completion_tokens": 75, "total_tokens": 125, "cost": 0.002, "execution_time": 0.8, "cached_tokens": 0, "reasoning_tokens": 0},
+        {"model": "gpt-3.5", "username": "user3", "timestamp": "2024-01-01 13:00", "prompt_tokens": 75, "completion_tokens": 50, "total_tokens": 125, "cost": 0.003, "execution_time": 1.2, "cached_tokens": 0, "reasoning_tokens": 0},
+    ]
+    
+    # Execute DML (INSERT)
+    conn.execute(insert_sql_template, data_to_insert)
+    conn.commit() # Ensure data is committed to be visible for tests
+
+    count_result = conn.execute(text('SELECT COUNT(*) FROM accounting_entries')).scalar_one()
+    print(f"Data inserted. Rows in accounting_entries: {count_result}")
     return backend
 
 
@@ -69,6 +86,12 @@ def mock_get_accounting(test_db):
         mock_accounting_instance.purge.side_effect = test_db.purge
         mock_accounting_instance.tail.side_effect = test_db.tail
         mock_accounting_instance.track_usage.side_effect = test_db.insert_usage  # LLMAccounting.track_usage calls backend.insert_usage
+        # For CLI select, the backend's execute_query is called by a helper in cli.commands.select_cmd
+        # The line below was causing an AttributeError and is removed.
+        # mock_accounting_instance.backend.execute_query.side_effect = test_db.execute_query
+        # Assigning mock_accounting_instance.backend = test_db is sufficient for calls to
+        # mock_accounting_instance.backend.execute_query() to use the method from the test_db instance.
+
 
         mock_get_acc.return_value = mock_accounting_instance
-        yield mock_get_acc  # Yield the mock object for further assertions in tests
+        yield mock_get_acc

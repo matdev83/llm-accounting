@@ -1,62 +1,51 @@
-import sqlite3
 from datetime import datetime
 from typing import Dict, List, Tuple
+from sqlalchemy import text
+from sqlalchemy.engine import Connection # For type hinting
 
 from llm_accounting.backends.base import UsageEntry, UsageStats
 
 
-def insert_usage_query(conn: sqlite3.Connection, entry: UsageEntry) -> None:
-    """Insert a new usage entry into the database."""
-    # If timestamp is None, let SQLite use CURRENT_TIMESTAMP
-    timestamp = entry.timestamp.isoformat() if entry.timestamp is not None else None
-
-    conn.execute(
-        """
+def insert_usage_query(conn: Connection, entry: UsageEntry) -> None:
+    """Insert a new usage entry into the database using named parameters."""
+    params = {
+        "timestamp": entry.timestamp.isoformat() if entry.timestamp else None,
+        "model": entry.model,
+        "prompt_tokens": entry.prompt_tokens,
+        "completion_tokens": entry.completion_tokens,
+        "total_tokens": entry.total_tokens,
+        "local_prompt_tokens": entry.local_prompt_tokens,
+        "local_completion_tokens": entry.local_completion_tokens,
+        "local_total_tokens": entry.local_total_tokens,
+        "cost": entry.cost,
+        "execution_time": entry.execution_time,
+        "caller_name": entry.caller_name,
+        "username": entry.username,
+        "cached_tokens": entry.cached_tokens,
+        "reasoning_tokens": entry.reasoning_tokens,
+        "project": entry.project,
+    }
+    
+    sql = text("""
         INSERT INTO accounting_entries (
-            timestamp,
-            model,
-            prompt_tokens,
-            completion_tokens,
-            total_tokens,
-            local_prompt_tokens,
-            local_completion_tokens,
-            local_total_tokens,
-            cost,
-            execution_time,
-            caller_name,
-            username,
-            cached_tokens,
-            reasoning_tokens,
-            project
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """,
-        (
-            timestamp,
-            entry.model,
-            entry.prompt_tokens,
-            entry.completion_tokens,
-            entry.total_tokens,
-            entry.local_prompt_tokens,
-            entry.local_completion_tokens,
-            entry.local_total_tokens,
-            entry.cost,
-            entry.execution_time,
-            entry.caller_name,
-            entry.username,
-            entry.cached_tokens,
-            entry.reasoning_tokens,
-            entry.project,
-        ),
-    )
-    conn.commit()
+            timestamp, model, prompt_tokens, completion_tokens, total_tokens,
+            local_prompt_tokens, local_completion_tokens, local_total_tokens,
+            cost, execution_time, caller_name, username, cached_tokens, reasoning_tokens, project
+        ) VALUES (
+            :timestamp, :model, :prompt_tokens, :completion_tokens, :total_tokens,
+            :local_prompt_tokens, :local_completion_tokens, :local_total_tokens,
+            :cost, :execution_time, :caller_name, :username, :cached_tokens, :reasoning_tokens, :project
+        )
+    """)
+    conn.execute(sql, params)
+    # Removed conn.commit() - let the caller in SQLiteBackend handle transaction management.
 
 
 def get_period_stats_query(
-    conn: sqlite3.Connection, start: datetime, end: datetime
+    conn: Connection, start: datetime, end: datetime
 ) -> UsageStats:
-    """Get aggregated statistics for a time period from the database."""
-    cursor = conn.execute(
-        """
+    """Get aggregated statistics for a time period from the database using named parameters."""
+    sql = text("""
         SELECT
             SUM(prompt_tokens) as sum_prompt_tokens,
             SUM(completion_tokens) as sum_completion_tokens,
@@ -75,58 +64,47 @@ def get_period_stats_query(
             AVG(cost) as avg_cost,
             AVG(execution_time) as avg_execution_time
         FROM accounting_entries
-        WHERE timestamp BETWEEN ? AND ?
-    """,
-        (start.isoformat(), end.isoformat()),
-    )
-    row = cursor.fetchone()
+        WHERE timestamp BETWEEN :start_time AND :end_time
+    """)
+    
+    result = conn.execute(sql, {"start_time": start.isoformat(), "end_time": end.isoformat()})
+    row = result.fetchone()
 
-    if not row:
+    if not row or row.sum_cost is None: # Check if any aggregation happened (e.g. sum_cost is a good indicator)
         return UsageStats(
-            sum_prompt_tokens=0,
-            sum_completion_tokens=0,
-            sum_total_tokens=0,
-            sum_local_prompt_tokens=0,
-            sum_local_completion_tokens=0,
-            sum_local_total_tokens=0,
-            sum_cost=0.0,
-            sum_execution_time=0.0,
-            avg_prompt_tokens=0.0,
-            avg_completion_tokens=0.0,
-            avg_total_tokens=0.0,
-            avg_local_prompt_tokens=0.0,
-            avg_local_completion_tokens=0.0,
-            avg_local_total_tokens=0.0,
-            avg_cost=0.0,
-            avg_execution_time=0.0,
+            sum_prompt_tokens=0, sum_completion_tokens=0, sum_total_tokens=0,
+            sum_local_prompt_tokens=0, sum_local_completion_tokens=0, sum_local_total_tokens=0,
+            sum_cost=0.0, sum_execution_time=0.0,
+            avg_prompt_tokens=0.0, avg_completion_tokens=0.0, avg_total_tokens=0.0,
+            avg_local_prompt_tokens=0.0, avg_local_completion_tokens=0.0, avg_local_total_tokens=0.0,
+            avg_cost=0.0, avg_execution_time=0.0,
         )
 
     return UsageStats(
-        sum_prompt_tokens=row[0] or 0,
-        sum_completion_tokens=row[1] or 0,
-        sum_total_tokens=row[2] or 0,
-        sum_local_prompt_tokens=row[3] or 0,
-        sum_local_completion_tokens=row[4] or 0,
-        sum_local_total_tokens=row[5] or 0,
-        sum_cost=row[6] or 0.0,
-        sum_execution_time=row[7] or 0.0,
-        avg_prompt_tokens=row[8] or 0.0,
-        avg_completion_tokens=row[9] or 0.0,
-        avg_total_tokens=row[10] or 0.0,
-        avg_local_prompt_tokens=row[11] or 0.0,
-        avg_local_completion_tokens=row[12] or 0.0,
-        avg_local_total_tokens=row[13] or 0.0,
-        avg_cost=row[14] or 0.0,
-        avg_execution_time=row[15] or 0.0,
+        sum_prompt_tokens=row.sum_prompt_tokens or 0,
+        sum_completion_tokens=row.sum_completion_tokens or 0,
+        sum_total_tokens=row.sum_total_tokens or 0,
+        sum_local_prompt_tokens=row.sum_local_prompt_tokens or 0,
+        sum_local_completion_tokens=row.sum_local_completion_tokens or 0,
+        sum_local_total_tokens=row.sum_local_total_tokens or 0,
+        sum_cost=row.sum_cost or 0.0,
+        sum_execution_time=row.sum_execution_time or 0.0,
+        avg_prompt_tokens=row.avg_prompt_tokens or 0.0,
+        avg_completion_tokens=row.avg_completion_tokens or 0.0,
+        avg_total_tokens=row.avg_total_tokens or 0.0,
+        avg_local_prompt_tokens=row.avg_local_prompt_tokens or 0.0,
+        avg_local_completion_tokens=row.avg_local_completion_tokens or 0.0,
+        avg_local_total_tokens=row.avg_local_total_tokens or 0.0,
+        avg_cost=row.avg_cost or 0.0,
+        avg_execution_time=row.avg_execution_time or 0.0,
     )
 
 
 def get_model_stats_query(
-    conn: sqlite3.Connection, start: datetime, end: datetime
+    conn: Connection, start: datetime, end: datetime
 ) -> List[Tuple[str, UsageStats]]:
-    """Get statistics grouped by model for a time period from the database."""
-    cursor = conn.execute(
-        """
+    """Get statistics grouped by model for a time period from the database using named parameters."""
+    sql = text("""
         SELECT
             model,
             SUM(prompt_tokens) as sum_prompt_tokens,
@@ -146,33 +124,33 @@ def get_model_stats_query(
             AVG(cost) as avg_cost,
             AVG(execution_time) as avg_execution_time
         FROM accounting_entries
-        WHERE timestamp BETWEEN ? AND ?
+        WHERE timestamp BETWEEN :start_time AND :end_time
         GROUP BY model
-    """,
-        (start.isoformat(), end.isoformat()),
-    )
-    rows = cursor.fetchall()
+    """)
+    
+    result = conn.execute(sql, {"start_time": start.isoformat(), "end_time": end.isoformat()})
+    rows = result.fetchall()
 
     return [
         (
-            row[0],
+            str(row.model), # Ensure model is string
             UsageStats(
-                sum_prompt_tokens=row[1] or 0,
-                sum_completion_tokens=row[2] or 0,
-                sum_total_tokens=row[3] or 0,
-                sum_local_prompt_tokens=row[4] or 0,
-                sum_local_completion_tokens=row[5] or 0,
-                sum_local_total_tokens=row[6] or 0,
-                sum_cost=row[7] or 0.0,
-                sum_execution_time=row[8] or 0.0,
-                avg_prompt_tokens=row[9] or 0.0,
-                avg_completion_tokens=row[10] or 0.0,
-                avg_total_tokens=row[11] or 0.0,
-                avg_local_prompt_tokens=row[12] or 0.0,
-                avg_local_completion_tokens=row[13] or 0.0,
-                avg_local_total_tokens=row[14] or 0.0,
-                avg_cost=row[15] or 0.0,
-                avg_execution_time=row[16] or 0.0,
+                sum_prompt_tokens=row.sum_prompt_tokens or 0,
+                sum_completion_tokens=row.sum_completion_tokens or 0,
+                sum_total_tokens=row.sum_total_tokens or 0,
+                sum_local_prompt_tokens=row.sum_local_prompt_tokens or 0,
+                sum_local_completion_tokens=row.sum_local_completion_tokens or 0,
+                sum_local_total_tokens=row.sum_local_total_tokens or 0,
+                sum_cost=row.sum_cost or 0.0,
+                sum_execution_time=row.sum_execution_time or 0.0,
+                avg_prompt_tokens=row.avg_prompt_tokens or 0.0,
+                avg_completion_tokens=row.avg_completion_tokens or 0.0,
+                avg_total_tokens=row.avg_total_tokens or 0.0,
+                avg_local_prompt_tokens=row.avg_local_prompt_tokens or 0.0,
+                avg_local_completion_tokens=row.avg_local_completion_tokens or 0.0,
+                avg_local_total_tokens=row.avg_local_total_tokens or 0.0,
+                avg_cost=row.avg_cost or 0.0,
+                avg_execution_time=row.avg_execution_time or 0.0,
             ),
         )
         for row in rows
@@ -180,79 +158,66 @@ def get_model_stats_query(
 
 
 def get_model_rankings_query(
-    conn: sqlite3.Connection, start: datetime, end: datetime
+    conn: Connection, start: datetime, end: datetime
 ) -> Dict[str, List[Tuple[str, float]]]:
-    """Get model rankings based on different metrics from the database."""
-    # Get prompt tokens ranking
-    prompt_tokens_query = """
+    """Get model rankings based on different metrics from the database using named parameters."""
+    params = {"start_time": start.isoformat(), "end_time": end.isoformat()}
+
+    prompt_tokens_sql = text("""
         SELECT model, SUM(prompt_tokens) as total
         FROM accounting_entries
-        WHERE timestamp BETWEEN ? AND ?
+        WHERE timestamp BETWEEN :start_time AND :end_time
         GROUP BY model
         ORDER BY total DESC
-    """
-    cursor = conn.execute(prompt_tokens_query, (start.isoformat(), end.isoformat()))
-    prompt_tokens_ranking = [(row[0], row[1]) for row in cursor.fetchall()]
+    """)
+    result_prompt = conn.execute(prompt_tokens_sql, params)
+    prompt_tokens_ranking = [(str(row.model), float(row.total or 0)) for row in result_prompt.fetchall()]
 
-    # Get cost ranking
-    cost_query = """
+    cost_sql = text("""
         SELECT model, SUM(cost) as total
         FROM accounting_entries
-        WHERE timestamp BETWEEN ? AND ?
+        WHERE timestamp BETWEEN :start_time AND :end_time
         GROUP BY model
         ORDER BY total DESC
-    """
-    cursor = conn.execute(cost_query, (start.isoformat(), end.isoformat()))
-    cost_ranking = [(row[0], row[1]) for row in cursor.fetchall()]
+    """)
+    result_cost = conn.execute(cost_sql, params)
+    cost_ranking = [(str(row.model), float(row.total or 0.0)) for row in result_cost.fetchall()]
 
     return {"prompt_tokens": prompt_tokens_ranking, "cost": cost_ranking}
 
 
-def tail_query(conn: sqlite3.Connection, n: int = 10) -> List[UsageEntry]:
-    """Get the n most recent usage entries from the database."""
-    cursor = conn.execute(
-        """
+def tail_query(conn: Connection, n: int = 10) -> List[UsageEntry]:
+    """Get the n most recent usage entries from the database using named parameters."""
+    sql = text("""
         SELECT
-            timestamp,
-            model,
-            prompt_tokens,
-            completion_tokens,
-            total_tokens,
-            local_prompt_tokens,
-            local_completion_tokens,
-            local_total_tokens,
-            cost,
-            execution_time,
-            caller_name,
-            username,
-            cached_tokens,
-            reasoning_tokens,
-            project
+            timestamp, model, prompt_tokens, completion_tokens, total_tokens,
+            local_prompt_tokens, local_completion_tokens, local_total_tokens,
+            cost, execution_time, caller_name, username, cached_tokens, reasoning_tokens, project
         FROM accounting_entries
         ORDER BY timestamp DESC
-        LIMIT ?
-    """,
-        (n,),
-    )
-    rows = cursor.fetchall()
+        LIMIT :limit_n
+    """)
+    
+    result = conn.execute(sql, {"limit_n": n})
+    rows = result.fetchall()
 
     return [
         UsageEntry(
-            model=row[1],
-            prompt_tokens=row[2],
-            completion_tokens=row[3],
-            total_tokens=row[4],
-            local_prompt_tokens=row[5],
-            local_completion_tokens=row[6],
-            local_total_tokens=row[7],
-            cost=row[8],
-            execution_time=row[9],
-            timestamp=datetime.fromisoformat(row[0]),
-            caller_name=row[10],
-            username=row[11],
-            cached_tokens=row[12],
-            reasoning_tokens=row[13],
-            project=row[14],
+            model=row.model,
+            prompt_tokens=row.prompt_tokens,
+            completion_tokens=row.completion_tokens,
+            total_tokens=row.total_tokens,
+            local_prompt_tokens=row.local_prompt_tokens,
+            local_completion_tokens=row.local_completion_tokens,
+            local_total_tokens=row.local_total_tokens,
+            cost=row.cost,
+            execution_time=row.execution_time,
+            timestamp=datetime.fromisoformat(row.timestamp), # Ensure timestamp is datetime object
+            caller_name=row.caller_name,
+            username=row.username,
+            cached_tokens=row.cached_tokens,
+            reasoning_tokens=row.reasoning_tokens,
+            project=row.project,
         )
         for row in rows
     ]
