@@ -1,3 +1,10 @@
+## 2025-05-29 16:05:00 - Refactor: Centralize database migration logic into db_migrations module
+**Commit:** `(will be filled by git)`
+- Added: `src/llm_accounting/db_migrations.py`
+- Modified: `src/llm_accounting/__init__.py` (removed migration logic)
+- Modified: `src/llm_accounting/backends/postgresql.py` (imported and called new migration function)
+- Modified: `tests/test_migrations.py` (updated import path for migration function)
+
 ## 2025-05-29 14:14:00 - docs: Improve README.md clarity and fix custom backend example
 **Commit:** `(will be filled by git)`
 - Fixed: Broken CLI example for `llm-accounting select` in `README.md`.
@@ -477,26 +484,6 @@
 ## 2025-05-21 23:34:05 - Fix errors reported by linter
 **Commit:** `82aec05`
 - Modified: `.clineignore`
-- Modified: `.gitignore`
-- Added: `docs/flake8_output.txt`
-- Modified: `src/llm_accounting/__init__.py`
-- Modified: `src/llm_accounting/backends/base.py`
-- Modified: `src/llm_accounting/backends/mock_backend.py`
-- Modified: `src/llm_accounting/backends/sqlite.py`
-- Modified: `src/llm_accounting/backends/sqlite_queries.py`
-- Modified: `src/llm_accounting/backends/sqlite_utils.py`
-- Modified: `src/llm_accounting/cli/commands/purge.py`
-- Modified: `src/llm_accounting/cli/commands/select.py`
-- Modified: `src/llm_accounting/cli/commands/stats.py`
-- Modified: `src/llm_accounting/cli/commands/tail.py`
-- Modified: `src/llm_accounting/cli/commands/track.py`
-- Modified: `src/llm_accounting/cli/main.py`
-- Modified: `src/llm_accounting/cli/parsers.py`
-- Modified: `src/llm_accounting/cli/utils.py`
-- Modified: `src/llm_accounting/models/__init__.py`
-- Modified: `src/llm_accounting/models/limits.py`
-- Modified: `src/llm_accounting/models/request.py`
-- Modified: `src/llm_accounting/services/quota_service.py`
 - Modified: `tests/accounting/test_global_limits.py`
 - Modified: `tests/accounting/test_model_limits.py`
 - Modified: `tests/accounting/test_multiple_limit_types.py`

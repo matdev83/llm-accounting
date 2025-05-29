@@ -3,13 +3,14 @@
 This package provides core functionality for tracking and managing API usage quotas
 and rate limits across multiple services.
 """
+"""Main package initialization for LLM Accounting system.
+
+This package provides core functionality for tracking and managing API usage quotas
+and rate limits across multiple services.
+"""
 import logging
-import os # For run_migrations
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
-
-from alembic.config import Config as AlembicConfig # For run_migrations
-from alembic import command as alembic_command # For run_migrations
 
 from .backends.base import BaseBackend, UsageEntry, UsageStats
 from .backends.mock_backend import MockBackend
@@ -19,59 +20,6 @@ from .services.quota_service import QuotaService
 from .audit_log import AuditLogger
 
 logger = logging.getLogger(__name__)
-
-# Alembic migration function
-def run_migrations():
-    """Checks and applies any pending database migrations."""
-    # Use the same logger as the rest of the llm_accounting package
-    migration_logger = logging.getLogger(__name__ + ".migrations") 
-    
-    db_url = os.getenv("LLM_ACCOUNTING_DB_URL")
-    alembic_ini_path = "alembic.ini" # Assuming it's in the project root
-
-    if not db_url:
-        # If LLM_ACCOUNTING_DB_URL is not set, try to get from alembic.ini as a fallback
-        migration_logger.info(f"LLM_ACCOUNTING_DB_URL not set. Attempting to read from {alembic_ini_path}.")
-        try:
-            # Create a temporary config to read the URL, don't use this for upgrade command
-            temp_config = AlembicConfig(alembic_ini_path)
-            db_url = temp_config.get_main_option("sqlalchemy.url", None)
-            if db_url:
-                migration_logger.info(f"Found sqlalchemy.url in {alembic_ini_path}: {db_url[:db_url.find('://')+3]}...")
-            else:
-                migration_logger.warning(f"sqlalchemy.url not found in {alembic_ini_path}.")
-        except Exception as e:
-            migration_logger.warning(f"Could not read sqlalchemy.url from {alembic_ini_path} for migrations: {e}")
-
-    if not db_url:
-        migration_logger.error("Database URL for migrations not found. Skipping migrations. Set LLM_ACCOUNTING_DB_URL or ensure sqlalchemy.url is in alembic.ini.")
-        return
-
-    # Log minimally, avoiding printing username/password if present in URL
-    log_db_url = db_url
-    try:
-        from sqlalchemy.engine.url import make_url
-        parsed_url = make_url(db_url)
-        if parsed_url.password:
-            log_db_url = str(parsed_url._replace(password="****"))
-    except Exception:
-        # If parsing fails, log the original URL but be mindful
-        pass 
-    migration_logger.info(f"Running database migrations for URL: {log_db_url}")
-    
-    try:
-        alembic_cfg = AlembicConfig(alembic_ini_path)
-        # Crucially, override the sqlalchemy.url from alembic.ini with the one we've determined
-        alembic_cfg.set_main_option("sqlalchemy.url", db_url)
-        
-        alembic_command.upgrade(alembic_cfg, "head")
-        migration_logger.info("Database migrations are up to date.")
-    except Exception as e:
-        migration_logger.error(f"Error running database migrations: {e}", exc_info=True)
-        # Depending on the application's needs, you might want to re-raise or exit
-        # For now, we log and continue, allowing the app to attempt to start.
-        # Consider making this critical based on application requirements.
-        # raise
 
 
 class LLMAccounting:
@@ -85,9 +33,6 @@ class LLMAccounting:
         user_name: Optional[str] = None,
     ):
         """Initialize with an optional backend. If none provided, uses SQLiteBackend."""
-        
-        # Run database migrations before backend initialization
-        run_migrations()
         
         self.backend = backend or SQLiteBackend()
         self.quota_service = QuotaService(self.backend)

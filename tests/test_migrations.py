@@ -2,6 +2,7 @@ import os
 import pathlib
 import pytest
 import logging
+from datetime import datetime # Added for PostgreSQL test fixture
 from sqlalchemy import create_engine, inspect, text, Column, Integer, String, DateTime, Float # Added more types for dummy data
 from alembic.config import Config as AlembicConfig
 from alembic import command as alembic_command
@@ -13,7 +14,7 @@ from src.llm_accounting.models.audit import AuditLogEntryModel
 from src.llm_accounting.models.limits import UsageLimit
 
 # Function to be tested
-from src.llm_accounting import run_migrations
+from src.llm_accounting.db_migrations import run_migrations
 
 # Configure logging for tests (optional, but can be helpful)
 logging.basicConfig(level=logging.INFO)

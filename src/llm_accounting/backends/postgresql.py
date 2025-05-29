@@ -9,15 +9,16 @@ from datetime import datetime
 from sqlalchemy import create_engine, text, inspect
 from llm_accounting.models.base import Base
 
-from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry # Added AuditLogEntry
+from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry
 from ..models.limits import UsageLimitDTO, LimitScope, LimitType
+from ..db_migrations import run_migrations # Import run_migrations
 
 from .postgresql_backend_parts.connection_manager import ConnectionManager
 from .postgresql_backend_parts.schema_manager import SchemaManager
 from .postgresql_backend_parts.data_inserter import DataInserter
 from .postgresql_backend_parts.data_deleter import DataDeleter
 from .postgresql_backend_parts.query_executor import QueryExecutor
-from .postgresql_backend_parts.limit_manager import LimitManager  # Import LimitManager
+from .postgresql_backend_parts.limit_manager import LimitManager
 
 logger = logging.getLogger(__name__)
 
@@ -43,16 +44,15 @@ class PostgreSQLBackend(BaseBackend):
                 "PostgreSQL connection string not provided and POSTGRESQL_CONNECTION_STRING "
                 "environment variable is not set."
             )
-        self.conn = None # This will be the psycopg2 connection
-        self.engine = None # This will be the SQLAlchemy engine
+        self.conn = None
+        self.engine = None
         logger.info("PostgreSQLBackend initialized with connection string.")
 
         self.connection_manager = ConnectionManager(self)
-        self.schema_manager = SchemaManager(self) # SchemaManager no longer does DDL
+        self.schema_manager = SchemaManager(self)
         self.data_inserter = DataInserter(self)
         self.data_deleter = DataDeleter(self)
         self.query_executor = QueryExecutor(self)
-        # Instantiate LimitManager, passing the backend instance and data_inserter instance
         self.limit_manager = LimitManager(self, self.data_inserter)
 
     def initialize(self) -> None:
@@ -61,13 +61,14 @@ class PostgreSQLBackend(BaseBackend):
         and ensures the schema is created via SQLAlchemy models if tables are missing.
         The psycopg2 connection is also initialized for existing components.
         """
-        # Initialize psycopg2 connection via ConnectionManager (Option A)
+        # Run database migrations first
+        run_migrations()
+        
         self.connection_manager.initialize() 
         logger.info("psycopg2 connection initialized by ConnectionManager.")
 
-        # Create SQLAlchemy engine if it doesn't exist
         if not self.engine:
-            if not self.connection_string: # Should have been caught in __init__ but double check
+            if not self.connection_string:
                 raise ValueError("Cannot initialize SQLAlchemy engine: Connection string is missing.")
             try:
                 self.engine = create_engine(self.connection_string, future=True)
@@ -76,38 +77,28 @@ class PostgreSQLBackend(BaseBackend):
                 logger.error(f"Failed to create SQLAlchemy engine: {e}")
                 raise
 
-        # Inspect existing tables and create schema if necessary
         if self.engine:
             try:
                 inspector = inspect(self.engine)
                 existing_tables = inspector.get_table_names()
                 
-                # Get table names from SQLAlchemy metadata
                 tables_to_create = []
                 for table_obj in Base.metadata.sorted_tables:
-                    # PostgreSQL stores table names in lowercase by default unless quoted.
-                    # SQLAlchemy model names are typically CamelCase for classes, but table names are snake_case.
-                    # The actual table name is taken from __tablename__.
                     if table_obj.name not in existing_tables:
                          tables_to_create.append(table_obj.name)
 
                 if tables_to_create:
                     logger.info(f"New tables to create based on SQLAlchemy models: {tables_to_create}. Creating schema...")
-                    Base.metadata.create_all(self.engine) # Creates only missing tables
+                    Base.metadata.create_all(self.engine)
                     logger.info("Schema creation/update from SQLAlchemy models complete.")
                 else:
                     logger.info("All tables defined in SQLAlchemy models already exist. Schema creation via Base.metadata.create_all skipped (Alembic will handle migrations).")
             except Exception as e:
                 logger.error(f"Error during schema inspection or creation with SQLAlchemy: {e}")
-                # Depending on policy, might want to raise this or handle differently
                 raise
         else:
-            # This case should ideally not be reached if engine creation is successful
             logger.error("SQLAlchemy engine not available. Cannot perform schema check/creation.")
             raise RuntimeError("SQLAlchemy engine could not be initialized.")
-
-        # The call to self.schema_manager._create_schema_if_not_exists() is removed.
-        # self.schema_manager can be used for other checks if needed in the future.
 
     def close(self) -> None:
         """
