@@ -1,3 +1,9 @@
+## 2025-05-29 14:14:00 - docs: Improve README.md clarity and fix custom backend example
+**Commit:** `(will be filled by git)`
+- Fixed: Broken CLI example for `llm-accounting select` in `README.md`.
+- Removed: Duplicated "Database Migrations" section from `README.md`.
+- Fixed: Incorrect method signatures in `MyCustomBackend` example in `README.md` by re-adding `self` parameter.
+
 ## 2025-05-29 12:21:15 - feat: Integrate database migrations (Alembic)
 **Commit:** `(merged from feat/database-migrations)`
 - Added: `alembic.ini`
