@@ -1,3 +1,8 @@
+## 2025-05-29 11:10:35 - refactor: Prevent CLI from running as privileged user
+**Commit:** `(will be filled by git)`
+- Modified: `pyproject.toml`
+- Modified: `src/llm_accounting/cli/main.py`
+
 # Changelog
 
 ## 2025-05-28 15:09:03 - Bump project version
@@ -450,6 +455,7 @@
 - Modified: `src/llm_accounting/backends/mock_backend.py`
 - Modified: `src/llm_accounting/backends/sqlite.py`
 - Modified: `src/llm_accounting/backends/sqlite_queries.py`
+- Modified: `src/llm_accounting/backends/sqlite_utils.py`
 - Modified: `src/llm_accounting/cli/commands/purge.py`
 - Modified: `src/llm_accounting/cli/commands/select.py`
 - Modified: `src/llm_accounting/cli/commands/stats.py`
