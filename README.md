@@ -703,6 +703,10 @@ By following this pattern, you can extend `llm-accounting` to work seamlessly wi
 
 ## Projects Utilizing LLM Accounting
 
+- **LLM Wrapper MCP Server** (`llm-wrapper-mcp-server`)
+  - GitHub: [https://github.com/matdev83/llm-wrapper-mcp-server](https://github.com/matdev83/llm-wrapper-mcp-server)
+  - Description: A Model Context Protocol (MCP) server wrapper designed to facilitate seamless interaction with various Large Language Models (LLMs) through a standardized interface. This project enables developers to integrate LLM capabilities into their applications by providing a robust and flexible server that handles LLM calls, tool execution, and result processing.
+
 We will be adding examples of projects that utilize `llm-accounting` in the nearest future to demonstrate reference usage.
 
 ## Contributing
