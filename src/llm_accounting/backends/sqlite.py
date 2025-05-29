@@ -1,15 +1,19 @@
 import logging
-import sqlite3
+import sqlite3 # Keep for type hints if sqlite_queries still use it, but primary connection is SQLAlchemy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
-from ..models.limits import LimitScope, LimitType, UsageLimitDTO
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session # Added for ORM-based insert
+from llm_accounting.models.base import Base
+from ..models.limits import LimitScope, LimitType, UsageLimitDTO, UsageLimit # Added UsageLimit model
 from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry
 from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
                              get_period_stats_query, insert_usage_query,
                              tail_query)
-from .sqlite_utils import initialize_db_schema, validate_db_filename
+# initialize_db_schema is removed as per previous step
+from .sqlite_utils import validate_db_filename
 
 logger = logging.getLogger(__name__)
 
@@ -36,28 +40,64 @@ class SQLiteBackend(BaseBackend):
         actual_db_path = db_path if db_path is not None else DEFAULT_DB_PATH
         validate_db_filename(actual_db_path)
         self.db_path = actual_db_path
-        if not self.db_path.startswith("file:"):
+        if not self.db_path.startswith("file:") and self.db_path != ":memory:":
             Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        self.conn: Optional[sqlite3.Connection] = None
+        self.engine = None
+        self.conn = None # SQLAlchemy connection
 
     def initialize(self) -> None:
-        """Initialize the SQLite database"""
-        if str(self.db_path).startswith("file:"):
-            self.conn = sqlite3.connect(self.db_path, uri=True)
+        logger.info(f"Initializing SQLite backend for db: {self.db_path}")
+        is_new_db = True
+        db_connection_str = ""
+        if self.db_path == ":memory:":
+            logger.info("Using in-memory SQLite database.")
+            db_connection_str = "sqlite:///:memory:"
+        elif str(self.db_path).startswith("file:"):
+            db_connection_str = f"sqlite:///{self.db_path}" # SQLAlchemy uses sqlite:/// for file URIs
+            path_part = self.db_path.split('?')[0]
+            if path_part.startswith("file:"):
+                path_part = path_part[len("file:"):]
+                # Remove extra slashes if present for local file paths
+                if path_part.startswith('///'):
+                    path_part = path_part[2:] 
+                elif path_part.startswith('/'):
+                     path_part = path_part[0:] # Keep one slash for absolute path
+            # Ensure path_part is treated as a path for exists check
+            if Path(path_part).exists() and Path(path_part).stat().st_size > 0:
+                is_new_db = False
+        else: # Standard file path
+            db_path_obj = Path(self.db_path)
+            if db_path_obj.exists() and db_path_obj.stat().st_size > 0:
+                is_new_db = False
+            db_connection_str = f"sqlite:///{self.db_path}"
+
+        if self.engine is None:
+            logger.info(f"Creating SQLAlchemy engine for {db_connection_str}")
+            self.engine = create_engine(db_connection_str, future=True)
+        
+        if self.conn is None or self.conn.closed: # Ensure conn is open
+            self.conn = self.engine.connect()
+
+        if is_new_db:
+            logger.info(f"Database {self.db_path} appears new. Creating schema.")
+            Base.metadata.create_all(self.engine)
+            logger.info("Schema creation complete.")
         else:
-            self.conn = sqlite3.connect(self.db_path)
-        initialize_db_schema(self.conn)
+            logger.info(f"Database {self.db_path} exists. Skipping schema creation.")
 
     def insert_usage(self, entry: UsageEntry) -> None:
         """Insert a new usage entry into the database"""
         self._ensure_connected()
         assert self.conn is not None
+        # Assuming insert_usage_query is adapted for SQLAlchemy connection and does not commit
         insert_usage_query(self.conn, entry)
+        self.conn.commit()
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """Get aggregated statistics for a time period"""
         self._ensure_connected()
         assert self.conn is not None
+        # Assuming get_period_stats_query is adapted for SQLAlchemy connection
         return get_period_stats_query(self.conn, start, end)
 
     def get_model_stats(
@@ -66,6 +106,7 @@ class SQLiteBackend(BaseBackend):
         """Get statistics grouped by model for a time period"""
         self._ensure_connected()
         assert self.conn is not None
+        # Assuming get_model_stats_query is adapted for SQLAlchemy connection
         return get_model_stats_query(self.conn, start, end)
 
     def get_model_rankings(
@@ -74,65 +115,65 @@ class SQLiteBackend(BaseBackend):
         """Get model rankings based on different metrics"""
         self._ensure_connected()
         assert self.conn is not None
+        # Assuming get_model_rankings_query is adapted for SQLAlchemy connection
         return get_model_rankings_query(self.conn, start, end)
 
     def purge(self) -> None:
         """Delete all usage entries from the database"""
         self._ensure_connected()
         assert self.conn is not None
-        self.conn.execute("DELETE FROM accounting_entries")
-        self.conn.execute("DELETE FROM usage_limits")
+        # Using text() for raw SQL with SQLAlchemy connection
+        self.conn.execute(text("DELETE FROM accounting_entries"))
+        self.conn.execute(text("DELETE FROM usage_limits"))
+        self.conn.execute(text("DELETE FROM audit_log_entries")) # Added audit log table
         self.conn.commit()
 
     def insert_usage_limit(self, limit: UsageLimitDTO) -> None:
         """Insert a new usage limit entry into the database."""
         self._ensure_connected()
-        assert self.conn is not None
+        assert self.engine is not None # ORM operations typically use the engine/session
 
-        columns = ["scope", "limit_type", "max_value", "interval_unit", "interval_value", "model", "username", "caller_name", "project_name"]
-        params = [
-            limit.scope,
-            limit.limit_type,
-            limit.max_value,
-            limit.interval_unit,
-            limit.interval_value,
-            limit.model,
-            limit.username,
-            limit.caller_name,
-            limit.project_name,
-        ]
+        db_limit = UsageLimit(
+            scope=limit.scope,
+            limit_type=limit.limit_type,
+            max_value=limit.max_value,
+            interval_unit=limit.interval_unit,
+            interval_value=limit.interval_value,
+            model=limit.model,
+            username=limit.username,
+            caller_name=limit.caller_name,
+            project_name=limit.project_name
+            # id, created_at, and updated_at are intentionally omitted
+            # so that SQLAlchemy and the database can use their defaults.
+        )
+        
+        # If the DTO might carry specific created_at/updated_at values that should be honored when present:
+        if limit.created_at:
+            db_limit.created_at = limit.created_at
+        if limit.updated_at:
+            db_limit.updated_at = limit.updated_at
 
-        if limit.created_at is not None:
-            columns.append("created_at")
-            params.append(limit.created_at.isoformat())
-
-        if limit.updated_at is not None:
-            columns.append("updated_at")
-            params.append(limit.updated_at.isoformat())
-
-        column_names = ", ".join(columns)
-        placeholders = ", ".join(["?"] * len(params))
-        query = f"INSERT INTO usage_limits ({column_names}) VALUES ({placeholders})"
-
-        self.conn.execute(query, tuple(params))
-        self.conn.commit()
+        with Session(self.engine) as session:
+            session.add(db_limit)
+            session.commit()
 
     def tail(self, n: int = 10) -> List[UsageEntry]:
         """Get the n most recent usage entries"""
         self._ensure_connected()
         assert self.conn is not None
+        # Assuming tail_query is adapted for SQLAlchemy connection
         return tail_query(self.conn, n)
 
     def close(self) -> None:
-        """Close the database connection"""
-        if self.conn:
-            logger.info(f"Attempting to close sqlite connection for {self.db_path}")
+        """Close the SQLAlchemy database connection"""
+        if self.conn and not self.conn.closed:
+            logger.info(f"Closing SQLAlchemy connection for {self.db_path}")
             self.conn.close()
-            logger.info(f"sqlite connection closed for {self.db_path}")
-            self.conn = None
-            logger.info(f"self.conn set to None for {self.db_path}")
-        else:
-            logger.info(f"No sqlite connection to close for {self.db_path}")
+        # Optional: Dispose engine if backend itself is being destroyed
+        # if self.engine:
+        #     logger.info(f"Disposing SQLAlchemy engine for {self.db_path}")
+        #     self.engine.dispose()
+        #     self.engine = None
 
     def execute_query(self, query: str) -> List[Dict]:
         """
@@ -145,16 +186,12 @@ class SQLiteBackend(BaseBackend):
             raise ValueError("Only SELECT queries are allowed.")
 
         self._ensure_connected()
-
         assert self.conn is not None
         try:
-            original_row_factory = self.conn.row_factory
-            self.conn.row_factory = sqlite3.Row
-            cursor = self.conn.execute(query)
-            results = [dict(row) for row in cursor.fetchall()]
-            self.conn.row_factory = original_row_factory
+            result = self.conn.execute(text(query))
+            results = [dict(row._mapping) for row in result.fetchall()]
             return results
-        except sqlite3.Error as e:
+        except Exception as e: # Catch SQLAlchemy errors
             raise RuntimeError(f"Database error: {e}") from e
 
     def get_usage_limits(
@@ -170,60 +207,65 @@ class SQLiteBackend(BaseBackend):
     ) -> List[UsageLimitDTO]:
         self._ensure_connected()
         assert self.conn is not None
-        query = "SELECT id, scope, limit_type, model, username, caller_name, project_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits WHERE 1=1"
-        params = []
+        # Using text() for raw SQL with SQLAlchemy connection
+        # Parameters will be bound automatically by SQLAlchemy
+        query_base = "SELECT id, scope, limit_type, model, username, caller_name, project_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits WHERE 1=1"
+        conditions = []
+        params_dict: Dict[str, Any] = {}
 
         if scope:
-            query += " AND scope = ?"
-            params.append(scope.value)
+            conditions.append("scope = :scope")
+            params_dict["scope"] = scope.value
         if model:
-            query += " AND model = ?"
-            params.append(model)
+            conditions.append("model = :model")
+            params_dict["model"] = model
         
-        # Handle username filtering
         if username is not None:
-            query += " AND username = ?"
-            params.append(username)
+            conditions.append("username = :username")
+            params_dict["username"] = username
         elif filter_username_null is True:
-            query += " AND username IS NULL"
+            conditions.append("username IS NULL")
         elif filter_username_null is False:
-            query += " AND username IS NOT NULL"
+            conditions.append("username IS NOT NULL")
 
-        # Handle caller_name filtering
         if caller_name is not None:
-            query += " AND caller_name = ?"
-            params.append(caller_name)
+            conditions.append("caller_name = :caller_name")
+            params_dict["caller_name"] = caller_name
         elif filter_caller_name_null is True:
-            query += " AND caller_name IS NULL"
+            conditions.append("caller_name IS NULL")
         elif filter_caller_name_null is False:
-            query += " AND caller_name IS NOT NULL"
+            conditions.append("caller_name IS NOT NULL")
 
         if project_name is not None:
-            query += " AND project_name = ?"
-            params.append(project_name)
+            conditions.append("project_name = :project_name")
+            params_dict["project_name"] = project_name
         elif filter_project_null is True:
-            query += " AND project_name IS NULL"
+            conditions.append("project_name IS NULL")
         elif filter_project_null is False:
-            query += " AND project_name IS NOT NULL"
+            conditions.append("project_name IS NOT NULL")
 
-
-        cursor = self.conn.execute(query, params)
+        if conditions:
+            query_base += " AND " + " AND ".join(conditions)
+        
+        result = self.conn.execute(text(query_base), params_dict)
         limits = []
-        for row in cursor.fetchall():
+        for row in result.fetchall():
+            # Access by column name using row._mapping for SQLAlchemy Core
+            row_map = row._mapping
             limits.append(
                 UsageLimitDTO(
-                    id=row[0],
-                    scope=row[1],
-                    limit_type=row[2],
-                    model=str(row[3]) if row[3] is not None else None,
-                    username=str(row[4]) if row[4] is not None else None,
-                    caller_name=str(row[5]) if row[5] is not None else None,
-                    project_name=str(row[6]) if row[6] is not None else None,
-                    max_value=row[7],
-                    interval_unit=row[8],
-                    interval_value=row[9],
-                    created_at=(datetime.fromisoformat(row[10]).replace(tzinfo=timezone.utc) if row[10] else None),
-                    updated_at=(datetime.fromisoformat(row[11]).replace(tzinfo=timezone.utc) if row[11] else None),
+                    id=row_map["id"],
+                    scope=row_map["scope"],
+                    limit_type=row_map["limit_type"],
+                    model=str(row_map["model"]) if row_map["model"] is not None else None,
+                    username=str(row_map["username"]) if row_map["username"] is not None else None,
+                    caller_name=str(row_map["caller_name"]) if row_map["caller_name"] is not None else None,
+                    project_name=str(row_map["project_name"]) if row_map["project_name"] is not None else None,
+                    max_value=row_map["max_value"],
+                    interval_unit=row_map["interval_unit"],
+                    interval_value=row_map["interval_value"],
+                    created_at=(datetime.fromisoformat(row_map["created_at"]).replace(tzinfo=timezone.utc) if row_map["created_at"] else None),
+                    updated_at=(datetime.fromisoformat(row_map["updated_at"]).replace(tzinfo=timezone.utc) if row_map["updated_at"] else None),
                 )
             )
         return limits
@@ -252,53 +294,59 @@ class SQLiteBackend(BaseBackend):
         else:
             raise ValueError(f"Unknown limit type: {limit_type}")
 
-        query = f"SELECT {select_clause} FROM accounting_entries WHERE timestamp >= ?"
-        params: List[Any] = [start_time.isoformat()]
+        # Using text() for raw SQL with SQLAlchemy connection
+        # Parameters will be bound automatically by SQLAlchemy
+        query_base = f"SELECT {select_clause} FROM accounting_entries WHERE timestamp >= :start_time"
+        params_dict: Dict[str, Any] = {"start_time": start_time.isoformat()}
+        conditions = []
 
         if model:
-            query += " AND model = ?"
-            params.append(model)
+            conditions.append("model = :model")
+            params_dict["model"] = model
         if username:
-            query += " AND username = ?"
-            params.append(username)
+            conditions.append("username = :username")
+            params_dict["username"] = username
         if caller_name:
-            query += " AND caller_name = ?"
-            params.append(caller_name)
+            conditions.append("caller_name = :caller_name")
+            params_dict["caller_name"] = caller_name
         
         if project_name is not None:
-            query += " AND project = ?"
-            params.append(project_name)
-        if filter_project_null is True:
-            query += " AND project IS NULL"
-        if filter_project_null is False:
-            query += " AND project IS NOT NULL"
+            conditions.append("project = :project_name") # Assuming 'project' is the column name in accounting_entries
+            params_dict["project_name"] = project_name
+        elif filter_project_null is True: # Corrected from if to elif
+            conditions.append("project IS NULL")
+        elif filter_project_null is False:
+            conditions.append("project IS NOT NULL")
 
-        cursor = self.conn.execute(query, params)
-        result = cursor.fetchone()
-        return float(result[0]) if result and result[0] is not None else 0.0
+        if conditions:
+            query_base += " AND " + " AND ".join(conditions)
+        
+        result = self.conn.execute(text(query_base), params_dict)
+        scalar_result = result.scalar_one_or_none()
+        return float(scalar_result) if scalar_result is not None else 0.0
 
     def delete_usage_limit(self, limit_id: int) -> None:
         """Delete a usage limit entry by its ID."""
         self._ensure_connected()
         assert self.conn is not None
-        self.conn.execute("DELETE FROM usage_limits WHERE id = ?", (limit_id,))
+        self.conn.execute(text("DELETE FROM usage_limits WHERE id = :limit_id"), {"limit_id": limit_id})
         self.conn.commit()
 
     def _ensure_connected(self) -> None:
-        """
-        Ensures the SQLite backend has an active connection.
-        Initializes the connection if it's None.
-        """
-        if self.conn is None:
+        if self.engine is None: # Engine not created implies full init needed
             self.initialize()
+        elif self.conn is None or self.conn.closed: # Engine exists, just (re)connect
+            assert self.engine is not None # Should be true if this branch is hit
+            self.conn = self.engine.connect()
+        # If self.initialize() was called, it already establishes self.conn
 
     def initialize_audit_log_schema(self) -> None:
         """Ensure the audit log schema (e.g., tables) is initialized."""
-        # The main initialize() method already creates all schemas including audit_log_entries
-        # via initialize_db_schema.
-        self._ensure_connected()
-        # Optionally, explicitly call initialize_db_schema if it's idempotent and needed for clarity
-        # initialize_db_schema(self.conn)
+        # This method is now largely a no-op or can be removed if initialize() handles all schema.
+        # SQLAlchemy's Base.metadata.create_all(self.engine) in initialize() handles all tables.
+        self._ensure_connected() 
+        logger.info("Audit log schema is initialized as part of the main database initialization.")
+
 
     def log_audit_event(self, entry: AuditLogEntry) -> None:
         """Insert a new audit log entry."""
@@ -309,23 +357,23 @@ class SQLiteBackend(BaseBackend):
             INSERT INTO audit_log_entries (
                 timestamp, app_name, user_name, model, prompt_text,
                 response_text, remote_completion_id, project, log_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (:timestamp, :app_name, :user_name, :model, :prompt_text, :response_text, :remote_completion_id, :project, :log_type)
         """
-        params = (
-            entry.timestamp.isoformat(),
-            entry.app_name,
-            entry.user_name,
-            entry.model,
-            entry.prompt_text,
-            entry.response_text,
-            entry.remote_completion_id,
-            entry.project,
-            entry.log_type,
-        )
+        params = {
+            "timestamp": entry.timestamp.isoformat(),
+            "app_name": entry.app_name,
+            "user_name": entry.user_name,
+            "model": entry.model,
+            "prompt_text": entry.prompt_text,
+            "response_text": entry.response_text,
+            "remote_completion_id": entry.remote_completion_id,
+            "project": entry.project,
+            "log_type": entry.log_type,
+        }
         try:
-            self.conn.execute(query, params)
+            self.conn.execute(text(query), params)
             self.conn.commit()
-        except sqlite3.Error as e:
+        except Exception as e: # Catch SQLAlchemy errors
             logger.error(f"Failed to log audit event: {e}")
             # Depending on policy, might re-raise or handle
             raise
@@ -345,73 +393,69 @@ class SQLiteBackend(BaseBackend):
         self._ensure_connected()
         assert self.conn is not None
 
-        original_row_factory = self.conn.row_factory
-        self.conn.row_factory = sqlite3.Row
-
-        query_parts = ["SELECT id, timestamp, app_name, user_name, model, prompt_text, response_text, remote_completion_id, project, log_type FROM audit_log_entries"]
+        # Using text() for raw SQL with SQLAlchemy connection
+        # Parameters will be bound automatically by SQLAlchemy
+        query_base = "SELECT id, timestamp, app_name, user_name, model, prompt_text, response_text, remote_completion_id, project, log_type FROM audit_log_entries"
         conditions = []
-        params: List[Any] = []
+        params_dict: Dict[str, Any] = {}
 
         if start_date:
-            conditions.append("timestamp >= ?")
-            params.append(start_date.isoformat())
+            conditions.append("timestamp >= :start_date")
+            params_dict["start_date"] = start_date.isoformat()
         if end_date:
-            conditions.append("timestamp <= ?")
-            params.append(end_date.isoformat())
+            conditions.append("timestamp <= :end_date")
+            params_dict["end_date"] = end_date.isoformat()
         if app_name:
-            conditions.append("app_name = ?")
-            params.append(app_name)
+            conditions.append("app_name = :app_name")
+            params_dict["app_name"] = app_name
         if user_name:
-            conditions.append("user_name = ?")
-            params.append(user_name)
+            conditions.append("user_name = :user_name")
+            params_dict["user_name"] = user_name
         
-        # Handle project filtering
         if project is not None:
-            conditions.append("project = ?")
-            params.append(project)
+            conditions.append("project = :project")
+            params_dict["project"] = project
         elif filter_project_null is True:
             conditions.append("project IS NULL")
         elif filter_project_null is False:
             conditions.append("project IS NOT NULL")
 
         if log_type:
-            conditions.append("log_type = ?")
-            params.append(log_type)
+            conditions.append("log_type = :log_type")
+            params_dict["log_type"] = log_type
 
         if conditions:
-            query_parts.append("WHERE " + " AND ".join(conditions))
+            query_base += " WHERE " + " AND ".join(conditions)
 
-        query_parts.append("ORDER BY timestamp DESC")
+        query_base += " ORDER BY timestamp DESC"
 
         if limit is not None:
-            query_parts.append("LIMIT ?")
-            params.append(limit)
-
-        final_query = " ".join(query_parts)
+            query_base += " LIMIT :limit"
+            params_dict["limit"] = limit
         
         results = []
         try:
-            cursor = self.conn.execute(final_query, params)
-            for row in cursor.fetchall():
+            result_proxy = self.conn.execute(text(query_base), params_dict)
+            for row in result_proxy.fetchall():
+                # Access by column name using row._mapping for SQLAlchemy Core
+                row_map = row._mapping
                 results.append(
                     AuditLogEntry(
-                        id=row["id"],
-                        timestamp=datetime.fromisoformat(row["timestamp"]).replace(tzinfo=timezone.utc),
-                        app_name=row["app_name"],
-                        user_name=row["user_name"],
-                        model=row["model"],
-                        prompt_text=row["prompt_text"],
-                        response_text=row["response_text"],
-                        remote_completion_id=row["remote_completion_id"],
-                        project=row["project"],
-                        log_type=row["log_type"],
+                        id=row_map["id"],
+                        timestamp=datetime.fromisoformat(row_map["timestamp"]).replace(tzinfo=timezone.utc),
+                        app_name=row_map["app_name"],
+                        user_name=row_map["user_name"],
+                        model=row_map["model"],
+                        prompt_text=row_map["prompt_text"],
+                        response_text=row_map["response_text"],
+                        remote_completion_id=row_map["remote_completion_id"],
+                        project=row_map["project"],
+                        log_type=row_map["log_type"],
                     )
                 )
-        except sqlite3.Error as e:
+        except Exception as e: # Catch SQLAlchemy errors
             logger.error(f"Failed to get audit log entries: {e}")
             # Depending on policy, might re-raise or handle
             raise
-        finally:
-            self.conn.row_factory = original_row_factory
             
         return results
