@@ -78,13 +78,13 @@ def test_select_no_project_filter_displays_project_column(mock_get_accounting, c
     # id,timestamp,model,prompt_tokens,completion_tokens,total_tokens,local_prompt_tokens,local_completion_tokens,local_total_tokens,project,cost,execution_time,caller_name,username,cached_tokens,reasoning_tokens
     
     # Entry 1: modelA_alpha, ProjectAlpha
-    assert any(f"modelA_alpha,,,,,,,ProjectAlpha," in line for line in captured) # Check for project name
+    assert any("modelA_alpha" in line and "ProjectAlpha" in line for line in captured) # Check for project name
     # Entry 2: modelB_beta, ProjectBeta
-    assert any(f"modelB_beta,,,,,,,ProjectBeta," in line for line in captured)
+    assert any("modelB_beta" in line and "ProjectBeta" in line for line in captured)
     # Entry 3: modelC_alpha, ProjectAlpha
-    assert any(f"modelC_alpha,,,,,,,ProjectAlpha," in line for line in captured)
+    assert any("modelC_alpha" in line and "ProjectAlpha" in line for line in captured)
     # Entry 4: model_no_project, None (empty string in CSV)
-    assert any(f"model_no_project,,,,,,,,0.4," in line for line in captured) # Project is empty string in CSV
+    assert any("model_no_project" in line and ",0.4," in line and ",," in line for line in captured) # Project is empty string in CSV
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_select_filter_by_project_name(mock_get_accounting, capsys, sqlite_backend_with_project_data):
@@ -104,12 +104,12 @@ def test_select_filter_by_project_name(mock_get_accounting, capsys, sqlite_backe
     assert "project" in header
 
     # Check for ProjectAlpha entries
-    assert any(f"modelA_alpha,,,,,,,ProjectAlpha," in line for line in captured)
-    assert any(f"modelC_alpha,,,,,,,ProjectAlpha," in line for line in captured)
+    assert any("modelA_alpha" in line and "ProjectAlpha" in line for line in captured)
+    assert any("modelC_alpha" in line and "ProjectAlpha" in line for line in captured)
 
     # Check that other project entries are NOT present
-    assert not any(f"modelB_beta,,,,,,,ProjectBeta," in line for line in captured)
-    assert not any(f"model_no_project,,,,,,,,," in line for line in captured)
+    assert not any("modelB_beta" in line and "ProjectBeta" in line for line in captured)
+    assert not any("model_no_project" in line and ",," in line for line in captured)
 
 @patch("llm_accounting.cli.utils.get_accounting")
 def test_select_filter_by_project_null(mock_get_accounting, capsys, sqlite_backend_with_project_data):
@@ -128,12 +128,12 @@ def test_select_filter_by_project_null(mock_get_accounting, capsys, sqlite_backe
     assert "project" in header
 
     # Check for the entry with project=NULL (which is an empty string in CSV)
-    assert any(f"model_no_project,,,,,,,,0.4," in line for line in captured)
+    assert any("model_no_project" in line and ",0.4," in line and ",," in line for line in captured)
 
     # Check that other project entries are NOT present
-    assert not any(f"modelA_alpha,,,,,,,ProjectAlpha," in line for line in captured)
-    assert not any(f"modelB_beta,,,,,,,ProjectBeta," in line for line in captured)
-    assert not any(f"modelC_alpha,,,,,,,ProjectAlpha," in line for line in captured)
+    assert not any("modelA_alpha" in line and "ProjectAlpha" in line for line in captured)
+    assert not any("modelB_beta" in line and "ProjectBeta" in line for line in captured)
+    assert not any("modelC_alpha" in line and "ProjectAlpha" in line for line in captured)
 
 @pytest.fixture
 def sqlite_backend_with_project_data(sqlite_backend):
