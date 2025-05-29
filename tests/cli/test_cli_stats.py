@@ -112,7 +112,15 @@ def test_custom_db_file_usage(mock_get_accounting, capsys):
     assert "Daily Stats" in captured.out
     assert "123" in captured.out
     assert "$1.2300" in captured.out
-    mock_get_accounting.assert_called_once_with(db_backend="sqlite", db_file="custom_test_db.sqlite", postgresql_connection_string=None, project_name=None, app_name=None, user_name=None)
+    mock_get_accounting.assert_called_once_with(
+        db_backend="sqlite", 
+        db_file="custom_test_db.sqlite", 
+        postgresql_connection_string=None, 
+        csv_data_dir='data/',  # Added this line
+        project_name=None, 
+        app_name=None, 
+        user_name=None
+    )
     mock_accounting_instance.__exit__.assert_called_once()
 
 
@@ -134,7 +142,15 @@ def test_default_db_file_usage(mock_get_accounting, capsys):
     assert "Daily Stats" in captured.out
     assert "123" in captured.out
     assert "$1.2300" in captured.out
-    mock_get_accounting.assert_called_once_with(db_backend="sqlite", db_file=None, postgresql_connection_string=None, project_name=None, app_name=None, user_name=None)
+    mock_get_accounting.assert_called_once_with(
+        db_backend="sqlite", 
+        db_file=None, 
+        postgresql_connection_string=None, 
+        csv_data_dir='data/',  # Added this line
+        project_name=None, 
+        app_name=None, 
+        user_name=None
+    )
     mock_accounting_instance.__exit__.assert_called_once()
 
 

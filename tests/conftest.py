@@ -12,7 +12,7 @@ from llm_accounting import LLMAccounting, UsageEntry, UsageStats
 from llm_accounting.backends.sqlite import SQLiteBackend
 from tests.backends.mock_backends import MockBackend
 
-# sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 # This line is commented out as it might conflict with tox's path management or standard Python packaging.
 
 # Attempt to fix "Table already defined" error by clearing metadata once per session
