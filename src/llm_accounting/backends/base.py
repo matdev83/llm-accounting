@@ -35,9 +35,9 @@ class AuditLogEntry:
 class UsageEntry:
     """Represents a single LLM usage entry"""
 
-    model: Optional[
-        str
-    ]  # Type matches validation logic but remains required at runtime
+    model: str  # Changed to non-optional, __post_init__ handles validation
+    # id will be added by CSVBackend, other backends handle it via DB
+    id: Optional[int] = None 
     prompt_tokens: Optional[int] = None
     completion_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
@@ -51,14 +51,27 @@ class UsageEntry:
     username: Optional[str] = None
     project: Optional[str] = None
     # Additional token details
-    cached_tokens: int = 0
-    reasoning_tokens: int = 0
+    cached_tokens: Optional[int] = 0 # Keep Optional for flexibility if not always provided
+    reasoning_tokens: Optional[int] = 0 # Keep Optional
 
     def __post_init__(self):
-        if not self.model or self.model.strip() == "":
+        if not hasattr(self, 'model') or not self.model or self.model.strip() == "":
             raise ValueError("Model name must be a non-empty string")
-        if self.timestamp is None:
+        if not hasattr(self, 'timestamp') or self.timestamp is None: # Ensure timestamp exists
             self.timestamp = datetime.now()
+        # Ensure numeric fields that default to None but are summed are 0 if None for safety,
+        # though CSVBackend already handles None to 0 conversion.
+        # This is more for direct DTO usage if that occurs.
+        if self.prompt_tokens is None: self.prompt_tokens = 0
+        if self.completion_tokens is None: self.completion_tokens = 0
+        if self.total_tokens is None: self.total_tokens = 0
+        if self.local_prompt_tokens is None: self.local_prompt_tokens = 0
+        if self.local_completion_tokens is None: self.local_completion_tokens = 0
+        if self.local_total_tokens is None: self.local_total_tokens = 0
+        if self.cached_tokens is None: self.cached_tokens = 0
+        if self.reasoning_tokens is None: self.reasoning_tokens = 0
+        if self.cost is None: self.cost = 0.0
+        if self.execution_time is None: self.execution_time = 0.0
 
 
 @dataclass

@@ -125,6 +125,8 @@ This sub-package defines the various database backends supported by the system.
         -   **Purpose**: Provides a concrete implementation of `BaseBackend` for SQLite databases. It manages connections, schema creation, and all data operations for SQLite.
         -   **Dependencies**: Inherits from `BaseBackend`. Relies on Python's built-in `sqlite3` module.
         -   **Key Methods**: Implements all abstract methods from `BaseBackend`. `initialize()` now uses SQLAlchemy's `create_engine` and `Base.metadata.create_all` for schema setup, and `close()` manages the SQLAlchemy connection. Data operations leverage SQLAlchemy connections and ORM models.
+-   `csv_backend.py`: Implements the CSV backend, storing accounting data in CSV files.
+    -   **`CSVBackend` class**: Provides a concrete implementation of `BaseBackend` using CSV files for data storage. Manages CSV file creation, reading, and writing for accounting entries, usage limits, and audit logs.
 
 ##### `src/llm_accounting/backends/mock_backend_parts/`
 
@@ -365,6 +367,7 @@ Tests for the various backend implementations.
 -   `test_base.py`: Tests for the base backend interfaces.
 -   `test_postgresql.py`: Tests for the PostgreSQL backend.
 -   `test_sqlite.py`: Tests for the SQLite backend.
+-   `test_csv_backend.py`: Contains unit tests for the `CSVBackend`.
 -   `test_usage_models.py`: Tests for usage-related data models.
 
 #### `tests/backends/postgresql_backend_tests/`

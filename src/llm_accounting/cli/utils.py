@@ -7,6 +7,7 @@ from llm_accounting import LLMAccounting
 
 from ..backends.sqlite import SQLiteBackend
 from ..backends.postgresql import PostgreSQLBackend
+from ..backends.csv_backend import CSVBackend
 
 console = Console()
 
@@ -30,6 +31,7 @@ def get_accounting(
     db_backend: str,
     db_file: Optional[str] = None,
     postgresql_connection_string: Optional[str] = None,
+    csv_data_dir: Optional[str] = None, # Added new parameter
     project_name: Optional[str] = None,
     app_name: Optional[str] = None,
     user_name: Optional[str] = None,
@@ -45,6 +47,10 @@ def get_accounting(
             console.print("[red]Error: --postgresql-connection-string is required for postgresql backend.[/red]")
             raise SystemExit(1)
         backend = PostgreSQLBackend(postgresql_connection_string=postgresql_connection_string)
+    elif db_backend == "csv":
+        # csv_data_dir will have a default from argparse if not provided by user.
+        # If it somehow becomes None, CSVBackend's own default will apply if we pass None.
+        backend = CSVBackend(csv_data_dir=csv_data_dir)
     else:
         console.print(f"[red]Error: Unknown database backend '{db_backend}'.[/red]")
         raise SystemExit(1)
