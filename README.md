@@ -324,6 +324,34 @@ When you make changes to the SQLAlchemy models that require a schema alteration 
 
 Database migrations are automatically applied when the `LLMAccounting` service starts (specifically, when an `LLMAccounting` instance is created). The application will check for any pending migrations and attempt to upgrade the database to the latest version using Alembic.
 
+## Database Migrations
+
+This project uses [Alembic](https://alembic.sqlalchemy.org/) to manage database schema migrations, integrated with our SQLAlchemy models (defined in `src/llm_accounting/models/`).
+
+When you make changes to the SQLAlchemy models that require a schema alteration (e.g., adding a table, adding a column, changing a column type), you need to generate a new migration script.
+
+### Generating a New Migration
+
+1.  **Ensure your development database is accessible and reflects the schema *before* your new model changes.** Alembic compares your models against the live database (specifically, the state recorded in its `alembic_version` table) to generate the migration. It's usually best to have your database upgraded to the latest revision before generating a new one.
+2.  **Make your changes to the SQLAlchemy models** in the `src/llm_accounting/models/` directory.
+3.  **Run the following command from the project root:**
+
+    ```bash
+    LLM_ACCOUNTING_DB_URL="your_database_connection_string" alembic revision -m "descriptive_migration_name" --autogenerate
+    ```
+
+    *   Replace `"your_database_connection_string"` with the actual connection string for your development database.
+        *   For SQLite (default development): `sqlite:///./data/accounting.sqlite`
+        *   For PostgreSQL: `postgresql://user:pass@host:port/dbname` (use your actual credentials and host)
+    *   Replace `"descriptive_migration_name"` with a short, meaningful description of the changes (e.g., `add_user_email_column`, `create_indexes_for_timestamps`). This becomes part of the migration filename.
+
+4.  **Review the generated migration script** in the `alembic/versions/` directory. Ensure it accurately reflects the intended changes. You might need to adjust it, especially for complex changes not perfectly detected by autogenerate (e.g., specific index types, constraints, or data migrations).
+5.  Commit the new migration script along with your model changes.
+
+### Applying Migrations
+
+Database migrations are automatically applied when the `LLMAccounting` service starts (specifically, when an `LLMAccounting` instance is created). The application will check for any pending migrations and attempt to upgrade the database to the latest version using Alembic.
+
 ## Backend Configuration
 
 ### SQLite (Default)
@@ -680,9 +708,6 @@ We will be adding examples of projects that utilize `llm-accounting` in the near
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Development
-
-For a detailed overview of the project's internal structure, including module organization, key classes, and design patterns, please refer to the [Development Structure document](docs/STRUCTURE.md). This document is essential for contributors and anyone looking to understand or modify the `llm-accounting` package's codebase.
 
 ## License
 

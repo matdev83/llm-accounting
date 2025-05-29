@@ -1,3 +1,26 @@
+## 2025-05-29 12:21:15 - feat: Integrate database migrations (Alembic)
+**Commit:** `(merged from feat/database-migrations)`
+- Added: `alembic.ini`
+- Added: `alembic/README`
+- Added: `alembic/env.py`
+- Added: `alembic/script.py.mako`
+- Added: `alembic/versions/82f27c891782_initial_tables.py`
+- Added: `alembic/versions/ba9718840e75_add_notes_to_accounting_entry.py`
+- Added: `src/llm_accounting/models/accounting.py`
+- Added: `src/llm_accounting/models/audit.py`
+- Added: `tests/test_migrations.py`
+- Modified: `src/llm_accounting/__init__.py` (automatic migration on init)
+- Modified: `src/llm_accounting/backends/postgresql.py` (SQLAlchemy integration)
+- Modified: `src/llm_accounting/backends/postgresql_backend_parts/schema_manager.py` (DDL removed)
+- Modified: `src/llm_accounting/backends/sqlite.py` (SQLAlchemy integration)
+- Modified: `src/llm_accounting/backends/sqlite_queries.py` (SQLAlchemy connection)
+- Modified: `src/llm_accounting/backends/sqlite_utils.py` (DDL removed)
+- Modified: `src/llm_accounting/models/__init__.py` (new models exposed)
+- Modified: `tests/backends/postgresql_backend_tests/base_test_postgresql.py` (updated for new backend)
+- Modified: `tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py` (updated for new backend)
+- Modified: `tests/cli/test_select/select/conftest.py` (in-memory SQLite fix)
+- Modified: `tests/conftest.py` (migration setup)
+
 ## 2025-05-29 11:10:35 - refactor: Prevent CLI from running as privileged user
 **Commit:** `(will be filled by git)`
 - Modified: `pyproject.toml`
