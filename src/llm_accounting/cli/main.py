@@ -5,7 +5,7 @@ import platform
 from importlib.metadata import version as get_version
 
 from .parsers import (add_purge_parser, add_select_parser, add_stats_parser,
-                      add_tail_parser, add_track_parser, add_limits_parser)
+                      add_tail_parser, add_track_parser, add_limits_parser, add_log_event_parser)
 from .utils import console
 
 
@@ -81,6 +81,7 @@ def main():
     add_select_parser(subparsers)
     add_track_parser(subparsers)
     add_limits_parser(subparsers)
+    add_log_event_parser(subparsers) # Added from feat/cli-log-event branch
 
     args = parser.parse_args()
 

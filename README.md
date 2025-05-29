@@ -113,7 +113,38 @@ llm-accounting track \
     --timestamp "2024-01-01T12:00:00" \
     --cached-tokens 20 \
     --reasoning-tokens 10
+```
 
+#### `log-event` Command
+
+Logs a generic event to the audit log. This is useful for recording custom events, feedback, or other notable occurrences related to LLM interactions that might not fit the standard usage tracking.
+
+**Arguments:**
+
+*   `--app-name` (string, required): Name of the application.
+*   `--user-name` (string, required): Name of the user.
+*   `--model` (string, required): Name of the LLM model associated with the event.
+*   `--log-type` (string, required): Type of the log entry (e.g., 'info', 'warning', 'error', 'feedback', or a custom type).
+*   `--prompt-text` (string, optional): Text of the prompt, if relevant.
+*   `--response-text` (string, optional): Text of the response, if relevant.
+*   `--remote-completion-id` (string, optional): ID of the remote completion, if relevant.
+*   `--project` (string, optional): Project name to associate with the event.
+*   `--timestamp` (string, optional): Timestamp of the event (YYYY-MM-DD HH:MM:SS or ISO format, e.g., "2023-10-27T14:30:00Z". Defaults to current time).
+
+**Example:**
+
+```bash
+llm-accounting log-event \
+    --app-name my-app \
+    --user-name testuser \
+    --model gpt-4 \
+    --log-type info \
+    --prompt-text "User reported positive feedback." \
+    --project "Alpha" \
+    --timestamp "2024-01-15T10:30:00"
+```
+
+```bash
 # ... (other CLI examples remain the same) ...
 
 # Show today's stats
