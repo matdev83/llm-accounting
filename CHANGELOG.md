@@ -1,3 +1,7 @@
+## 2025-05-29 16:11:00 - docs: Clarify Alembic and SQLAlchemy usage in README.md
+**Commit:** `(will be filled by git)`
+- Modified: `README.md` (clarified explanation of Alembic and SQLAlchemy interaction)
+
 ## 2025-05-29 16:05:00 - Refactor: Centralize database migration logic into db_migrations module
 **Commit:** `(will be filled by git)`
 - Added: `src/llm_accounting/db_migrations.py`

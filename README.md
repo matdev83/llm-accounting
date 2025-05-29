@@ -327,9 +327,9 @@ The database schema generally includes the following tables and key fields (spec
 
 ## Database Migrations
 
-This project uses [Alembic](https://alembic.sqlalchemy.org/) to manage database schema migrations, integrated with our SQLAlchemy models (defined in `src/llm_accounting/models/`).
+This project uses [Alembic](https://alembic.sqlalchemy.org/) to manage database schema migrations, working in conjunction with our SQLAlchemy models (defined in `src/llm_accounting/models/`). While SQLAlchemy defines the desired schema, Alembic is used to generate and apply the necessary database changes.
 
-When you make changes to the SQLAlchemy models that require a schema alteration (e.g., adding a table, adding a column, changing a column type), you need to generate a new migration script.
+When you make changes to the SQLAlchemy models that require a schema alteration (e.g., adding a table, adding a column, changing a column type), you need to generate a new migration script using Alembic.
 
 ### Generating a New Migration
 
