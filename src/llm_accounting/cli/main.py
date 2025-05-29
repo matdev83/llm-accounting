@@ -1,5 +1,7 @@
 import argparse
 import sys
+import os
+import platform
 from importlib.metadata import version as get_version
 
 from .parsers import (add_purge_parser, add_select_parser, add_stats_parser,
@@ -7,7 +9,28 @@ from .parsers import (add_purge_parser, add_select_parser, add_stats_parser,
 from .utils import console
 
 
+def _check_privileged_user():
+    """
+    Checks if the current user is a privileged user (root on Linux/macOS, admin on Windows).
+    Exits the program with an error message if the user is privileged.
+    """
+    if platform.system() == "Windows":
+        try:
+            # Check if user has admin privileges on Windows
+            import ctypes
+            if ctypes.windll.shell32.IsUserAnAdmin():
+                console.print("[red]Error: Running the CLI as an administrator is not allowed for security reasons.[/red]")
+                sys.exit(1)
+        except AttributeError:
+            # Handle cases where ctypes might not be available or IsUserAnAdmin fails
+            pass
+    elif hasattr(os, 'geteuid') and os.geteuid() == 0:  # type: ignore
+        # Check for root user on Linux/macOS
+        console.print("[red]Error: Running the CLI as root is not allowed for security reasons.[/red]")
+        sys.exit(1)
+
 def main():
+    _check_privileged_user()
     package_version = get_version('llm-accounting')
     parser = argparse.ArgumentParser(
         description="LLM Accounting CLI - Track and analyze LLM usage",

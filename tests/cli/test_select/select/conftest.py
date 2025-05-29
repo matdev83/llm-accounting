@@ -12,7 +12,7 @@ from llm_accounting.backends.sqlite import SQLiteBackend
 def test_db():
     """Fixture setting up an in-memory test database with sample data using SQLAlchemy connection."""
     # Use a unique in-memory database for each test to avoid locking issues
-    backend = SQLiteBackend("file::memory:") # Uses "sqlite:///:memory:" for SQLAlchemy engine
+    backend = SQLiteBackend(":memory:") # Uses "sqlite:///:memory:" for SQLAlchemy engine
     backend.initialize() # This initializes self.engine and self.conn (SQLAlchemy connection)
     
     # conn is now an SQLAlchemy Connection object
