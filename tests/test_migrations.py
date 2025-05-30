@@ -99,7 +99,7 @@ def test_sqlite_initial_migration_creates_schema(sqlite_db_url, set_db_url_env, 
     set_db_url_env(sqlite_db_url)
 
     # 1. Run migrations (simulates LLMAccounting instantiation)
-    run_migrations()
+    run_migrations(db_url=sqlite_db_url)
 
     # 2. Create engine and inspect
     engine = create_engine(sqlite_db_url)
@@ -171,7 +171,7 @@ def test_sqlite_applies_new_migration_and_preserves_data(sqlite_db_url, set_db_u
 
     # 3. Run Migrations Again (this should apply the "add_notes_column" migration)
     logger.info("Running migrations again to apply 'add_notes_column'.")
-    run_migrations() # This should upgrade to head (REVISION_ADD_NOTES_COLUMN)
+    run_migrations(db_url=sqlite_db_url) # This should upgrade to head (REVISION_ADD_NOTES_COLUMN)
 
     # 4. Verify Schema Update
     current_revision_after_second_run = get_alembic_revision(engine)
@@ -251,7 +251,7 @@ def test_postgresql_initial_migration_creates_schema(postgresql_engine, set_db_u
     logger.info(f"Running test_postgresql_initial_migration_creates_schema with DB URL: {TEST_POSTGRESQL_URL}")
     set_db_url_env(TEST_POSTGRESQL_URL)
 
-    run_migrations()
+    run_migrations(db_url=TEST_POSTGRESQL_URL)
 
     expected_tables = set(Base.metadata.tables.keys())
     current_tables = set(get_table_names(postgresql_engine))
@@ -305,7 +305,7 @@ def test_postgresql_applies_new_migration_and_preserves_data(postgresql_engine, 
 
     # 3. Run Migrations Again
     logger.info("Running migrations again on PG to apply 'add_notes_column'.")
-    run_migrations()
+    run_migrations(db_url=TEST_POSTGRESQL_URL)
 
     # 4. Verify Schema Update
     assert get_alembic_revision(postgresql_engine) == REVISION_ADD_NOTES_COLUMN

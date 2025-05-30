@@ -79,15 +79,17 @@ class SQLiteBackend(BaseBackend):
             self.conn = self.engine.connect()
 
         # Run migrations for the SQLite database
+        assert db_connection_str is not None, "DB connection string must be set before running migrations."
         run_migrations(db_url=db_connection_str)
 
-        # Base.metadata.create_all is now handled by Alembic migrations
-        # if is_new_db:
-        #     logger.info(f"Database {self.db_path} appears new. Creating schema.")
-        #     Base.metadata.create_all(self.engine)
-        #     logger.info("Schema creation complete.")
-        # else:
-        #     logger.info(f"Database {self.db_path} exists. Skipping schema creation.")
+        # Ensure schema is created via SQLAlchemy models if tables are missing.
+        # This handles initial setup for new databases.
+        if is_new_db:
+            logger.info(f"Database {self.db_path} appears new. Creating schema.")
+            Base.metadata.create_all(self.engine)
+            logger.info("Schema creation complete.")
+        else:
+            logger.info(f"Database {self.db_path} exists. Skipping schema creation.")
 
     def insert_usage(self, entry: UsageEntry) -> None:
         """Insert a new usage entry into the database"""

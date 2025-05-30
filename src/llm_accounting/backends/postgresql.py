@@ -75,31 +75,33 @@ class PostgreSQLBackend(BaseBackend):
                 raise
 
         # Run database migrations
+        assert self.connection_string is not None, "Connection string must be set before running migrations."
         run_migrations(db_url=self.connection_string)
 
-        # The following schema creation logic is now handled by Alembic migrations
-        # if self.engine:
-        #     try:
-        #         inspector = inspect(self.engine)
-        #         existing_tables = inspector.get_table_names()
+        # Ensure schema is created via SQLAlchemy models if tables are missing.
+        # This handles initial setup for new databases.
+        if self.engine:
+            try:
+                inspector = inspect(self.engine)
+                existing_tables = inspector.get_table_names()
                 
-        #         tables_to_create = []
-        #         for table_obj in Base.metadata.sorted_tables:
-        #             if table_obj.name not in existing_tables:
-        #                  tables_to_create.append(table_obj.name)
+                tables_to_create = []
+                for table_obj in Base.metadata.sorted_tables:
+                    if table_obj.name not in existing_tables:
+                         tables_to_create.append(table_obj.name)
 
-        #         if tables_to_create:
-        #             logger.info(f"New tables to create based on SQLAlchemy models: {tables_to_create}. Creating schema...")
-        #             Base.metadata.create_all(self.engine)
-        #             logger.info("Schema creation/update from SQLAlchemy models complete.")
-        #         else:
-        #             logger.info("All tables defined in SQLAlchemy models already exist. Schema creation via Base.metadata.create_all skipped (Alembic will handle migrations).")
-        #     except Exception as e:
-        #         logger.error(f"Error during schema inspection or creation with SQLAlchemy: {e}")
-        #         raise
-        # else:
-        #     logger.error("SQLAlchemy engine not available. Cannot perform schema check/creation.")
-        #     raise RuntimeError("SQLAlchemy engine could not be initialized.")
+                if tables_to_create:
+                    logger.info(f"New tables to create based on SQLAlchemy models: {tables_to_create}. Creating schema...")
+                    Base.metadata.create_all(self.engine)
+                    logger.info("Schema creation/update from SQLAlchemy models complete.")
+                else:
+                    logger.info("All tables defined in SQLAlchemy models already exist. Schema creation via Base.metadata.create_all skipped.")
+            except Exception as e:
+                logger.error(f"Error during schema inspection or creation with SQLAlchemy: {e}")
+                raise
+        else:
+            logger.error("SQLAlchemy engine not available. Cannot perform schema check/creation.")
+            raise RuntimeError("SQLAlchemy engine could not be initialized.")
 
     def close(self) -> None:
         """
