@@ -33,11 +33,10 @@ def run_migrations(db_url: str):
     if not alembic_dir.is_dir():
         try:
             import llm_accounting
-            # This path is for installed packages, e.g., site-packages/llm_accounting/
-            # so alembic dir would be site-packages/alembic or similar.
-            # This assumes alembic dir is at the root of the installed package.
-            alembic_dir = Path(llm_accounting.__file__).parent.parent / "alembic"
-            alembic_ini_path = Path(llm_accounting.__file__).parent.parent / "alembic.ini"
+            # For installed packages, alembic/ and alembic.ini should be directly within the llm_accounting package directory.
+            # Path(llm_accounting.__file__).parent points to .../site-packages/llm_accounting/
+            alembic_dir = Path(llm_accounting.__file__).parent / "alembic"
+            alembic_ini_path = Path(llm_accounting.__file__).parent / "alembic.ini"
         except Exception as e:
             migration_logger.error(f"Could not determine alembic directory path: {e}")
             raise RuntimeError("Alembic directory could not be found. Cannot run migrations.")

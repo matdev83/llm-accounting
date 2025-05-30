@@ -1,3 +1,7 @@
+## 2025-05-30 20:46:51 - Fix: Correctly resolve alembic migration paths for installed packages
+**Commit:** `(will be filled by git)`
+- Modified: `src/llm_accounting/db_migrations.py`
+
 ## 2025-05-30 20:41:00 - feat: Include Alembic files in package and improve migration error handling
 **Commit:** `(will be filled by git)`
 - Modified: `pyproject.toml` (version bump to 0.1.23, added alembic files to build include)
