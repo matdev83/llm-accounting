@@ -250,7 +250,7 @@ def postgresql_engine():
 def test_postgresql_initial_migration_creates_schema(postgresql_engine, set_db_url_env, postgresql_alembic_config):
     logger.info(f"Running test_postgresql_initial_migration_creates_schema with DB URL: {TEST_POSTGRESQL_URL}")
     set_db_url_env(TEST_POSTGRESQL_URL)
-
+    assert TEST_POSTGRESQL_URL is not None # Ensure for type checker
     run_migrations(db_url=TEST_POSTGRESQL_URL)
 
     expected_tables = set(Base.metadata.tables.keys())
@@ -305,6 +305,7 @@ def test_postgresql_applies_new_migration_and_preserves_data(postgresql_engine, 
 
     # 3. Run Migrations Again
     logger.info("Running migrations again on PG to apply 'add_notes_column'.")
+    assert TEST_POSTGRESQL_URL is not None # Ensure for type checker
     run_migrations(db_url=TEST_POSTGRESQL_URL)
 
     # 4. Verify Schema Update

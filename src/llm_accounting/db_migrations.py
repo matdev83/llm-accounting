@@ -45,8 +45,10 @@ def run_migrations(db_url: str):
     if not alembic_dir.is_dir():
         raise RuntimeError(f"Alembic directory not found at expected path: {alembic_dir}. Cannot run migrations.")
 
+    # Ensure alembic.ini exists and is loaded from the correct path
     if not alembic_ini_path.is_file():
-        raise RuntimeError(f"alembic.ini not found at {alembic_ini_path}. Cannot run migrations.")
+        raise RuntimeError(f"alembic.ini not found at expected path: {alembic_ini_path}. Cannot run migrations. "
+                           "Ensure it's included in the package distribution.")
 
     log_db_url = db_url
     try:
@@ -62,6 +64,7 @@ def run_migrations(db_url: str):
     alembic_logger.setLevel(logging.INFO) # Set to INFO or DEBUG for more verbosity
 
     try:
+        # Always load AlembicConfig from the determined alembic.ini path
         alembic_cfg = AlembicConfig(file_=str(alembic_ini_path))
         alembic_cfg.set_main_option("script_location", str(alembic_dir))
         alembic_cfg.set_main_option("sqlalchemy.url", db_url)

@@ -1,3 +1,9 @@
+## 2025-05-30 20:41:00 - feat: Include Alembic files in package and improve migration error handling
+**Commit:** `(will be filled by git)`
+- Modified: `pyproject.toml` (version bump to 0.1.23, added alembic files to build include)
+- Modified: `src/llm_accounting/db_migrations.py` (improved alembic.ini not found error message, added comments)
+- Modified: `tests/test_migrations.py` (added type checker assertions for TEST_POSTGRESQL_URL)
+
 ## 2025-05-30 18:54:00 - Refactor: Migrate to Alembic-only schema management and bump version
 **Commit:** `(will be filled by git)`
 - Modified: `pyproject.toml` (version bump to 0.1.19)
