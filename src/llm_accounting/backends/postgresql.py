@@ -61,9 +61,6 @@ class PostgreSQLBackend(BaseBackend):
         and ensures the schema is created via SQLAlchemy models if tables are missing.
         The psycopg2 connection is also initialized for existing components.
         """
-        # Run database migrations first
-        run_migrations()
-        
         self.connection_manager.initialize() 
         logger.info("psycopg2 connection initialized by ConnectionManager.")
 
@@ -77,28 +74,32 @@ class PostgreSQLBackend(BaseBackend):
                 logger.error(f"Failed to create SQLAlchemy engine: {e}")
                 raise
 
-        if self.engine:
-            try:
-                inspector = inspect(self.engine)
-                existing_tables = inspector.get_table_names()
-                
-                tables_to_create = []
-                for table_obj in Base.metadata.sorted_tables:
-                    if table_obj.name not in existing_tables:
-                         tables_to_create.append(table_obj.name)
+        # Run database migrations
+        run_migrations(db_url=self.connection_string)
 
-                if tables_to_create:
-                    logger.info(f"New tables to create based on SQLAlchemy models: {tables_to_create}. Creating schema...")
-                    Base.metadata.create_all(self.engine)
-                    logger.info("Schema creation/update from SQLAlchemy models complete.")
-                else:
-                    logger.info("All tables defined in SQLAlchemy models already exist. Schema creation via Base.metadata.create_all skipped (Alembic will handle migrations).")
-            except Exception as e:
-                logger.error(f"Error during schema inspection or creation with SQLAlchemy: {e}")
-                raise
-        else:
-            logger.error("SQLAlchemy engine not available. Cannot perform schema check/creation.")
-            raise RuntimeError("SQLAlchemy engine could not be initialized.")
+        # The following schema creation logic is now handled by Alembic migrations
+        # if self.engine:
+        #     try:
+        #         inspector = inspect(self.engine)
+        #         existing_tables = inspector.get_table_names()
+                
+        #         tables_to_create = []
+        #         for table_obj in Base.metadata.sorted_tables:
+        #             if table_obj.name not in existing_tables:
+        #                  tables_to_create.append(table_obj.name)
+
+        #         if tables_to_create:
+        #             logger.info(f"New tables to create based on SQLAlchemy models: {tables_to_create}. Creating schema...")
+        #             Base.metadata.create_all(self.engine)
+        #             logger.info("Schema creation/update from SQLAlchemy models complete.")
+        #         else:
+        #             logger.info("All tables defined in SQLAlchemy models already exist. Schema creation via Base.metadata.create_all skipped (Alembic will handle migrations).")
+        #     except Exception as e:
+        #         logger.error(f"Error during schema inspection or creation with SQLAlchemy: {e}")
+        #         raise
+        # else:
+        #     logger.error("SQLAlchemy engine not available. Cannot perform schema check/creation.")
+        #     raise RuntimeError("SQLAlchemy engine could not be initialized.")
 
     def close(self) -> None:
         """

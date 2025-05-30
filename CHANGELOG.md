@@ -1,3 +1,11 @@
+## 2025-05-30 18:54:00 - Refactor: Migrate to Alembic-only schema management and bump version
+**Commit:** `(will be filled by git)`
+- Modified: `pyproject.toml` (version bump to 0.1.19)
+- Modified: `pytest.ini` (removed python_paths)
+- Modified: `src/llm_accounting/backends/postgresql.py` (migration timing and schema management)
+- Modified: `src/llm_accounting/backends/sqlite.py` (Alembic migration integration)
+- Modified: `src/llm_accounting/cli/main.py` (formatting fixes)
+
 ## 2025-05-29 16:11:00 - docs: Clarify Alembic and SQLAlchemy usage in README.md
 **Commit:** `(will be filled by git)`
 - Modified: `README.md` (clarified explanation of Alembic and SQLAlchemy interaction)

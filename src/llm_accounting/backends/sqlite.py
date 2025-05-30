@@ -12,8 +12,8 @@ from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry
 from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
                              get_period_stats_query, insert_usage_query,
                              tail_query)
-# initialize_db_schema is removed as per previous step
 from .sqlite_utils import validate_db_filename
+from ..db_migrations import run_migrations # Import run_migrations
 
 logger = logging.getLogger(__name__)
 
@@ -78,12 +78,16 @@ class SQLiteBackend(BaseBackend):
         if self.conn is None or self.conn.closed: # Ensure conn is open
             self.conn = self.engine.connect()
 
-        if is_new_db:
-            logger.info(f"Database {self.db_path} appears new. Creating schema.")
-            Base.metadata.create_all(self.engine)
-            logger.info("Schema creation complete.")
-        else:
-            logger.info(f"Database {self.db_path} exists. Skipping schema creation.")
+        # Run migrations for the SQLite database
+        run_migrations(db_url=db_connection_str)
+
+        # Base.metadata.create_all is now handled by Alembic migrations
+        # if is_new_db:
+        #     logger.info(f"Database {self.db_path} appears new. Creating schema.")
+        #     Base.metadata.create_all(self.engine)
+        #     logger.info("Schema creation complete.")
+        # else:
+        #     logger.info(f"Database {self.db_path} exists. Skipping schema creation.")
 
     def insert_usage(self, entry: UsageEntry) -> None:
         """Insert a new usage entry into the database"""
@@ -147,11 +151,8 @@ class SQLiteBackend(BaseBackend):
             # so that SQLAlchemy and the database can use their defaults.
         )
         
-        # If the DTO might carry specific created_at/updated_at values that should be honored when present:
-        if limit.created_at:
-            db_limit.created_at = limit.created_at
-        if limit.updated_at:
-            db_limit.updated_at = limit.updated_at
+        # created_at and updated_at are managed by SQLAlchemy defaults and onupdate
+        # No need to set them manually from DTO here.
 
         with Session(self.engine) as session:
             session.add(db_limit)
