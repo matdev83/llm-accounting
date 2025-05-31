@@ -48,3 +48,5 @@ data/
 .clinerules/
 .aider.conf.yml
 .ruff_cache/
+update_changelog.py
+.cov
