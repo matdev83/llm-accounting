@@ -34,10 +34,15 @@ test = [
 llm-accounting = "llm_accounting.cli.main:main"
 
 [tool.hatch.build]
-include = ["alembic", "alembic.ini"]
+include = ["alembic", "alembic.ini", "src/llm_accounting"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/llm_accounting"]
+
+# Corrected force-include as a separate table
+[tool.hatch.build.targets.wheel.force-include]
+"alembic.ini" = "llm_accounting/alembic.ini"
+"alembic" = "llm_accounting/alembic"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
