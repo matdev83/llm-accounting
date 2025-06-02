@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from typing_extensions import override
 
 
-from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats
+from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry # Added AuditLogEntry for type hint consistency
 from llm_accounting.models.limits import LimitScope, LimitType, UsageLimitDTO
 
 
@@ -78,7 +78,7 @@ class MockBackend(BaseBackend):
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
         project_name: Optional[str] = None,
-        filter_project_null: Optional[bool] = None # New parameter
+        filter_project_null: Optional[bool] = None 
     ) -> float:
         return 0.0
 
@@ -95,12 +95,26 @@ class MockBackend(BaseBackend):
         pass
 
     @override
-    def log_audit_event(self, entry: Any) -> None: # Using Any for entry to avoid circular import for AuditLogEntry
+    def log_audit_event(self, entry: AuditLogEntry) -> None: # Changed Any to AuditLogEntry
         pass
 
     @override
-    def get_audit_log_entries(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, app_name: Optional[str] = None, user_name: Optional[str] = None, project: Optional[str] = None, log_type: Optional[str] = None, limit: Optional[int] = None) -> List[Any]: # Using Any for AuditLogEntry
+    def get_audit_log_entries(self, 
+                              start_date: Optional[datetime] = None, 
+                              end_date: Optional[datetime] = None, 
+                              app_name: Optional[str] = None, 
+                              user_name: Optional[str] = None, 
+                              project: Optional[str] = None, 
+                              log_type: Optional[str] = None, 
+                              limit: Optional[int] = None
+                              ) -> List[AuditLogEntry]: # Changed Any to AuditLogEntry
         return []
+
+    @override
+    def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
+        """Retrieve aggregated usage costs for a user."""
+        # Minimal implementation to satisfy abstract method
+        return 0.0
 
 
 class IncompleteBackend(BaseBackend):
@@ -133,12 +147,30 @@ class IncompleteBackend(BaseBackend):
     def get_accounting_entries_for_quota(self, start_time: datetime, limit_type: LimitType, model: Optional[str] = None, username: Optional[str] = None, caller_name: Optional[str] = None, project_name: Optional[str] = None, filter_project_null: Optional[bool] = None) -> float: return 0.0
     @override
     def insert_usage_limit(self, limit: UsageLimitDTO) -> None: pass
+    # Missing delete_usage_limit
+    # Missing get_usage_costs
 
     @override
     def initialize_audit_log_schema(self) -> None: pass
 
     @override
-    def log_audit_event(self, entry: Any) -> None: pass
+    def log_audit_event(self, entry: AuditLogEntry) -> None: pass # Changed Any to AuditLogEntry
 
     @override
-    def get_audit_log_entries(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, app_name: Optional[str] = None, user_name: Optional[str] = None, project: Optional[str] = None, log_type: Optional[str] = None, limit: Optional[int] = None) -> List[Any]: return []
+    def get_audit_log_entries(self, 
+                              start_date: Optional[datetime] = None, 
+                              end_date: Optional[datetime] = None, 
+                              app_name: Optional[str] = None, 
+                              user_name: Optional[str] = None, 
+                              project: Optional[str] = None, 
+                              log_type: Optional[str] = None, 
+                              limit: Optional[int] = None
+                              ) -> List[AuditLogEntry]: return [] # Changed Any to AuditLogEntry
+    
+    # Adding the missing delete_usage_limit to make it clear which ones are intentionally missing for this test class
+    # It will still fail for get_usage_costs as intended by its purpose.
+    # Actually, IncompleteBackend is meant to be incomplete. The test_backend_interface()
+    # specifically checks that it raises TypeError. So I should NOT add methods here
+    # that would make it more complete. The problem is with MockBackend.
+    # The missing methods in IncompleteBackend are by design for that test.
+    # The subtask clearly states the TypeError is for MockBackend instantiation.

@@ -2,13 +2,17 @@ import logging
 import os
 from alembic.config import Config as AlembicConfig
 from alembic import command as alembic_command
-from sqlalchemy.engine.url import make_url # Existing
-from pathlib import Path # Existing
-import sys # Existing
-from typing import Optional # Existing
+from sqlalchemy.engine.url import make_url
+from sqlalchemy import text # Added
+from pathlib import Path
+import sys
+from typing import Optional
 
 from alembic.script import ScriptDirectory
-from alembic.runtime.environment import EnvironmentContext
+# EnvironmentContext might still be used by other parts of Alembic or if some logic path needs it,
+# but for run_migrations and stamp_db_head post-action revision check, we are changing the method.
+# Keep it for now if other alembic internals might rely on it being available.
+from alembic.runtime.environment import EnvironmentContext 
 
 logger = logging.getLogger(__name__)
 
@@ -16,18 +20,18 @@ def run_migrations(db_url: str) -> Optional[str]:
     """
     Checks and applies any pending database migrations for the given DB URL.
     This function expects a database URL to be provided.
-    Returns the current database revision.
+    Returns the current database revision after upgrade.
     """
     migration_logger = logging.getLogger(__name__ + ".migrations") 
     
     if not db_url:
         raise ValueError("Database URL must be provided to run migrations.")
 
+    # Alembic path setup (remains the same)
     current_file_dir = Path(__file__).parent
     project_root = current_file_dir.parent.parent
     alembic_dir = project_root / "alembic"
     alembic_ini_path = project_root / "alembic.ini"
-
     if not alembic_dir.is_dir():
         try:
             import llm_accounting
@@ -36,38 +40,58 @@ def run_migrations(db_url: str) -> Optional[str]:
         except Exception as e:
             migration_logger.error(f"Could not determine alembic directory path: {e}")
             raise RuntimeError("Alembic directory could not be found. Cannot run migrations.")
-
     if not alembic_dir.is_dir():
         raise RuntimeError(f"Alembic directory not found at expected path: {alembic_dir}. Cannot run migrations.")
-
     if not alembic_ini_path.is_file():
-        raise RuntimeError(f"alembic.ini not found at expected path: {alembic_ini_path}. Cannot run migrations. "
-                           "Ensure it's included in the package distribution.")
+        raise RuntimeError(f"alembic.ini not found at {alembic_ini_path}. Cannot run migrations. ")
 
     log_db_url = db_url
     try:
         parsed_url = make_url(db_url)
-        if parsed_url.password:
-            log_db_url = str(parsed_url._replace(password="****"))
-    except Exception:
-        pass 
+        if parsed_url.password: log_db_url = str(parsed_url._replace(password="****"))
+    except Exception: pass 
     migration_logger.info(f"Attempting database migrations for URL: {log_db_url}")
     
     alembic_logger = logging.getLogger("alembic")
     alembic_logger.setLevel(logging.INFO)
 
+    current_rev: Optional[str] = None
     try:
         alembic_cfg = AlembicConfig(file_=str(alembic_ini_path))
         alembic_cfg.set_main_option("script_location", str(alembic_dir))
         alembic_cfg.set_main_option("sqlalchemy.url", db_url)
         
+        # The 'env.py' script is expected to place the connection on alembic_cfg.attributes['connection']
+        # This is standard practice for online migrations.
         alembic_command.upgrade(alembic_cfg, "head")
         migration_logger.info("Database migration upgrade to 'head' completed.")
 
-        script = ScriptDirectory.from_config(alembic_cfg)
-        with EnvironmentContext(alembic_cfg, script) as context:
-            current_rev = context.get_current_revision()
-        migration_logger.info(f"Current database revision: {current_rev}")
+        connection = alembic_cfg.attributes.get('connection')
+        if connection:
+            try:
+                result = connection.execute(text("SELECT version_num FROM alembic_version ORDER BY version_num DESC LIMIT 1"))
+                current_rev = result.scalar_one_or_none()
+                if current_rev:
+                    migration_logger.info(f"Current database revision from DB query: {current_rev}")
+                else: # Should not happen if alembic_version table has entries
+                    migration_logger.warning("Could not find revision in alembic_version table after upgrade.")
+            except Exception as e_sql:
+                migration_logger.warning(f"Could not query alembic_version table after upgrade: {e_sql}. Falling back to script head.")
+        else:
+            migration_logger.warning("No connection found on alembic_cfg.attributes after upgrade. Cannot query alembic_version table directly.")
+
+        if current_rev is None: # Fallback if connection or query failed
+            migration_logger.info("Attempting to get current revision from script directory as fallback.")
+            script = ScriptDirectory.from_config(alembic_cfg)
+            # In a non-branching history, current revision after upgrade to head *should* be the head.
+            # get_current_head() returns a tuple of heads.
+            heads = script.get_heads() 
+            if heads:
+                current_rev = heads[0] # Take the first head if multiple (should ideally be one)
+                migration_logger.info(f"Current database revision from script head (fallback): {current_rev}")
+            else:
+                migration_logger.error("Fallback failed: Could not determine head revision from scripts.")
+        
         return current_rev
 
     except Exception as e:
@@ -76,14 +100,15 @@ def run_migrations(db_url: str) -> Optional[str]:
 
 def get_head_revision(db_url: str) -> Optional[str]:
     '''
-    Retrieves the "head" revision from the Alembic migration scripts.
+    Retrieves the "head" revision(s) from the Alembic migration scripts.
+    Returns the first head if multiple are present.
     '''
     migration_logger = logging.getLogger(__name__ + ".migrations_head_check")
+    # Alembic path setup (remains the same)
     current_file_dir = Path(__file__).parent
     project_root = current_file_dir.parent.parent
     alembic_dir = project_root / "alembic"
     alembic_ini_path = project_root / "alembic.ini"
-
     if not alembic_dir.is_dir():
         try:
             import llm_accounting 
@@ -92,7 +117,6 @@ def get_head_revision(db_url: str) -> Optional[str]:
         except Exception as e:
             migration_logger.error(f"Could not determine alembic directory path for head revision check: {e}")
             return None
-
     if not alembic_dir.is_dir():
         migration_logger.error(f"Alembic directory not found at {alembic_dir} for head revision check.")
         return None
@@ -103,23 +127,31 @@ def get_head_revision(db_url: str) -> Optional[str]:
     try:
         alembic_cfg = AlembicConfig(file_=str(alembic_ini_path))
         alembic_cfg.set_main_option("script_location", str(alembic_dir))
-        alembic_cfg.set_main_option("sqlalchemy.url", db_url) 
+        # sqlalchemy.url is not strictly needed for script operations but good for config consistency
+        alembic_cfg.set_main_option("sqlalchemy.url", db_url if db_url else "sqlite:///:memory:") 
 
         script = ScriptDirectory.from_config(alembic_cfg)
-        head_rev = script.get_current_head()
-        migration_logger.info(f"Current head script revision: {head_rev}")
-        return head_rev
+        heads = script.get_heads() # get_heads() returns a tuple of revision strings
+        if heads:
+            head_rev = heads[0] # Take the first head
+            if len(heads) > 1:
+                migration_logger.warning(f"Multiple script heads detected: {heads}. Using first one: {head_rev}")
+            migration_logger.info(f"Current head script revision: {head_rev}")
+            return head_rev
+        else:
+            migration_logger.warning("No head script revision found.")
+            return None
     except Exception as e:
         migration_logger.error(f"Error getting head script revision: {e}", exc_info=True)
         return None
 
 def stamp_db_head(db_url: str) -> Optional[str]:
     migration_logger = logging.getLogger(__name__ + ".migrations_stamp")
+    # Alembic path setup (remains the same)
     current_file_dir = Path(__file__).parent
     project_root = current_file_dir.parent.parent 
     alembic_dir = project_root / "alembic"
     alembic_ini_path = project_root / "alembic.ini"
-
     if not alembic_dir.is_dir():
         try:
             import llm_accounting
@@ -133,7 +165,6 @@ def stamp_db_head(db_url: str) -> Optional[str]:
         except Exception as e:
             migration_logger.error(f"Error determining alembic directory path for package in stamp_db_head: {e}", exc_info=True)
             return None
-
     if not alembic_dir.is_dir():
         migration_logger.error(f"Alembic directory not found at {alembic_dir}. Cannot stamp database.")
         return None
@@ -145,10 +176,8 @@ def stamp_db_head(db_url: str) -> Optional[str]:
     if db_url:
         try:
             parsed_url = make_url(db_url) 
-            if parsed_url.password:
-                log_db_url_str = str(parsed_url._replace(password="****"))
-        except Exception:
-            pass 
+            if parsed_url.password: log_db_url_str = str(parsed_url._replace(password="****"))
+        except Exception: pass 
     migration_logger.info(f"Attempting to stamp database for URL context: {log_db_url_str}")
     
     try:
@@ -159,25 +188,19 @@ def stamp_db_head(db_url: str) -> Optional[str]:
         alembic_command.stamp(alembic_cfg, "head")
         migration_logger.info(f"Successfully stamped database {log_db_url_str} with head revision.")
 
+        # After stamping, the "current revision" is the head it was stamped to.
+        # Get this from the scripts directly.
         script = ScriptDirectory.from_config(alembic_cfg)
-        db_stamped_rev: Optional[str] = None
-        try:
-            with EnvironmentContext(alembic_cfg, script) as context: 
-                db_stamped_rev = context.get_current_revision()
-        except Exception as e_ctx:
-            migration_logger.warning(f"Could not read revision from DB after stamp, will use script head: {e_ctx}")
-
-        if db_stamped_rev:
-            migration_logger.info(f"Database is now at revision: {db_stamped_rev} (stamped).")
-            return db_stamped_rev
-        else: # Fallback to script head if DB read failed or returned None
-            head_rev_from_script = script.get_current_head()
-            if head_rev_from_script:
-                migration_logger.info(f"Database stamped with script head: {head_rev_from_script} (DB read for confirmation failed or returned None).")
-                return head_rev_from_script
-            else:
-                migration_logger.warning("Could not determine head revision after stamping (script head and DB read failed).")
-                return None
+        heads = script.get_heads()
+        if heads:
+            stamped_to_rev = heads[0] # Take the first head
+            if len(heads) > 1:
+                migration_logger.warning(f"Multiple script heads detected: {heads} after stamping. Database marked with: {stamped_to_rev}")
+            migration_logger.info(f"Database confirmed stamped to script head: {stamped_to_rev}")
+            return stamped_to_rev
+        else:
+            migration_logger.error("Could not determine script head revision after stamping. This is unexpected.")
+            return None # Should ideally not happen if stamp 'head' succeeded and scripts exist.
             
     except Exception as e:
         migration_logger.error(f"Error stamping database {log_db_url_str} with head revision: {e}", exc_info=True)

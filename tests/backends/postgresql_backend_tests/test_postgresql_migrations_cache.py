@@ -1,17 +1,16 @@
 import unittest
 import json
-import logging
+import logging # Import logging
 import shutil
 from pathlib import Path
 from unittest.mock import patch, MagicMock 
-from sqlalchemy import MetaData # For spec in mock_base_metadata
+from sqlalchemy import MetaData 
 
 from llm_accounting.backends.postgresql import PostgreSQLBackend
-# Models imported for side-effect of populating the *real* Base.metadata if needed by other parts,
-# but for the PostgreSQLBackend tests, we will mock Base.metadata directly.
 from llm_accounting.models import accounting, audit, limits 
 
 MOCK_PG_CACHE_FILE_PATH = Path("tests/temp_test_data_pg_migrations/data/postgres_migration_status.json")
+POSTGRES_BACKEND_LOGGER_NAME = 'llm_accounting.backends.postgresql' # Define logger name
 
 class TestPostgreSQLMigrationsCache(unittest.TestCase):
     def setUp(self):
@@ -27,10 +26,7 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
         self.patcher_cache_path = patch('llm_accounting.backends.postgresql.POSTGRES_MIGRATION_CACHE_PATH', MOCK_PG_CACHE_FILE_PATH)
         self.patcher_create_engine = patch('llm_accounting.backends.postgresql.create_engine')
         self.patcher_inspect = patch('llm_accounting.backends.postgresql.inspect')
-        
-        # Patch Base.metadata itself to be a MagicMock
         self.patcher_base_metadata = patch('llm_accounting.backends.postgresql.Base.metadata', spec=MetaData)
-        
         self.patcher_run_migrations = patch('llm_accounting.backends.postgresql.run_migrations')
         self.patcher_get_head_revision = patch('llm_accounting.backends.postgresql.get_head_revision')
         self.patcher_stamp_db_head = patch('llm_accounting.backends.postgresql.stamp_db_head')
@@ -39,9 +35,7 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
         self.mock_cache_path = self.patcher_cache_path.start()
         self.mock_create_engine = self.patcher_create_engine.start()
         self.mock_inspect_sqlalchemy = self.patcher_inspect.start()
-        
-        self.mock_base_metadata = self.patcher_base_metadata.start() # This is now the mock for Base.metadata
-        
+        self.mock_base_metadata = self.patcher_base_metadata.start() 
         self.mock_run_migrations = self.patcher_run_migrations.start()
         self.mock_get_head_revision = self.patcher_get_head_revision.start()
         self.mock_stamp_db_head = self.patcher_stamp_db_head.start()
@@ -57,24 +51,25 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
         self.defined_model_table_names = {'accounting_entries', 'usage_limits', 'audit_log_entries'}
         self.model_table_names_with_alembic = self.defined_model_table_names.union({'alembic_version'})
 
-        # Prepare mock tables for Base.metadata.sorted_tables
         self.mock_sorted_tables_data = [MagicMock(name=name) for name in self.defined_model_table_names]
         for mt, name in zip(self.mock_sorted_tables_data, self.defined_model_table_names): mt.name = name
         
-        # Configure the mocked Base.metadata
         self.mock_base_metadata.sorted_tables = self.mock_sorted_tables_data
-        # create_all is a method on the MetaData object, so it should be a MagicMock on our mock_base_metadata
         self.mock_base_metadata.create_all = MagicMock(name='Base.metadata.create_all')
-
 
         self.dummy_connection_string = "postgresql://user:pass@host:port/dbname"
         self.backend = PostgreSQLBackend(self.dummy_connection_string)
+
+        # Ensure the specific logger is enabled for these tests
+        logger_instance = logging.getLogger(POSTGRES_BACKEND_LOGGER_NAME)
+        logger_instance.disabled = False
+        logger_instance.setLevel(logging.INFO)
 
     def tearDown(self):
         self.patcher_cache_path.stop()
         self.patcher_create_engine.stop()
         self.patcher_inspect.stop()
-        self.patcher_base_metadata.stop() # Stop the new patcher
+        self.patcher_base_metadata.stop() 
         self.patcher_run_migrations.stop()
         self.patcher_get_head_revision.stop()
         self.patcher_stamp_db_head.stop()
@@ -90,7 +85,7 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
 
         self.mock_create_engine.assert_called_once_with(self.dummy_connection_string, future=True)
         self.mock_inspect_sqlalchemy.assert_called_with(self.mock_engine) 
-        self.mock_base_metadata.create_all.assert_called_once_with(self.mock_engine) # Assert on the mock_base_metadata's method
+        self.mock_base_metadata.create_all.assert_called_once_with(self.mock_engine) 
         self.mock_stamp_db_head.assert_called_once_with(self.dummy_connection_string)
         self.mock_run_migrations.assert_not_called()
         self.assertTrue(self.controlled_cache_path.exists())
@@ -106,14 +101,18 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
         with open(self.controlled_cache_path, 'w') as f:
             json.dump({"connection_string_hash": hash(self.dummy_connection_string), "revision": current_rev}, f)
         
-        with self.assertLogs(logger='llm_accounting.backends.postgresql', level='INFO') as cm:
+        with self.assertLogs(logger=POSTGRES_BACKEND_LOGGER_NAME, level='INFO') as cm:
             self.backend.initialize()
+
+        self.assertTrue(len(cm.output) > 0, f"Expected INFO logs for PostgreSQL, but none were captured. Logger '{POSTGRES_BACKEND_LOGGER_NAME}' handlers: {logging.getLogger(POSTGRES_BACKEND_LOGGER_NAME).handlers}")
+
+        expected_log_msg = f"Cached PostgreSQL revision {current_rev} matches head script revision. Migrations will be skipped."
+        self.assertTrue(any(expected_log_msg in message for message in cm.output), f"Expected log '{expected_log_msg}' missing. Logs: {cm.output}")
 
         self.mock_run_migrations.assert_not_called()
         self.mock_stamp_db_head.assert_not_called()
         self.assertEqual(self.mock_inspector.get_table_names.call_count, 2) 
         self.mock_base_metadata.create_all.assert_not_called() 
-        self.assertTrue(any(f"Cached PostgreSQL revision {current_rev} matches head script revision. Migrations will be skipped." in message for message in cm.output))
 
     def test_existing_db_cache_outdated_runs_migrations(self):
         self.mock_inspector.get_table_names.return_value = list(self.model_table_names_with_alembic)
