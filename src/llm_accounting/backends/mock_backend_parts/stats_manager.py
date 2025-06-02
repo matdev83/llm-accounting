@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from ..base import UsageStats
@@ -9,7 +10,7 @@ class MockStatsManager:
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """Mocks getting aggregated statistics for a time period."""
-        print(f"MockBackend: Getting period stats from {start} to {end}")
+        logging.debug(f"MockBackend: Getting period stats from {start} to {end}")
         return UsageStats(
             sum_prompt_tokens=1000,
             sum_completion_tokens=500,
@@ -27,7 +28,7 @@ class MockStatsManager:
         self, start: datetime, end: datetime
     ) -> List[Tuple[str, UsageStats]]:
         """Mocks getting statistics grouped by model for a time period."""
-        print(f"MockBackend: Getting model stats from {start} to {end}")
+        logging.debug(f"MockBackend: Getting model stats from {start} to {end}")
         return [
             ("model_A", UsageStats(sum_total_tokens=1000, sum_cost=10.0)),
             ("model_B", UsageStats(sum_total_tokens=500, sum_cost=5.0)),
@@ -37,7 +38,7 @@ class MockStatsManager:
         self, start: datetime, end: datetime
     ) -> Dict[str, List[Tuple[str, Any]]]:
         """Mocks getting model rankings by different metrics."""
-        print(f"MockBackend: Getting model rankings from {start} to {end}")
+        logging.debug(f"MockBackend: Getting model rankings from {start} to {end}")
         return {
             "total_tokens": [("model_A", 1000), ("model_B", 500)],
             "cost": [("model_A", 10.0), ("model_B", 5.0)],
@@ -45,5 +46,5 @@ class MockStatsManager:
 
     def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
         """Mocks getting usage costs for a user."""
-        print(f"MockBackend: Getting usage costs for user {user_id} from {start_date} to {end_date}")
+        logging.debug(f"MockBackend: Getting usage costs for user {user_id} from {start_date} to {end_date}")
         return 50.0

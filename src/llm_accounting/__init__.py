@@ -9,6 +9,8 @@ This package provides core functionality for tracking and managing API usage quo
 and rate limits across multiple services.
 """
 import logging
+
+# Configure a NullHandler for the library's root logger to prevent logs from propagating to the console by default.\n# Applications using this library should configure their own logging if they wish to see library logs.\nlogging.getLogger('llm_accounting').addHandler(logging.NullHandler())
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 

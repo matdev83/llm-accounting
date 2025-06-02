@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from typing_extensions import override
 
-from .base import BaseBackend, UsageEntry, UsageStats
+from .base import AuditLogEntry, BaseBackend, UsageEntry, UsageStats
 from ..models.limits import LimitScope, LimitType, UsageLimitDTO
 
 from .mock_backend_parts.connection_manager import MockConnectionManager
@@ -118,3 +118,30 @@ class MockBackend(BaseBackend):
 
     def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
         return self._stats_manager.get_usage_costs(user_id, start_date, end_date)
+
+    @override
+    def initialize_audit_log_schema(self) -> None:
+        """Mocks initializing the audit log schema."""
+        # In a real mock, you might set a flag or log this
+        pass
+
+    @override
+    def log_audit_event(self, entry: AuditLogEntry) -> None:
+        """Mocks logging an audit event."""
+        # In a real mock, you might store this in a list
+        pass
+
+    @override
+    def get_audit_log_entries(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        app_name: Optional[str] = None,
+        user_name: Optional[str] = None,
+        project: Optional[str] = None,
+        log_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[AuditLogEntry]:
+        """Mocks retrieving audit log entries."""
+        # In a real mock, you might return a predefined list or filter stored entries
+        return []
