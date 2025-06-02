@@ -1,5 +1,5 @@
 ## 2025-06-02 12:38:39 - feat: Add usage cost retrieval and refactor mock backend for testing
-**Commit:** `(will be filled by git)`
+**Commit:** `2667a76`
 - Modified: `src/llm_accounting/backends/base.py`
 - Modified: `src/llm_accounting/backends/mock_backend.py`
 - Modified: `tests/core/test_output_silence.py`
