@@ -462,3 +462,26 @@ class SQLiteBackend(BaseBackend):
             raise
             
         return results
+
+    def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
+        """Retrieve aggregated usage costs for a user."""
+        self._ensure_connected()
+        assert self.conn is not None
+
+        query_base = "SELECT SUM(cost) FROM accounting_entries WHERE username = :user_id"
+        params_dict: Dict[str, Any] = {"user_id": user_id}
+        conditions = []
+
+        if start_date:
+            conditions.append("timestamp >= :start_date")
+            params_dict["start_date"] = start_date.isoformat()
+        if end_date:
+            conditions.append("timestamp <= :end_date")
+            params_dict["end_date"] = end_date.isoformat()
+
+        if conditions:
+            query_base += " AND " + " AND ".join(conditions)
+        
+        result = self.conn.execute(text(query_base), params_dict)
+        scalar_result = result.scalar_one_or_none()
+        return float(scalar_result) if scalar_result is not None else 0.0
