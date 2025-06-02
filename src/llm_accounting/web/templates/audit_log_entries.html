@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log Entries - LLM Accounting{% endblock %}
+
+{% block content %}
+<h2>Audit Log Entries</h2>
+
+<div class="filters">
+    <form method="GET" action="{{ url_for('audit_log_entries_view') }}">
+        <div class="search-filter-group">
+            <label for="search_term">Search:</label>
+            <input type="text" name="search_term" id="search_term" value="{{ request.args.get('search_term', '') }}" placeholder="Search logs...">
+        </div>
+        <hr>
+        <label for="project">Project:</label>
+        <input type="text" name="project" id="project" value="{{ request.args.get('project', '') }}" placeholder="Project name">
+
+        <label for="model">Model:</label>
+        <input type="text" name="model" id="model" value="{{ request.args.get('model', '') }}" placeholder="Model name">
+        
+        <label for="user_name">Username:</label> {# Changed from username to user_name to match model #}
+        <input type="text" name="user_name" id="user_name" value="{{ request.args.get('user_name', '') }}" placeholder="Username">
+
+        <label for="app_name">App Name:</label> {# Changed from caller_name to app_name #}
+        <input type="text" name="app_name" id="app_name" value="{{ request.args.get('app_name', '') }}" placeholder="App name">
+
+        <label for="log_type">Log Type:</label>
+        <input type="text" name="log_type" id="log_type" value="{{ request.args.get('log_type', '') }}" placeholder="e.g., prompt, event">
+
+        <label for="timestamp_start">Start Date:</label>
+        <input type="date" name="timestamp_start" id="timestamp_start" value="{{ request.args.get('timestamp_start', '') }}">
+
+        <label for="timestamp_end">End Date:</label>
+        <input type="date" name="timestamp_end" id="timestamp_end" value="{{ request.args.get('timestamp_end', '') }}">
+        
+        <button type="submit">Filter</button>
+        <a href="{{ url_for('audit_log_entries_view') }}" class="button-link">Clear Filters</a>
+    </form>
+</div>
+
+{% if entries %}
+<table>
+    <thead>
+        <tr>
+            {% set sort_order = 'asc' if request.args.get('sort_order') == 'desc' else 'desc' %}
+            <th><a href="{{ url_for('audit_log_entries_view', sort_by='id', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='id', sort_order=sort_order)) }}">ID</a></th>
+            <th><a href="{{ url_for('audit_log_entries_view', sort_by='timestamp', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='timestamp', sort_order=sort_order)) }}">Timestamp</a></th>
+            <th><a href="{{ url_for('audit_log_entries_view', sort_by='app_name', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='app_name', sort_order=sort_order)) }}">App Name</a></th>
+            <th><a href="{{ url_for('audit_log_entries_view', sort_by='user_name', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='user_name', sort_order=sort_order)) }}">User Name</a></th>
+            <th><a href="{{ url_for('audit_log_entries_view', sort_by='project', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='project', sort_order=sort_order)) }}">Project</a></th>
+            <th><a href="{{ url_for('audit_log_entries_view', sort_by='model', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='model', sort_order=sort_order)) }}">Model</a></th>
+            <th><a href="{{ url_for('audit_log_entries_view', sort_by='log_type', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='log_type', sort_order=sort_order)) }}">Log Type</a></th>
+            <th>Prompt Text (Snippet)</th>
+            <th>Response Text (Snippet)</th>
+            <th>Remote Comp. ID</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in entries %}
+        <tr>
+            <td>{{ entry.id }}</td>
+            <td>{{ entry.timestamp | replace('T', ' ') }}</td>
+            <td>{{ entry.app_name | default('N/A', true) }}</td>
+            <td>{{ entry.user_name | default('N/A', true) }}</td>
+            <td>{{ entry.project | default('N/A', true) }}</td>
+            <td>{{ entry.model | default('N/A', true) }}</td>
+            <td>{{ entry.log_type }}</td>
+            <td>{{ (entry.prompt_text[:50] + '...' if entry.prompt_text and entry.prompt_text|length > 50 else entry.prompt_text) | default('', true) }}</td>
+            <td>{{ (entry.response_text[:50] + '...' if entry.response_text and entry.response_text|length > 50 else entry.response_text) | default('', true) }}</td>
+            <td>{{ entry.remote_completion_id | default('N/A', true) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination">
+    {% if total_pages > 1 %}
+        {% if current_page > 1 %}
+            <a href="{{ url_for('audit_log_entries_view', page=current_page - 1, **request.args.to_dict(flat=False) | dict(page=current_page - 1)) }}">&laquo; Previous</a>
+        {% else %}
+            <span>&laquo; Previous</span>
+        {% endif %}
+
+        {% for page_num in range(1, total_pages + 1) %}
+            {% if page_num == current_page %}
+                <span class="current">{{ page_num }}</span>
+            {% elif page_num >= current_page - 2 and page_num <= current_page + 2 %}
+                <a href="{{ url_for('audit_log_entries_view', page=page_num, **request.args.to_dict(flat=False) | dict(page=page_num)) }}">{{ page_num }}</a>
+            {% elif page_num == 1 or page_num == total_pages %}
+                 {% if (page_num == 1 and current_page > 4) or (page_num == total_pages and current_page < total_pages - 3) %}
+                    <span>...</span>
+                 {% endif %}
+                 <a href="{{ url_for('audit_log_entries_view', page=page_num, **request.args.to_dict(flat=False) | dict(page=page_num)) }}">{{ page_num }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if current_page < total_pages %}
+            <a href="{{ url_for('audit_log_entries_view', page=current_page + 1, **request.args.to_dict(flat=False) | dict(page=current_page + 1)) }}">Next &raquo;</a>
+        {% else %}
+            <span>Next &raquo;</span>
+        {% endif %}
+    {% endif %}
+</div>
+<p>Showing {{ entries | length }} of {{ total_entries }} entries. Page {{ current_page }} of {{ total_pages }}.</p>
+
+{% else %}
+<div class="alert alert-info">No audit log entries found matching your criteria.</div>
+{% endif %}
+{% endblock %}

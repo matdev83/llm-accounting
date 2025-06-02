@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Statistics - LLM Accounting{% endblock %}
+
+{% block content %}
+<h2>Custom Statistics</h2>
+
+<div class="filters">
+    <form method="GET" action="{{ url_for('statistics_view') }}">
+        <h4>Group By (select one or more):</h4>
+        {% for dim in available_group_by_dimensions %}
+        <label for="group_by_{{ dim }}">
+            <input type="checkbox" name="group_by" id="group_by_{{ dim }}" value="{{ dim }}" {% if dim in selected_params.group_by %}checked{% endif %}>
+            {{ dim.replace('_', ' ') | title }}
+        </label>
+        {% endfor %}
+
+        <h4>Aggregates (select one or more):</h4>
+        {% for agg in available_aggregates %}
+        <label for="aggregate_{{ agg }}">
+            <input type="checkbox" name="aggregates" id="aggregate_{{ agg }}" value="{{ agg }}" {% if agg in selected_params.aggregates %}checked{% endif %}>
+            {{ agg.replace('_', ' ') | title }}
+        </label>
+        {% endfor %}
+        
+        <h4>Time Horizon:</h4>
+        <select name="time_horizon">
+            <option value="daily" {% if selected_params.time_horizon == 'daily' %}selected{% endif %}>Daily</option>
+            <option value="weekly" {% if selected_params.time_horizon == 'weekly' %}selected{% endif %}>Weekly</option>
+            <option value="monthly" {% if selected_params.time_horizon == 'monthly' %}selected{% endif %}>Monthly</option>
+            <option value="custom" {% if selected_params.time_horizon == 'custom' %}selected{% endif %}>Custom</option>
+            <option value="all_time" {% if selected_params.time_horizon == 'all_time' or not selected_params.time_horizon %}selected{% endif %}>All Time</option> {# Added all_time #}
+        </select>
+        <br>
+        <label for="timestamp_start">Start Date (for Custom):</label>
+        <input type="date" name="timestamp_start" id="timestamp_start" value="{{ selected_params.timestamp_start }}">
+
+        <label for="timestamp_end">End Date (for Custom):</label>
+        <input type="date" name="timestamp_end" id="timestamp_end" value="{{ selected_params.timestamp_end }}">
+
+        <h4>Additional Filters:</h4>
+        <label for="filter_project">Project:</label>
+        <input type="text" name="filter_project" id="filter_project" value="{{ selected_params.additional_filters.get('project', '') }}" placeholder="Project name">
+
+        <label for="filter_model">Model:</label>
+        <input type="text" name="filter_model" id="filter_model" value="{{ selected_params.additional_filters.get('model', '') }}" placeholder="Model name">
+        
+        <label for="filter_username">Username:</label>
+        <input type="text" name="filter_username" id="filter_username" value="{{ selected_params.additional_filters.get('username', '') }}" placeholder="Username">
+
+        <label for="filter_caller_name">Caller Name:</label>
+        <input type="text" name="filter_caller_name" id="filter_caller_name" value="{{ selected_params.additional_filters.get('caller_name', '') }}" placeholder="Caller/App name">
+        <br>
+        <button type="submit">Generate Statistics</button>
+        <a href="{{ url_for('statistics_view') }}" class="button-link">Clear Selections</a>
+    </form>
+</div>
+
+{% if statistics_data %}
+<h3>Raw Data</h3>
+<table>
+    <thead>
+        <tr>
+            {% if statistics_data and statistics_data[0] %}
+                {% for key in statistics_data[0].keys() %}
+                <th>{{ key.replace('_', ' ') | title }}</th>
+                {% endfor %}
+            {% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in statistics_data %}
+        <tr>
+            {% for value in row.values() %}
+            <td>
+                {% if value is number and value is not boolean %}
+                    {{ "%.6f" | format(value | float) if '.' in (value | string) else value }}
+                {% else %}
+                    {{ value }}
+                {% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% elif request.args %} {# Only show if form has been submitted #}
+    <div class="alert alert-info">No statistics data found for the selected criteria.</div>
+{% endif %}
+
+{% if chart_json %}
+<h3>Chart</h3>
+<div id="chartDiv" style="width:100%; height:500px;"></div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script type="text/javascript">
+    var chartJsonData = {{ chart_json | safe }};
+    if (chartJsonData) {
+        var figure = JSON.parse(chartJsonData);
+        Plotly.newPlot('chartDiv', figure.data, figure.layout, {responsive: true});
+
+        // If you have multiple charts, you might need to loop or handle them individually
+        // For example, if chart_json is a dict of chart_jsons:
+        /*
+        var allChartData = JSON.parse(chartJsonData);
+        for (var chartId in allChartData) {
+            if (allChartData.hasOwnProperty(chartId)) {
+                var figure = allChartData[chartId];
+                var divId = 'chartDiv-' + chartId; // Ensure you have divs with these IDs
+                if (document.getElementById(divId)) {
+                    Plotly.newPlot(divId, figure.data, figure.layout, {responsive: true});
+                }
+            }
+        }
+        */
+    }
+</script>
+{% endblock %}

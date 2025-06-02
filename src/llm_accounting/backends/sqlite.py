@@ -5,19 +5,29 @@ from datetime import datetime, timezone
 from pathlib import Path 
 from typing import Dict, List, Optional, Tuple, Any 
 
-from sqlalchemy import create_engine, text 
-from sqlalchemy.orm import Session 
-from llm_accounting.models.base import Base 
-from ..models.limits import LimitScope, LimitType, UsageLimitDTO, UsageLimit 
-from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry 
-from .sqlite_queries import (get_model_rankings_query, get_model_stats_query, 
-                             get_period_stats_query, insert_usage_query, 
-                             tail_query) 
-from .sqlite_utils import validate_db_filename 
+import json
+import logging
+import sqlite3
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Any
+
+from sqlalchemy import create_engine, text, func, desc, asc, and_, or_, extract
+from sqlalchemy.orm import Session
+from llm_accounting.models.base import Base
+# Assuming AccountingEntry and AuditLogEntryModel are defined in models.accounting and models.audit respectively
+from llm_accounting.models.accounting import AccountingEntry as AccountingEntryModel
+from llm_accounting.models.audit import AuditLogEntryModel
+from ..models.limits import LimitScope, LimitType, UsageLimitDTO, UsageLimit
+from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry
+from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
+                             get_period_stats_query, insert_usage_query,
+                             tail_query)
+from .sqlite_utils import validate_db_filename
 # MODIFIED IMPORT BELOW
 from ..db_migrations import run_migrations, get_head_revision, stamp_db_head
 
-logger = logging.getLogger(__name__) 
+logger = logging.getLogger(__name__)
 
 DEFAULT_DB_PATH = "data/accounting.sqlite" 
 MIGRATION_CACHE_PATH = "data/migration_status.json" # Used as Path(MIGRATION_CACHE_PATH)
@@ -361,6 +371,215 @@ class SQLiteBackend(BaseBackend):
         scalar_result = result.scalar_one_or_none()
         return float(scalar_result) if scalar_result is not None else 0.0
 
+    def get_usage_limits_ui(
+        self,
+        filters: Optional[dict] = None,
+    ) -> List[dict]:
+        self._ensure_connected()
+        assert self.engine is not None
+        with Session(self.engine) as session:
+            query = session.query(UsageLimit)
+
+            if filters:
+                filter_clauses = []
+                for key, value in filters.items():
+                    if value is None or str(value).strip() == "":
+                        continue
+                    column = getattr(UsageLimit, key, None)
+                    if column:
+                        if isinstance(value, str) and hasattr(column.comparator, 'ilike'):
+                            filter_clauses.append(column.ilike(f"%{value}%"))
+                        else:
+                            filter_clauses.append(column == value)
+                if filter_clauses:
+                    query = query.filter(and_(*filter_clauses))
+            
+            results = query.order_by(desc(UsageLimit.created_at)).all()
+            return [self._row_to_dict(row, UsageLimit) for row in results]
+
+    def get_accounting_entries(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        sort_by: Optional[str] = None,
+        sort_order: str = "asc",
+        filters: Optional[dict] = None,
+    ) -> Tuple[List[dict], int]:
+        self._ensure_connected()
+        assert self.engine is not None
+        with Session(self.engine) as session:
+            query = session.query(AccountingEntryModel)
+            
+            if filters:
+                query = self._apply_filters(query, AccountingEntryModel, filters)
+
+            total_count = query.count()
+
+            if sort_by:
+                column = getattr(AccountingEntryModel, sort_by, None)
+                if column:
+                    if sort_order.lower() == "desc":
+                        query = query.order_by(desc(column))
+                    else:
+                        query = query.order_by(asc(column))
+            
+            query = query.offset((page - 1) * page_size).limit(page_size)
+            
+            results = query.all()
+            # Convert to dicts
+            return [self._row_to_dict(row, AccountingEntryModel) for row in results], total_count
+
+    def _row_to_dict(self, row, model_cls):
+        """Helper to convert SQLAlchemy model instance to dict."""
+        d = {}
+        for column in model_cls.__table__.columns:
+            val = getattr(row, column.name)
+            if isinstance(val, datetime):
+                d[column.name] = val.isoformat()
+            else:
+                d[column.name] = val
+        return d
+
+    def _apply_filters(self, query, model_cls, filters: dict):
+        filter_clauses = []
+        for key, value in filters.items():
+            if value is None or str(value).strip() == "":
+                continue
+            
+            column = getattr(model_cls, key, None)
+            if column:
+                if key == "timestamp_start":
+                    filter_clauses.append(column >= value)
+                elif key == "timestamp_end":
+                    # Add 1 day to make it inclusive if it's just a date
+                    if isinstance(value, datetime) and value.hour == 0 and value.minute == 0 and value.second == 0:
+                         value = value + timedelta(days=1)
+                    filter_clauses.append(column < value)
+                elif isinstance(value, str) and hasattr(column.comparator, 'ilike'):
+                     filter_clauses.append(column.ilike(f"%{value}%"))
+                else:
+                    filter_clauses.append(column == value)
+            elif key == "search_term" and isinstance(value, str):
+                search_clauses = []
+                # Define columns to search for the given model_cls
+                if model_cls == AccountingEntryModel:
+                    searchable_cols = ["model", "project", "caller_name", "username"]
+                elif model_cls == AuditLogEntryModel:
+                    searchable_cols = ["app_name", "user_name", "model", "project", "log_type", "prompt_text", "response_text"]
+                else:
+                    searchable_cols = []
+
+                for col_name in searchable_cols:
+                    col = getattr(model_cls, col_name, None)
+                    if col and hasattr(col.comparator, 'ilike'):
+                        search_clauses.append(col.ilike(f"%{value}%"))
+                if search_clauses:
+                    filter_clauses.append(or_(*search_clauses))
+        
+        if filter_clauses:
+            query = query.filter(and_(*filter_clauses))
+        return query
+
+    def get_custom_stats(
+        self,
+        group_by: List[str],
+        aggregates: List[str],
+        time_horizon: str,
+        time_filters: Optional[dict] = None,
+        additional_filters: Optional[dict] = None,
+    ) -> List[dict]:
+        self._ensure_connected()
+        assert self.engine is not None
+
+        with Session(self.engine) as session:
+            selection_columns = []
+            group_by_columns = []
+
+            # Handle time grouping
+            time_group_col_name = None
+            if time_horizon == 'daily':
+                selection_columns.append(func.strftime('%Y-%m-%d', AccountingEntryModel.timestamp).label('time_group'))
+                group_by_columns.append(func.strftime('%Y-%m-%d', AccountingEntryModel.timestamp))
+                time_group_col_name = 'time_group'
+            elif time_horizon == 'weekly':
+                # SQLite: %W means week of year (Sunday as first day of week)
+                # To make it more like ISO week, we can use %Y-%W or combine with year
+                selection_columns.append(func.strftime('%Y-%W', AccountingEntryModel.timestamp).label('time_group'))
+                group_by_columns.append(func.strftime('%Y-%W', AccountingEntryModel.timestamp))
+                time_group_col_name = 'time_group'
+            elif time_horizon == 'monthly':
+                selection_columns.append(func.strftime('%Y-%m', AccountingEntryModel.timestamp).label('time_group'))
+                group_by_columns.append(func.strftime('%Y-%m', AccountingEntryModel.timestamp))
+                time_group_col_name = 'time_group'
+            
+            # Handle other group_by columns
+            for col_name in group_by:
+                if hasattr(AccountingEntryModel, col_name):
+                    selection_columns.append(getattr(AccountingEntryModel, col_name))
+                    group_by_columns.append(getattr(AccountingEntryModel, col_name))
+
+            # Handle aggregations
+            agg_map = {
+                'sum_prompt_tokens': func.sum(AccountingEntryModel.prompt_tokens),
+                'sum_completion_tokens': func.sum(AccountingEntryModel.completion_tokens),
+                'sum_total_tokens': func.sum(AccountingEntryModel.total_tokens),
+                'sum_cost': func.sum(AccountingEntryModel.cost),
+                'sum_execution_time': func.sum(AccountingEntryModel.execution_time),
+                'avg_prompt_tokens': func.avg(AccountingEntryModel.prompt_tokens),
+                'avg_completion_tokens': func.avg(AccountingEntryModel.completion_tokens),
+                'avg_total_tokens': func.avg(AccountingEntryModel.total_tokens),
+                'avg_cost': func.avg(AccountingEntryModel.cost),
+                'avg_execution_time': func.avg(AccountingEntryModel.execution_time),
+                'count_entries': func.count(AccountingEntryModel.id),
+            }
+            for agg_name in aggregates:
+                if agg_name in agg_map:
+                    selection_columns.append(agg_map[agg_name].label(agg_name))
+                else:
+                    logger.warning(f"Unsupported aggregate: {agg_name}")
+
+            if not selection_columns:
+                return [] # No valid columns to select or aggregate
+
+            query = session.query(*selection_columns)
+
+            # Apply time_filters
+            if time_filters:
+                if time_horizon == 'custom': # Only apply if horizon is custom, otherwise it's part of grouping
+                    if 'timestamp_start' in time_filters:
+                        query = query.filter(AccountingEntryModel.timestamp >= time_filters['timestamp_start'])
+                    if 'timestamp_end' in time_filters:
+                        end_date = time_filters['timestamp_end']
+                        if isinstance(end_date, datetime) and end_date.hour == 0 and end_date.minute == 0 and end_date.second == 0:
+                            end_date = end_date + timedelta(days=1) # Make it exclusive for end of day
+                        query = query.filter(AccountingEntryModel.timestamp < end_date)
+            
+            # Apply additional_filters
+            if additional_filters:
+                query = self._apply_filters(query, AccountingEntryModel, additional_filters)
+
+            # Apply group_by
+            if group_by_columns:
+                query = query.group_by(*group_by_columns)
+            
+            # Order by time_group if it exists, then by other group_by columns
+            if time_group_col_name:
+                 query = query.order_by(desc(time_group_col_name)) # Typically want recent time groups first
+            for col_name in group_by:
+                 if hasattr(AccountingEntryModel, col_name):
+                      query = query.order_by(getattr(AccountingEntryModel, col_name))
+
+
+            results = query.all()
+            
+            # Convert RowProxy to dict
+            # The column names are available from the result keys
+            if results and hasattr(results[0], '_fields'):
+                keys = results[0]._fields
+                return [dict(zip(keys, row)) for row in results]
+            return []
+
+
     def delete_usage_limit(self, limit_id: int) -> None:
         """Delete a usage limit entry by its ID."""
         self._ensure_connected()
@@ -419,71 +638,29 @@ class SQLiteBackend(BaseBackend):
         filter_project_null: Optional[bool] = None,
     ) -> List[AuditLogEntry]:
         self._ensure_connected()
-        assert self.conn is not None
+        assert self.engine is not None
+        with Session(self.engine) as session:
+            query = session.query(AuditLogEntryModel)
 
-        # Original query from file had "remote_completion_id"
-        query_base = "SELECT id, timestamp, app_name, user_name, model, prompt_text, response_text, remote_completion_id, project, log_type FROM audit_log_entries"
-        conditions = []
-        params_dict: Dict[str, Any] = {}
+            if filters:
+                query = self._apply_filters(query, AuditLogEntryModel, filters)
 
-        if start_date:
-            conditions.append("timestamp >= :start_date")
-            params_dict["start_date"] = start_date.isoformat()
-        if end_date:
-            conditions.append("timestamp <= :end_date")
-            params_dict["end_date"] = end_date.isoformat()
-        if app_name:
-            conditions.append("app_name = :app_name")
-            params_dict["app_name"] = app_name
-        if user_name:
-            conditions.append("user_name = :user_name")
-            params_dict["user_name"] = user_name
-        
-        if project is not None:
-            conditions.append("project = :project")
-            params_dict["project"] = project
-        elif filter_project_null is True:
-            conditions.append("project IS NULL")
-        elif filter_project_null is False:
-            conditions.append("project IS NOT NULL")
+            total_count = query.count()
 
-        if log_type:
-            conditions.append("log_type = :log_type")
-            params_dict["log_type"] = log_type
-
-        if conditions:
-            query_base += " WHERE " + " AND ".join(conditions)
-
-        query_base += " ORDER BY timestamp DESC"
-
-        if limit is not None:
-            query_base += " LIMIT :limit"
-            params_dict["limit"] = limit
-        
-        results = []
-        try:
-            result_proxy = self.conn.execute(text(query_base), params_dict)
-            for row in result_proxy.fetchall():
-                row_map = row._mapping
-                results.append(
-                    AuditLogEntry(
-                        id=row_map["id"],
-                        timestamp=datetime.fromisoformat(row_map["timestamp"]).replace(tzinfo=timezone.utc),
-                        app_name=row_map["app_name"],
-                        user_name=row_map["user_name"],
-                        model=row_map["model"],
-                        prompt_text=row_map["prompt_text"],
-                        response_text=row_map["response_text"],
-                        remote_completion_id=row_map["remote_completion_id"], 
-                        project=row_map["project"],
-                        log_type=row_map["log_type"],
-                    )
-                )
-        except Exception as e: 
-            logger.error(f"Failed to get audit log entries: {e}")
-            raise
+            if sort_by:
+                column = getattr(AuditLogEntryModel, sort_by, None)
+                if column:
+                    if sort_order.lower() == "desc":
+                        query = query.order_by(desc(column))
+                    else:
+                        query = query.order_by(asc(column))
+            else: # Default sort for audit logs
+                query = query.order_by(desc(AuditLogEntryModel.timestamp))
             
-        return results
+            query = query.offset((page - 1) * page_size).limit(page_size)
+            
+            results = query.all()
+            return [self._row_to_dict(row, AuditLogEntryModel) for row in results], total_count
 
     def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
         """Retrieve aggregated usage costs for a user."""

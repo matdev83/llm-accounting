@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Accounting Entries - LLM Accounting{% endblock %}
+
+{% block content %}
+<h2>Accounting Entries</h2>
+
+<div class="filters">
+    <form method="GET" action="{{ url_for('accounting_entries_view') }}">
+        <div class="search-filter-group">
+            <label for="search_term">Search:</label>
+            <input type="text" name="search_term" id="search_term" value="{{ request.args.get('search_term', '') }}" placeholder="General search...">
+        </div>
+        <hr>
+        <label for="project">Project:</label>
+        <input type="text" name="project" id="project" value="{{ request.args.get('project', '') }}" placeholder="Project name">
+
+        <label for="model">Model:</label>
+        <input type="text" name="model" id="model" value="{{ request.args.get('model', '') }}" placeholder="Model name">
+
+        <label for="caller_name">Caller Name:</label>
+        <input type="text" name="caller_name" id="caller_name" value="{{ request.args.get('caller_name', '') }}" placeholder="Caller/App name">
+
+        <label for="username">Username:</label>
+        <input type="text" name="username" id="username" value="{{ request.args.get('username', '') }}" placeholder="Username">
+        
+        <label for="timestamp_start">Start Date:</label>
+        <input type="date" name="timestamp_start" id="timestamp_start" value="{{ request.args.get('timestamp_start', '') }}">
+
+        <label for="timestamp_end">End Date:</label>
+        <input type="date" name="timestamp_end" id="timestamp_end" value="{{ request.args.get('timestamp_end', '') }}">
+        
+        <button type="submit">Filter</button>
+        <a href="{{ url_for('accounting_entries_view') }}" class="button-link">Clear Filters</a>
+
+    </form>
+</div>
+
+{% if entries %}
+<table>
+    <thead>
+        <tr>
+            {% set sort_order = 'asc' if request.args.get('sort_order') == 'desc' else 'desc' %}
+            <th><a href="{{ url_for('accounting_entries_view', sort_by='id', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='id', sort_order=sort_order)) }}">ID</a></th>
+            <th><a href="{{ url_for('accounting_entries_view', sort_by='timestamp', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='timestamp', sort_order=sort_order)) }}">Timestamp</a></th>
+            <th><a href="{{ url_for('accounting_entries_view', sort_by='project', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='project', sort_order=sort_order)) }}">Project</a></th>
+            <th><a href="{{ url_for('accounting_entries_view', sort_by='model', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='model', sort_order=sort_order)) }}">Model</a></th>
+            <th><a href="{{ url_for('accounting_entries_view', sort_by='username', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='username', sort_order=sort_order)) }}">Username</a></th>
+            <th><a href="{{ url_for('accounting_entries_view', sort_by='caller_name', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='caller_name', sort_order=sort_order)) }}">Caller</a></th>
+            <th><a href="{{ url_for('accounting_entries_view', sort_by='prompt_tokens', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='prompt_tokens', sort_order=sort_order)) }}">Prompt Tok.</a></th>
+            <th><a href="{{ url_for('accounting_entries_view', sort_by='completion_tokens', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='completion_tokens', sort_order=sort_order)) }}">Compl. Tok.</a></th>
+            <th><a href="{{ url_for('accounting_entries_view', sort_by='total_tokens', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='total_tokens', sort_order=sort_order)) }}">Total Tok.</a></th>
+            <th><a href="{{ url_for('accounting_entries_view', sort_by='cost', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='cost', sort_order=sort_order)) }}">Cost</a></th>
+            <th><a href="{{ url_for('accounting_entries_view', sort_by='execution_time', sort_order=sort_order, **request.args.to_dict(flat=False) | dict(sort_by='execution_time', sort_order=sort_order)) }}">Exec. Time (s)</a></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in entries %}
+        <tr>
+            <td>{{ entry.id }}</td>
+            <td>{{ entry.timestamp | replace('T', ' ') }}</td>
+            <td>{{ entry.project | default('N/A', true) }}</td>
+            <td>{{ entry.model }}</td>
+            <td>{{ entry.username | default('N/A', true) }}</td>
+            <td>{{ entry.caller_name | default('N/A', true) }}</td>
+            <td>{{ entry.prompt_tokens }}</td>
+            <td>{{ entry.completion_tokens }}</td>
+            <td>{{ entry.total_tokens }}</td>
+            <td>{{ "%.6f" | format(entry.cost | float) }}</td>
+            <td>{{ "%.3f" | format(entry.execution_time | float) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination">
+    {% if total_pages > 1 %}
+        {% if current_page > 1 %}
+            <a href="{{ url_for('accounting_entries_view', page=current_page - 1, **request.args.to_dict(flat=False) | dict(page=current_page - 1)) }}">&laquo; Previous</a>
+        {% else %}
+            <span>&laquo; Previous</span>
+        {% endif %}
+
+        {% for page_num in range(1, total_pages + 1) %}
+            {% if page_num == current_page %}
+                <span class="current">{{ page_num }}</span>
+            {% elif page_num >= current_page - 2 and page_num <= current_page + 2 %}
+                <a href="{{ url_for('accounting_entries_view', page=page_num, **request.args.to_dict(flat=False) | dict(page=page_num)) }}">{{ page_num }}</a>
+            {% elif page_num == 1 or page_num == total_pages %}
+                 {% if (page_num == 1 and current_page > 4) or (page_num == total_pages and current_page < total_pages - 3) %}
+                    <span>...</span>
+                 {% endif %}
+                 <a href="{{ url_for('accounting_entries_view', page=page_num, **request.args.to_dict(flat=False) | dict(page=page_num)) }}">{{ page_num }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if current_page < total_pages %}
+            <a href="{{ url_for('accounting_entries_view', page=current_page + 1, **request.args.to_dict(flat=False) | dict(page=current_page + 1)) }}">Next &raquo;</a>
+        {% else %}
+            <span>Next &raquo;</span>
+        {% endif %}
+    {% endif %}
+</div>
+<p>Showing {{ entries | length }} of {{ total_entries }} entries. Page {{ current_page }} of {{ total_pages }}.</p>
+
+{% else %}
+<div class="alert alert-info">No accounting entries found matching your criteria.</div>
+{% endif %}
+{% endblock %}

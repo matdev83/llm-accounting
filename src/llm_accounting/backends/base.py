@@ -223,13 +223,65 @@ class BaseBackend(ABC):
     @abstractmethod
     def get_audit_log_entries(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        app_name: Optional[str] = None,
-        user_name: Optional[str] = None,
-        project: Optional[str] = None,
-        log_type: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[AuditLogEntry]:
-        """Retrieve audit log entries based on filter criteria."""
+        page: int = 1,
+        page_size: int = 20,
+        sort_by: Optional[str] = None,
+        sort_order: str = "asc",
+        filters: Optional[dict] = None,
+    ) -> Tuple[List[dict], int]:
+        """
+        Retrieve audit log entries with pagination, sorting, and filtering.
+        Filters can include: project, model, timestamp_start, timestamp_end,
+        caller_name, username, search_term.
+        Returns a list of AuditLogEntry-like dicts and the total count of matching records.
+        """
+        pass
+
+    @abstractmethod
+    def get_accounting_entries(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        sort_by: Optional[str] = None,
+        sort_order: str = "asc",
+        filters: Optional[dict] = None,
+    ) -> Tuple[List[dict], int]:
+        """
+        Retrieve accounting entries with pagination, sorting, and filtering.
+        Filters can include: project, model, timestamp_start, timestamp_end,
+        caller_name, username, search_term.
+        Returns a list of AccountingEntry-like dicts and the total count of matching records.
+        """
+        pass
+
+    @abstractmethod
+    def get_usage_limits_ui(
+        self,
+        filters: Optional[dict] = None,
+    ) -> List[dict]:
+        """
+        Retrieve usage limits for UI display.
+        Filters can include: scope, model, username, caller_name, project_name.
+        Returns a list of UsageLimit-like dicts.
+        """
+        pass
+
+    @abstractmethod
+    def get_custom_stats(
+        self,
+        group_by: List[str],
+        aggregates: List[str],
+        time_horizon: str,
+        time_filters: Optional[dict] = None,
+        additional_filters: Optional[dict] = None,
+    ) -> List[dict]:
+        """
+        Retrieve custom aggregated statistics.
+        group_by: list of column names from AccountingEntry (e.g., ['project', 'model']).
+        aggregates: list of aggregate functions to apply (e.g., ['sum_cost', 'avg_total_tokens']).
+        time_horizon: 'daily', 'weekly', 'monthly', or 'custom'.
+        time_filters: dict with 'timestamp_start', 'timestamp_end' if time_horizon is 'custom'.
+        additional_filters: dict for filtering on columns like project, model, etc.
+        Returns a list of dictionaries, each representing a group with its aggregated values.
+        """
         pass

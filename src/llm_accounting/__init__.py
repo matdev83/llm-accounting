@@ -3,12 +3,8 @@
 This package provides core functionality for tracking and managing API usage quotas
 and rate limits across multiple services.
 """
-"""Main package initialization for LLM Accounting system.
-
-This package provides core functionality for tracking and managing API usage quotas
-and rate limits across multiple services.
-"""
 import logging
+import threading
 
 # Configure a NullHandler for the library's root logger to prevent logs from propagating to the console by default.\n# Applications using this library should configure their own logging if they wish to see library logs.\nlogging.getLogger('llm_accounting').addHandler(logging.NullHandler())
 from datetime import datetime
@@ -42,6 +38,7 @@ class LLMAccounting:
         self.app_name = app_name
         self.user_name = user_name
         self.audit_logger = AuditLogger(self.backend)
+        self._web_ui_thread = None
 
     def __enter__(self):
         """Initialize the backend when entering context"""
@@ -202,6 +199,34 @@ class LLMAccounting:
         if isinstance(self.backend, SQLiteBackend):
             return self.backend.db_path
         return None
+
+    def initialize_web_ui(self, enabled: bool = False, host: str = "127.0.0.1", port: int = 5000):
+        """
+        Initializes and starts the Flask web UI if enabled.
+        """
+        if enabled:
+            try:
+                from .web import app as web_app
+                # web_app.APP_ENABLED = True # This is now passed to run_server
+                
+                # Ensure Flask runs in a separate thread to not block the main application
+                self._web_ui_thread = threading.Thread(
+                    target=web_app.run_server,
+                    # Pass self (the LLMAccounting instance) to the web app
+                    kwargs={'llm_instance': self, 'host': host, 'port': port, 'enabled': enabled},
+                    daemon=True  # Daemonize thread to exit when main program exits
+                )
+                self._web_ui_thread.start()
+                logger.info(f"Flask Web UI started on http://{host}:{port}")
+            except ImportError:
+                logger.error(
+                    "Flask components not found. Please ensure Flask is installed "
+                    "to use the web UI."
+                )
+            except Exception as e:
+                logger.error(f"Failed to start Flask Web UI: {e}")
+        else:
+            logger.info("Web UI is disabled.")
 
 
 # Export commonly used classes

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>{% block title %}LLM Accounting{% endblock %}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333; }
+        .container { width: 90%; margin: auto; overflow: hidden; padding: 20px; }
+        header { background: #333; color: #fff; padding: 1rem 0; text-align: center; }
+        header a { color: #fff; text-decoration: none; margin: 0 15px; }
+        nav ul { padding: 0; list-style: none; background: #444; text-align: center; }
+        nav ul li { display: inline; }
+        nav ul li a { color: #fff; padding: 10px 20px; display: inline-block; text-decoration: none; }
+        nav ul li a:hover { background: #555; }
+        .content { background: #fff; padding: 20px; margin-top: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        table, th, td { border: 1px solid #ddd; }
+        th, td { padding: 12px; text-align: left; }
+        th { background-color: #f0f0f0; cursor: pointer; }
+        .pagination { margin-top: 20px; text-align: center; }
+        .pagination a, .pagination span { margin: 0 5px; padding: 8px 12px; border: 1px solid #ddd; text-decoration: none; color: #337ab7; }
+        .pagination .current { background-color: #337ab7; color: white; border-color: #337ab7; }
+        .pagination a:hover { background-color: #eee; }
+        .filters form { margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border: 1px solid #eee; border-radius: 4px; }
+        .filters form label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .filters form input[type="text"], .filters form input[type="date"], .filters form select {
+            width: calc(20% - 22px); /* Adjust based on number of filters */
+            padding: 8px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .filters form button { padding: 10px 15px; background-color: #337ab7; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .filters form button:hover { background-color: #286090; }
+        .alert { padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px; }
+        .alert-info { color: #31708f; background-color: #d9edf7; border-color: #bce8f1; }
+        .search-filter-group { display: flex; flex-wrap: wrap; align-items: center; }
+        .search-filter-group label { margin-right: 10px;}
+        .search-filter-group input[type="text"] { flex-grow: 1; margin-right: 10px; width: auto; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>LLM Accounting Web UI</h1>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('home') }}">Home</a></li>
+                <li><a href="{{ url_for('accounting_entries_view') }}">Accounting Entries</a></li>
+                <li><a href="{{ url_for('usage_limits_view') }}">Usage Limits</a></li>
+                <li><a href="{{ url_for('audit_log_entries_view') }}">Audit Logs</a></li>
+                <li><a href="{{ url_for('statistics_view') }}">Statistics</a></li>
+            </ul>
+        </nav>
+    </header>
+    <div class="container">
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

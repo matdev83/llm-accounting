@@ -16,3 +16,8 @@ setuptools
 
 # LLM Accounting Backends
 psycopg2-binary>=2.9,<3.0
+
+# Web UI
+Flask
+Werkzeug
+plotly

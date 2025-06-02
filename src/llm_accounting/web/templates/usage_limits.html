@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Usage Limits - LLM Accounting{% endblock %}
+
+{% block content %}
+<h2>Usage Limits</h2>
+
+<div class="filters">
+    <form method="GET" action="{{ url_for('usage_limits_view') }}">
+        <label for="project_name">Project:</label>
+        <input type="text" name="project_name" id="project_name" value="{{ request.args.get('project_name', '') }}" placeholder="Project name">
+
+        <label for="model">Model:</label>
+        <input type="text" name="model" id="model" value="{{ request.args.get('model', '') }}" placeholder="Model name">
+
+        <label for="username">Username:</label>
+        <input type="text" name="username" id="username" value="{{ request.args.get('username', '') }}" placeholder="Username">
+
+        <label for="caller_name">Caller Name:</label>
+        <input type="text" name="caller_name" id="caller_name" value="{{ request.args.get('caller_name', '') }}" placeholder="Caller/App name">
+
+        <label for="scope">Scope:</label>
+        <input type="text" name="scope" id="scope" value="{{ request.args.get('scope', '') }}" placeholder="e.g., global, user, project">
+        
+        <button type="submit">Filter</button>
+        <a href="{{ url_for('usage_limits_view') }}" class="button-link">Clear Filters</a>
+    </form>
+</div>
+
+{% if limits %}
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Scope</th>
+            <th>Limit Type</th>
+            <th>Model</th>
+            <th>Username</th>
+            <th>Caller Name</th>
+            <th>Project Name</th>
+            <th>Max Value</th>
+            <th>Interval Unit</th>
+            <th>Interval Value</th>
+            <th>Created At</th>
+            <th>Updated At</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for limit in limits %}
+        <tr>
+            <td>{{ limit.id }}</td>
+            <td>{{ limit.scope }}</td>
+            <td>{{ limit.limit_type }}</td>
+            <td>{{ limit.model | default('Any', true) }}</td>
+            <td>{{ limit.username | default('Any', true) }}</td>
+            <td>{{ limit.caller_name | default('Any', true) }}</td>
+            <td>{{ limit.project_name | default('Any', true) }}</td>
+            <td>{{ limit.max_value }}</td>
+            <td>{{ limit.interval_unit }}</td>
+            <td>{{ limit.interval_value }}</td>
+            <td>{{ limit.created_at | replace('T', ' ') if limit.created_at else 'N/A' }}</td>
+            <td>{{ limit.updated_at | replace('T', ' ') if limit.updated_at else 'N/A' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">No usage limits found matching your criteria.</div>
+{% endif %}
+{% endblock %}
