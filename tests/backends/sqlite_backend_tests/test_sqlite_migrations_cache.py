@@ -46,8 +46,10 @@ class TestSQLiteMigrationCache(unittest.TestCase):
         if hasattr(self, 'backend') and self.backend:
             try:
                 self.backend.close()
+                if self.backend.engine:
+                    self.backend.engine.dispose()
             except Exception as e:
-                logging.error(f"Error closing backend in tearDown: {e}")
+                logging.error(f"Error closing or disposing backend in tearDown: {e}")
         
         if self.test_dir.exists():
             shutil.rmtree(self.test_dir)
