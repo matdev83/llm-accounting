@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock # Added MagicMock
 from datetime import datetime
 
 from llm_accounting import LLMAccounting, AuditLogger, QuotaService
-from llm_accounting.backends.mock_backend import MockBackend
+from tests.utils.concrete_mock_backend import ConcreteTestBackend
 from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval # For QuotaService test
 
 # Library logger, which we want to ensure is silent by default
@@ -53,7 +53,7 @@ class TestOutputSilence(unittest.TestCase):
     @patch('sys.stdout', new_callable=StringIO)
     @patch('sys.stderr', new_callable=StringIO)
     def test_audit_logger_silence(self, mock_stderr, mock_stdout):
-        mock_backend = MockBackend()
+        mock_backend = ConcreteTestBackend()
         audit_logger = AuditLogger(backend=mock_backend)
         audit_logger.log_event(
             app_name="test_app",
@@ -67,7 +67,7 @@ class TestOutputSilence(unittest.TestCase):
     @patch('sys.stdout', new_callable=StringIO)
     @patch('sys.stderr', new_callable=StringIO)
     def test_quota_service_silence(self, mock_stderr, mock_stdout):
-        mock_backend = MockBackend()
+        mock_backend = ConcreteTestBackend()
         # Setup a dummy limit for the quota service to check against
         mock_backend.insert_usage_limit(MagicMock( # Use MagicMock for DTO
             scope=LimitScope.GLOBAL.value,
@@ -100,7 +100,7 @@ class TestOutputSilence(unittest.TestCase):
         if not has_null_handler:
              library_logger.addHandler(logging.NullHandler()) # Should be there from __init__
 
-        with LLMAccounting(backend=MockBackend()):
+        with LLMAccounting(backend=ConcreteTestBackend()):
             pass # Operations inside the context
 
         library_logger.setLevel(original_level) # Restore level
@@ -132,7 +132,7 @@ class TestOutputSilence(unittest.TestCase):
         library_logger.setLevel(logging.CRITICAL + 1)
 
 
-        mock_backend = MockBackend()
+        mock_backend = ConcreteTestBackend()
         mock_backend.initialize() # Had print, now logging.debug
         mock_backend.insert_usage(MagicMock(model="test")) # Had print, now logging.debug
         mock_backend.get_period_stats(datetime.now(), datetime.now()) # Had print, now logging.debug

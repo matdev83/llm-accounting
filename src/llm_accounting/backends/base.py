@@ -216,6 +216,11 @@ class BaseBackend(ABC):
         pass
 
     @abstractmethod
+    def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
+        """Retrieve aggregated usage costs for a user."""
+        pass
+
+    @abstractmethod
     def get_audit_log_entries(
         self,
         start_date: Optional[datetime] = None,

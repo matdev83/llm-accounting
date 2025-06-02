@@ -1,3 +1,10 @@
+## 2025-06-02 12:38:39 - feat: Add usage cost retrieval and refactor mock backend for testing
+**Commit:** `(will be filled by git)`
+- Modified: `src/llm_accounting/backends/base.py`
+- Modified: `src/llm_accounting/backends/mock_backend.py`
+- Modified: `tests/core/test_output_silence.py`
+- Added: `tests/utils/concrete_mock_backend.py`
+
 ## 2025-05-30 20:46:51 - Fix: Correctly resolve alembic migration paths for installed packages
 **Commit:** `(will be filled by git)`
 - Modified: `src/llm_accounting/db_migrations.py`

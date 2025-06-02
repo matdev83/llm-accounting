@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
-from typing_extensions import override
+import logging
 
 from .base import AuditLogEntry, BaseBackend, UsageEntry, UsageStats
 from ..models.limits import LimitScope, LimitType, UsageLimitDTO
@@ -31,59 +31,46 @@ class MockBackend(BaseBackend):
         self._query_executor = MockQueryExecutor(self)
         self._limit_manager = MockLimitManager(self)
 
-    @override
     def _ensure_connected(self) -> None:
         return self._connection_manager._ensure_connected()
 
-    @override
     def initialize(self) -> None:
         return self._connection_manager.initialize()
 
-    @override
     def insert_usage(self, entry: UsageEntry) -> None:
         return self._usage_manager.insert_usage(entry)
 
-    @override
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         return self._stats_manager.get_period_stats(start, end)
 
-    @override
     def get_model_stats(
         self, start: datetime, end: datetime
     ) -> List[Tuple[str, UsageStats]]:
         return self._stats_manager.get_model_stats(start, end)
 
-    @override
     def get_model_rankings(
         self, start: datetime, end: datetime
     ) -> Dict[str, List[Tuple[str, Any]]]:
         return self._stats_manager.get_model_rankings(start, end)
 
-    @override
     def purge(self) -> None:
         return self._usage_manager.purge()
 
-    @override
     def tail(self, n: int = 10) -> List[UsageEntry]:
         return self._usage_manager.tail(n)
 
-    @override
     def close(self) -> None:
         return self._connection_manager.close()
 
-    @override
     def execute_query(self, query: str) -> list[dict]:
         return self._query_executor.execute_query(query)
 
-    @override
     def insert_usage_limit(self, limit: UsageLimitDTO) -> None:
         return self._limit_manager.insert_usage_limit(limit)
 
-    @override
     def delete_usage_limit(self, limit_id: int) -> None:
         return self._limit_manager.delete_usage_limit(limit_id)
 
-    @override
     def get_usage_limits(
         self,
         scope: Optional[LimitScope] = None,
@@ -91,16 +78,15 @@ class MockBackend(BaseBackend):
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
         project_name: Optional[str] = None,
-        filter_project_null: Optional[bool] = False,
-        filter_username_null: Optional[bool] = False,
-        filter_caller_name_null: Optional[bool] = False,
+        filter_project_null: Optional[bool] = None,
+        filter_username_null: Optional[bool] = None,
+        filter_caller_name_null: Optional[bool] = None,
     ) -> List[UsageLimitDTO]:
         return self._limit_manager.get_usage_limits(
             scope, model, username, caller_name, project_name,
             filter_project_null, filter_username_null, filter_caller_name_null
         )
 
-    @override
     def get_accounting_entries_for_quota(
         self,
         start_time: datetime,
@@ -109,7 +95,7 @@ class MockBackend(BaseBackend):
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
         project_name: Optional[str] = None,
-        filter_project_null: Optional[bool] = False,
+        filter_project_null: Optional[bool] = None,
     ) -> float:
         return self._limit_manager.get_accounting_entries_for_quota(
             start_time, limit_type, model, username, caller_name, project_name,
@@ -119,19 +105,16 @@ class MockBackend(BaseBackend):
     def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
         return self._stats_manager.get_usage_costs(user_id, start_date, end_date)
 
-    @override
     def initialize_audit_log_schema(self) -> None:
         """Mocks initializing the audit log schema."""
-        # In a real mock, you might set a flag or log this
+        logging.debug("MockBackend: Initializing audit log schema.")
         pass
 
-    @override
     def log_audit_event(self, entry: AuditLogEntry) -> None:
         """Mocks logging an audit event."""
-        # In a real mock, you might store this in a list
+        logging.debug(f"MockBackend: Logging audit event: {entry.log_type} for model {entry.model}")
         pass
 
-    @override
     def get_audit_log_entries(
         self,
         start_date: Optional[datetime] = None,
@@ -143,5 +126,6 @@ class MockBackend(BaseBackend):
         limit: Optional[int] = None,
     ) -> List[AuditLogEntry]:
         """Mocks retrieving audit log entries."""
+        logging.debug("MockBackend: Retrieving audit log entries.")
         # In a real mock, you might return a predefined list or filter stored entries
         return []
