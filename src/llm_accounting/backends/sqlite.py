@@ -1,41 +1,29 @@
-import logging
-import sqlite3 # Keep for type hints if sqlite_queries still use it, but primary connection is SQLAlchemy
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+import json 
+import logging 
+import sqlite3 
+from datetime import datetime, timezone 
+from pathlib import Path 
+from typing import Dict, List, Optional, Tuple, Any 
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session # Added for ORM-based insert
-from llm_accounting.models.base import Base
-from ..models.limits import LimitScope, LimitType, UsageLimitDTO, UsageLimit # Added UsageLimit model
-from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry
-from .sqlite_queries import (get_model_rankings_query, get_model_stats_query,
-                             get_period_stats_query, insert_usage_query,
-                             tail_query)
-from .sqlite_utils import validate_db_filename
-from ..db_migrations import run_migrations # Import run_migrations
+from sqlalchemy import create_engine, text 
+from sqlalchemy.orm import Session 
+from llm_accounting.models.base import Base 
+from ..models.limits import LimitScope, LimitType, UsageLimitDTO, UsageLimit 
+from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry 
+from .sqlite_queries import (get_model_rankings_query, get_model_stats_query, 
+                             get_period_stats_query, insert_usage_query, 
+                             tail_query) 
+from .sqlite_utils import validate_db_filename 
+# MODIFIED IMPORT BELOW
+from ..db_migrations import run_migrations, get_head_revision, stamp_db_head
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) 
 
-DEFAULT_DB_PATH = "data/accounting.sqlite"
+DEFAULT_DB_PATH = "data/accounting.sqlite" 
+MIGRATION_CACHE_PATH = "data/migration_status.json" # Used as Path(MIGRATION_CACHE_PATH)
 
 
-class SQLiteBackend(BaseBackend):
-    """SQLite implementation of the usage tracking backend
-
-    This class provides a concrete implementation of the BaseBackend using SQLite
-    for persistent storage of LLM usage tracking data. It handles database schema
-    initialization, connection management, and implements all required operations
-    for usage tracking including insertion, querying, and aggregation of usage data.
-
-    Key Features:
-    - Uses SQLite for persistent storage with configurable database path
-    - Automatically creates database schema on initialization
-    - Supports raw SQL query execution for advanced analytics
-    - Implements usage limits and quota tracking capabilities
-    - Handles connection lifecycle management
-    """
-
+class SQLiteBackend(BaseBackend): 
     def __init__(self, db_path: Optional[str] = None):
         actual_db_path = db_path if db_path is not None else DEFAULT_DB_PATH
         validate_db_filename(actual_db_path)
@@ -49,53 +37,121 @@ class SQLiteBackend(BaseBackend):
         logger.info(f"Initializing SQLite backend for db: {self.db_path}")
         is_new_db = True
         db_connection_str = ""
+        
+        # Determine db_connection_str and is_new_db status
         if self.db_path == ":memory:":
             logger.info("Using in-memory SQLite database.")
             db_connection_str = "sqlite:///:memory:"
+            is_new_db = True # In-memory is always conceptually new in terms of persistence
         elif str(self.db_path).startswith("file:"):
-            db_connection_str = f"sqlite:///{self.db_path}" # SQLAlchemy uses sqlite:/// for file URIs
+            db_connection_str = f"sqlite:///{self.db_path}"
             path_part = self.db_path.split('?')[0]
             if path_part.startswith("file:"):
                 path_part = path_part[len("file:"):]
-                # Remove extra slashes if present for local file paths
                 if path_part.startswith('///'):
-                    path_part = path_part[2:] 
+                    path_part = path_part[2:]
                 elif path_part.startswith('/'):
-                     path_part = path_part[0:] # Keep one slash for absolute path
-            # Ensure path_part is treated as a path for exists check
+                    path_part = path_part[0:]
             if Path(path_part).exists() and Path(path_part).stat().st_size > 0:
                 is_new_db = False
-        else: # Standard file path
+        else: 
             db_path_obj = Path(self.db_path)
             if db_path_obj.exists() and db_path_obj.stat().st_size > 0:
                 is_new_db = False
             db_connection_str = f"sqlite:///{self.db_path}"
 
+        # Setup SQLAlchemy engine and connection
         if self.engine is None:
             logger.info(f"Creating SQLAlchemy engine for {db_connection_str}")
             self.engine = create_engine(db_connection_str, future=True)
-        
-        if self.conn is None or self.conn.closed: # Ensure conn is open
+        if self.conn is None or self.conn.closed: 
             self.conn = self.engine.connect()
 
-        # Run migrations for the SQLite database
-        assert db_connection_str is not None, "DB connection string must be set before running migrations."
-        run_migrations(db_url=db_connection_str)
+        migration_cache_file = Path(MIGRATION_CACHE_PATH) # Define for use in file ops
 
-        # Ensure schema is created via SQLAlchemy models if tables are missing.
-        # This handles initial setup for new databases.
-        if is_new_db:
-            logger.info(f"Database {self.db_path} appears new. Creating schema.")
+        # Main logic based on DB type and state
+        if self.db_path == ":memory:":
+            logger.info("Initializing in-memory SQLite database: running migrations and ensuring schema.")
+            # For in-memory, we typically want the latest schema.
+            # Running migrations ensures Alembic history is aligned if it were a persistent DB.
+            # Then create_all ensures any non-Alembic managed tables (if any) are also present.
+            run_migrations(db_url=db_connection_str) 
             Base.metadata.create_all(self.engine)
-            logger.info("Schema creation complete.")
-        else:
-            logger.info(f"Database {self.db_path} exists. Skipping schema creation.")
+            logger.info("In-memory database initialization complete.")
+            # No caching for in-memory databases
+        
+        elif is_new_db:
+            logger.info(f"Database {self.db_path} is new. Creating schema from models and stamping with head revision.")
+            Base.metadata.create_all(self.engine)
+            logger.info("Schema creation complete for new database.")
+            
+            stamped_revision = stamp_db_head(db_connection_str)
+            if stamped_revision:
+                try:
+                    migration_cache_file.parent.mkdir(parents=True, exist_ok=True)
+                    with open(migration_cache_file, "w") as f_cache: # Use migration_cache_file Path object
+                        json.dump({"db_path": self.db_path, "revision": stamped_revision}, f_cache)
+                    logger.info(f"Migration cache updated with stamped head revision: {stamped_revision}")
+                except IOError as e:
+                    logger.warning(f"Could not write migration cache file {migration_cache_file}: {e}")
+            else:
+                logger.warning(f"Could not determine revision after stamping new database {self.db_path}. Cache not updated.")
+        
+        else: # Existing disk-based database
+            logger.info(f"Existing database {self.db_path} found. Checking migration status.")
+            cached_revision: Optional[str] = None
+            if migration_cache_file.exists():
+                try:
+                    with open(migration_cache_file, "r") as f:
+                        cache_data = json.load(f)
+                    if cache_data.get("db_path") == self.db_path:
+                        cached_revision = cache_data.get("revision")
+                        logger.info(f"Found cached migration revision: {cached_revision} for {self.db_path}")
+                    else:
+                        logger.warning(f"Cache file {migration_cache_file} db_path does not match current {self.db_path}. Ignoring cache.")
+                except Exception as e:
+                    logger.warning(f"Could not read migration cache file {migration_cache_file}: {e}")
+
+            current_head_script_revision = get_head_revision(db_connection_str)
+            logger.info(f"Determined current head script revision: {current_head_script_revision}")
+            
+            run_migrations_needed = False
+            if cached_revision is None:
+                logger.info(f"No valid cached revision found for {self.db_path}. Migrations will run.")
+                run_migrations_needed = True
+            elif current_head_script_revision is None:
+                logger.warning(f"Could not determine head script revision for {self.db_path}. Migrations will run as a precaution.")
+                run_migrations_needed = True
+            elif cached_revision != current_head_script_revision:
+                logger.info(f"Cached revision {cached_revision} differs from head script revision {current_head_script_revision} for {self.db_path}. Migrations will run.")
+                run_migrations_needed = True
+            else:
+                logger.info(f"Cached revision {cached_revision} matches head script revision {current_head_script_revision}. Migrations will be skipped.")
+
+            if run_migrations_needed:
+                logger.info(f"Running migrations for existing database {self.db_path}...")
+                db_rev_after_migration = run_migrations(db_url=db_connection_str)
+                logger.info(f"Migrations completed for {self.db_path}. Reported database revision: {db_rev_after_migration}")
+
+                if db_rev_after_migration:
+                    try:
+                        migration_cache_file.parent.mkdir(parents=True, exist_ok=True)
+                        with open(migration_cache_file, "w") as f_cache: # Use migration_cache_file Path object
+                            json.dump({"db_path": self.db_path, "revision": db_rev_after_migration}, f_cache)
+                        logger.info(f"Migration cache updated for {self.db_path} with revision {db_rev_after_migration}")
+                    except IOError as e:
+                        logger.warning(f"Could not write migration cache file {migration_cache_file}: {e}")
+                else:
+                    logger.warning(f"run_migrations did not return a revision for {self.db_path}. Cache not updated.")
+            
+            # For existing databases, schema is managed by migrations. Base.metadata.create_all() is not called.
+            logger.info(f"Initialization for existing database {self.db_path} complete. Schema assumed to be managed by migrations.")
+
 
     def insert_usage(self, entry: UsageEntry) -> None:
         """Insert a new usage entry into the database"""
         self._ensure_connected()
         assert self.conn is not None
-        # Assuming insert_usage_query is adapted for SQLAlchemy connection and does not commit
         insert_usage_query(self.conn, entry)
         self.conn.commit()
 
@@ -103,7 +159,6 @@ class SQLiteBackend(BaseBackend):
         """Get aggregated statistics for a time period"""
         self._ensure_connected()
         assert self.conn is not None
-        # Assuming get_period_stats_query is adapted for SQLAlchemy connection
         return get_period_stats_query(self.conn, start, end)
 
     def get_model_stats(
@@ -112,7 +167,6 @@ class SQLiteBackend(BaseBackend):
         """Get statistics grouped by model for a time period"""
         self._ensure_connected()
         assert self.conn is not None
-        # Assuming get_model_stats_query is adapted for SQLAlchemy connection
         return get_model_stats_query(self.conn, start, end)
 
     def get_model_rankings(
@@ -121,23 +175,21 @@ class SQLiteBackend(BaseBackend):
         """Get model rankings based on different metrics"""
         self._ensure_connected()
         assert self.conn is not None
-        # Assuming get_model_rankings_query is adapted for SQLAlchemy connection
         return get_model_rankings_query(self.conn, start, end)
 
     def purge(self) -> None:
         """Delete all usage entries from the database"""
         self._ensure_connected()
         assert self.conn is not None
-        # Using text() for raw SQL with SQLAlchemy connection
         self.conn.execute(text("DELETE FROM accounting_entries"))
         self.conn.execute(text("DELETE FROM usage_limits"))
-        self.conn.execute(text("DELETE FROM audit_log_entries")) # Added audit log table
+        self.conn.execute(text("DELETE FROM audit_log_entries")) 
         self.conn.commit()
 
     def insert_usage_limit(self, limit: UsageLimitDTO) -> None:
         """Insert a new usage limit entry into the database."""
         self._ensure_connected()
-        assert self.engine is not None # ORM operations typically use the engine/session
+        assert self.engine is not None 
 
         db_limit = UsageLimit(
             scope=limit.scope,
@@ -149,13 +201,8 @@ class SQLiteBackend(BaseBackend):
             username=limit.username,
             caller_name=limit.caller_name,
             project_name=limit.project_name
-            # id, created_at, and updated_at are intentionally omitted
-            # so that SQLAlchemy and the database can use their defaults.
         )
         
-        # created_at and updated_at are managed by SQLAlchemy defaults and onupdate
-        # No need to set them manually from DTO here.
-
         with Session(self.engine) as session:
             session.add(db_limit)
             session.commit()
@@ -164,7 +211,6 @@ class SQLiteBackend(BaseBackend):
         """Get the n most recent usage entries"""
         self._ensure_connected()
         assert self.conn is not None
-        # Assuming tail_query is adapted for SQLAlchemy connection
         return tail_query(self.conn, n)
 
     def close(self) -> None:
@@ -172,18 +218,10 @@ class SQLiteBackend(BaseBackend):
         if self.conn and not self.conn.closed:
             logger.info(f"Closing SQLAlchemy connection for {self.db_path}")
             self.conn.close()
-        # Optional: Dispose engine if backend itself is being destroyed
-        # if self.engine:
-        #     logger.info(f"Disposing SQLAlchemy engine for {self.db_path}")
-        #     self.engine.dispose()
-        #     self.engine = None
 
     def execute_query(self, query: str) -> List[Dict]:
         """
         Execute a raw SQL SELECT query and return results.
-        If the connection is not already open, it will be initialized.
-        It is recommended to use this method within the LLMAccounting context manager
-        to ensure proper connection management (opening and closing).
         """
         if not query.strip().upper().startswith("SELECT"):
             raise ValueError("Only SELECT queries are allowed.")
@@ -194,7 +232,7 @@ class SQLiteBackend(BaseBackend):
             result = self.conn.execute(text(query))
             results = [dict(row._mapping) for row in result.fetchall()]
             return results
-        except Exception as e: # Catch SQLAlchemy errors
+        except Exception as e: 
             raise RuntimeError(f"Database error: {e}") from e
 
     def get_usage_limits(
@@ -210,8 +248,6 @@ class SQLiteBackend(BaseBackend):
     ) -> List[UsageLimitDTO]:
         self._ensure_connected()
         assert self.conn is not None
-        # Using text() for raw SQL with SQLAlchemy connection
-        # Parameters will be bound automatically by SQLAlchemy
         query_base = "SELECT id, scope, limit_type, model, username, caller_name, project_name, max_value, interval_unit, interval_value, created_at, updated_at FROM usage_limits WHERE 1=1"
         conditions = []
         params_dict: Dict[str, Any] = {}
@@ -253,7 +289,6 @@ class SQLiteBackend(BaseBackend):
         result = self.conn.execute(text(query_base), params_dict)
         limits = []
         for row in result.fetchall():
-            # Access by column name using row._mapping for SQLAlchemy Core
             row_map = row._mapping
             limits.append(
                 UsageLimitDTO(
@@ -281,7 +316,7 @@ class SQLiteBackend(BaseBackend):
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
         project_name: Optional[str] = None,
-        filter_project_null: Optional[bool] = None, # New parameter
+        filter_project_null: Optional[bool] = None, 
     ) -> float:
         self._ensure_connected()
         assert self.conn is not None
@@ -297,8 +332,6 @@ class SQLiteBackend(BaseBackend):
         else:
             raise ValueError(f"Unknown limit type: {limit_type}")
 
-        # Using text() for raw SQL with SQLAlchemy connection
-        # Parameters will be bound automatically by SQLAlchemy
         query_base = f"SELECT {select_clause} FROM accounting_entries WHERE timestamp >= :start_time"
         params_dict: Dict[str, Any] = {"start_time": start_time.isoformat()}
         conditions = []
@@ -314,9 +347,9 @@ class SQLiteBackend(BaseBackend):
             params_dict["caller_name"] = caller_name
         
         if project_name is not None:
-            conditions.append("project = :project_name") # Assuming 'project' is the column name in accounting_entries
+            conditions.append("project = :project_name") 
             params_dict["project_name"] = project_name
-        elif filter_project_null is True: # Corrected from if to elif
+        elif filter_project_null is True: 
             conditions.append("project IS NULL")
         elif filter_project_null is False:
             conditions.append("project IS NOT NULL")
@@ -336,23 +369,17 @@ class SQLiteBackend(BaseBackend):
         self.conn.commit()
 
     def _ensure_connected(self) -> None:
-        if self.engine is None: # Engine not created implies full init needed
+        if self.engine is None: 
             self.initialize()
-        elif self.conn is None or self.conn.closed: # Engine exists, just (re)connect
-            assert self.engine is not None # Should be true if this branch is hit
+        elif self.conn is None or self.conn.closed: 
+            assert self.engine is not None 
             self.conn = self.engine.connect()
-        # If self.initialize() was called, it already establishes self.conn
 
     def initialize_audit_log_schema(self) -> None:
-        """Ensure the audit log schema (e.g., tables) is initialized."""
-        # This method is now largely a no-op or can be removed if initialize() handles all schema.
-        # SQLAlchemy's Base.metadata.create_all(self.engine) in initialize() handles all tables.
         self._ensure_connected() 
         logger.info("Audit log schema is initialized as part of the main database initialization.")
 
-
     def log_audit_event(self, entry: AuditLogEntry) -> None:
-        """Insert a new audit log entry."""
         self._ensure_connected()
         assert self.conn is not None
 
@@ -376,9 +403,8 @@ class SQLiteBackend(BaseBackend):
         try:
             self.conn.execute(text(query), params)
             self.conn.commit()
-        except Exception as e: # Catch SQLAlchemy errors
+        except Exception as e: 
             logger.error(f"Failed to log audit event: {e}")
-            # Depending on policy, might re-raise or handle
             raise
 
     def get_audit_log_entries(
@@ -392,12 +418,10 @@ class SQLiteBackend(BaseBackend):
         limit: Optional[int] = None,
         filter_project_null: Optional[bool] = None,
     ) -> List[AuditLogEntry]:
-        """Retrieve audit log entries based on filter criteria."""
         self._ensure_connected()
         assert self.conn is not None
 
-        # Using text() for raw SQL with SQLAlchemy connection
-        # Parameters will be bound automatically by SQLAlchemy
+        # Original query from file had "remote_completion_id"
         query_base = "SELECT id, timestamp, app_name, user_name, model, prompt_text, response_text, remote_completion_id, project, log_type FROM audit_log_entries"
         conditions = []
         params_dict: Dict[str, Any] = {}
@@ -440,7 +464,6 @@ class SQLiteBackend(BaseBackend):
         try:
             result_proxy = self.conn.execute(text(query_base), params_dict)
             for row in result_proxy.fetchall():
-                # Access by column name using row._mapping for SQLAlchemy Core
                 row_map = row._mapping
                 results.append(
                     AuditLogEntry(
@@ -451,14 +474,13 @@ class SQLiteBackend(BaseBackend):
                         model=row_map["model"],
                         prompt_text=row_map["prompt_text"],
                         response_text=row_map["response_text"],
-                        remote_completion_id=row_map["remote_completion_id"],
+                        remote_completion_id=row_map["remote_completion_id"], 
                         project=row_map["project"],
                         log_type=row_map["log_type"],
                     )
                 )
-        except Exception as e: # Catch SQLAlchemy errors
+        except Exception as e: 
             logger.error(f"Failed to get audit log entries: {e}")
-            # Depending on policy, might re-raise or handle
             raise
             
         return results
