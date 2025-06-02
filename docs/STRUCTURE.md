@@ -12,7 +12,6 @@ Here's a breakdown of the main files and directories at the project root:
 
 -   `.flake8`: Configuration file for `flake8`, a Python code linter, ensuring code quality and style consistency.
 -   `.gitignore`: Specifies intentionally untracked files to be ignored by Git.
--   `CHANGELOG.md`: Logs important updates, releases, and the history of changes.
 -   `LICENSE`: Contains the licensing information for the project.
 -   `MANIFEST.in`: Specifies non-Python files to be included in the Python distribution package.
 -   `pyproject.toml`: Modern Python project configuration file.
