@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any 
 
 from sqlalchemy import create_engine, text 
-from sqlalchemy.orm import Session 
 from llm_accounting.models.base import Base 
 from ..models.limits import LimitScope, LimitType, UsageLimitDTO, UsageLimit 
 from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry 
@@ -81,11 +80,11 @@ class SQLiteBackend(BaseBackend):
             # No caching for in-memory databases
         
         elif is_new_db:
-            logger.info(f"Database {self.db_path} is new. Creating schema from models and stamping with head revision.")
-            Base.metadata.create_all(self.engine)
-            logger.info("Schema creation complete for new database.")
+            logger.info(f"Database {self.db_path} is new. Running migrations and stamping with head revision.")
+            db_rev_after_migration = run_migrations(db_url=db_connection_str)
+            logger.info(f"Migrations completed for new database {self.db_path}. Reported database revision: {db_rev_after_migration}")
             
-            stamped_revision = stamp_db_head(db_connection_str)
+            stamped_revision = db_rev_after_migration # Use the revision from run_migrations
             if stamped_revision:
                 try:
                     migration_cache_file.parent.mkdir(parents=True, exist_ok=True)
@@ -189,23 +188,33 @@ class SQLiteBackend(BaseBackend):
     def insert_usage_limit(self, limit: UsageLimitDTO) -> None:
         """Insert a new usage limit entry into the database."""
         self._ensure_connected()
-        assert self.engine is not None 
+        assert self.conn is not None # Changed from self.engine is not None
 
-        db_limit = UsageLimit(
-            scope=limit.scope,
-            limit_type=limit.limit_type,
-            max_value=limit.max_value,
-            interval_unit=limit.interval_unit,
-            interval_value=limit.interval_value,
-            model=limit.model,
-            username=limit.username,
-            caller_name=limit.caller_name,
-            project_name=limit.project_name
-        )
-        
-        with Session(self.engine) as session:
-            session.add(db_limit)
-            session.commit()
+        now_utc = datetime.now(timezone.utc)
+        query = """
+            INSERT INTO usage_limits (
+                scope, limit_type, max_value, interval_unit, interval_value,
+                model, username, caller_name, project_name, created_at, updated_at
+            ) VALUES (
+                :scope, :limit_type, :max_value, :interval_unit, :interval_value,
+                :model, :username, :caller_name, :project_name, :created_at, :updated_at
+            )
+        """
+        params = {
+            "scope": limit.scope,
+            "limit_type": limit.limit_type,
+            "max_value": limit.max_value,
+            "interval_unit": limit.interval_unit,
+            "interval_value": limit.interval_value,
+            "model": limit.model,
+            "username": limit.username,
+            "caller_name": limit.caller_name,
+            "project_name": limit.project_name,
+            "created_at": limit.created_at.isoformat() if limit.created_at else now_utc.isoformat(),
+            "updated_at": limit.updated_at.isoformat() if limit.updated_at else now_utc.isoformat(),
+        }
+        self.conn.execute(text(query), params)
+        self.conn.commit()
 
     def tail(self, n: int = 10) -> List[UsageEntry]:
         """Get the n most recent usage entries"""

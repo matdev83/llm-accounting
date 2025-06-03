@@ -22,13 +22,13 @@ class QuotaService:
 
     def check_quota(
         self,
-        model: str,
+        model: Optional[str],
         username: Optional[str],
         caller_name: Optional[str],
         input_tokens: int,
-        cost: float = 0.0,
-        project_name: Optional[str] = None,
+        cost: float,
         completion_tokens: int = 0,
+        project_name: Optional[str] = None,
     ) -> Tuple[bool, Optional[str]]:
         checks = [
             self._check_global_limits,
@@ -39,15 +39,12 @@ class QuotaService:
             self._check_user_caller_limits,
         ]
 
-        for check_method in checks:
-            if check_method.__name__ == "_check_project_limits":
-                allowed, message = check_method(model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
-            else:
-                allowed, message = check_method(model, username, caller_name, input_tokens, cost, completion_tokens)
-            
+        for check_func in checks:
+            allowed, reason = check_func(
+                model, username, caller_name, input_tokens, cost, completion_tokens, project_name
+            )
             if not allowed:
-                return False, message
-
+                return False, reason
         return True, None
 
     def _check_global_limits(
@@ -58,6 +55,7 @@ class QuotaService:
         input_tokens: int,
         cost: float,
         completion_tokens: int,
+        project_name: Optional[str],
     ) -> Tuple[bool, Optional[str]]:
         if self.limits_cache is None: # Safeguard
             self._load_limits_from_backend()
@@ -67,18 +65,21 @@ class QuotaService:
             if LimitScope(limit.scope) == LimitScope.GLOBAL
         ]
         return self._evaluate_limits(
-            limits_to_evaluate, None, None, None, None, input_tokens, cost, completion_tokens
+            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
         )
 
     def _check_model_limits(
         self,
-        model: str,
+        model: Optional[str],
         username: Optional[str],
         caller_name: Optional[str],
         input_tokens: int,
         cost: float,
         completion_tokens: int,
+        project_name: Optional[str],
     ) -> Tuple[bool, Optional[str]]:
+        if not model:
+            return True, None
         if self.limits_cache is None: # Safeguard
             self._load_limits_from_backend()
 
@@ -86,17 +87,17 @@ class QuotaService:
             limit for limit in self.limits_cache
             if LimitScope(limit.scope) == LimitScope.MODEL and limit.model == model
         ]
-        return self._evaluate_limits(limits_to_evaluate, model, None, None, None, input_tokens, cost, completion_tokens)
+        return self._evaluate_limits(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
 
     def _check_project_limits(
         self,
         model: Optional[str],
         username: Optional[str],
         caller_name: Optional[str],
-        project_name: Optional[str],
         input_tokens: int,
         cost: float,
         completion_tokens: int,
+        project_name: Optional[str],
     ) -> Tuple[bool, Optional[str]]:
         if not project_name:
             return True, None
@@ -107,17 +108,18 @@ class QuotaService:
             limit for limit in self.limits_cache
             if LimitScope(limit.scope) == LimitScope.PROJECT and limit.project_name == project_name
         ]
-        return self._evaluate_limits(limits_to_evaluate, model, None, None, project_name, input_tokens, cost, completion_tokens)
+        return self._evaluate_limits(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
 
 
     def _check_user_limits(
         self,
         model: Optional[str],
-        username: str,
+        username: Optional[str],
         caller_name: Optional[str],
         input_tokens: int,
         cost: float,
         completion_tokens: int,
+        project_name: Optional[str],
     ) -> Tuple[bool, Optional[str]]:
         if not username:
              return True, None
@@ -129,17 +131,18 @@ class QuotaService:
             if LimitScope(limit.scope) == LimitScope.USER and limit.username == username
         ]
         return self._evaluate_limits(
-            limits_to_evaluate, model, username, None, None, input_tokens, cost, completion_tokens
+            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
         )
 
     def _check_caller_limits(
         self,
         model: Optional[str],
         username: Optional[str], # This username is for the request, not the limit's username field here.
-        caller_name: str,
+        caller_name: Optional[str],
         input_tokens: int,
         cost: float,
         completion_tokens: int,
+        project_name: Optional[str],
     ) -> Tuple[bool, Optional[str]]:
         if not caller_name:
             return True, None
@@ -154,17 +157,18 @@ class QuotaService:
             and limit.username is None # Explicitly for generic caller limits
         ]
         return self._evaluate_limits(
-            limits_to_evaluate, model, None, caller_name, None, input_tokens, cost, completion_tokens, limit_scope_for_message="CALLER (caller: {caller_name})"
+            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens, limit_scope_for_message="CALLER (caller: {caller_name})"
         )
 
     def _check_user_caller_limits(
         self,
         model: Optional[str],
-        username: str,
-        caller_name: str,
+        username: Optional[str],
+        caller_name: Optional[str],
         input_tokens: int,
         cost: float,
         completion_tokens: int,
+        project_name: Optional[str],
     ) -> Tuple[bool, Optional[str]]:
         if not username or not caller_name:
             return True, None
@@ -179,11 +183,11 @@ class QuotaService:
             and limit.caller_name == caller_name
         ]
         return self._evaluate_limits(
-            limits_to_evaluate, model, username, caller_name, None, input_tokens, cost, completion_tokens
+            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
         )
 
     def _evaluate_limits(
-        self, 
+        self,
         limits: List[UsageLimitDTO],
         request_model: Optional[str],
         request_username: Optional[str],
@@ -225,13 +229,11 @@ class QuotaService:
 
             period_start_time = self._get_period_start(now, TimeInterval(limit.interval_unit), limit.interval_value)
 
-            # Initialize final query parameters
             final_usage_query_model: Optional[str] = None
             final_usage_query_username: Optional[str] = None
             final_usage_query_caller_name: Optional[str] = None
             final_usage_query_project_name: Optional[str] = None
             final_usage_query_filter_project_null: Optional[bool] = None
-
 
             if limit_scope_enum == LimitScope.GLOBAL:
                 # For GLOBAL limits, usage summation must be across everything.
@@ -274,10 +276,9 @@ class QuotaService:
                 project_name=final_usage_query_project_name,
                 filter_project_null=final_usage_query_filter_project_null,
             )
-            
-            request_value = 0.0
-            limit_type_enum = LimitType(limit.limit_type)
 
+            limit_type_enum = LimitType(limit.limit_type)
+            request_value: float
             if limit_type_enum == LimitType.REQUESTS:
                 request_value = 1.0
             elif limit_type_enum == LimitType.INPUT_TOKENS:
@@ -292,25 +293,25 @@ class QuotaService:
             potential_usage = current_usage + request_value
 
             if potential_usage > limit.max_value:
-                formatted_max = f"{float(limit.max_value):.2f}"
-                
-                scope_desc = LimitScope(limit.scope).value.upper()
-                
-                details = []
-                if limit.model: details.append(f"model: {limit.model}")
-                if limit.username: details.append(f"user: {limit.username}")
-                if limit.caller_name: details.append(f"caller: {limit.caller_name}")
-                if limit.project_name: details.append(f"project: {limit.project_name}")
-                
-                if details:
-                    scope_desc += f" ({', '.join(details)})"
-                
-                limit_unit_str = limit.interval_unit.lower()
-                plural_s = "s" if limit.interval_value > 1 and not limit_unit_str.endswith("s") else ""
-                
-                return (
-                    False,
-                    f"{scope_desc} limit: {formatted_max} {limit.limit_type} per {limit.interval_value} {limit_unit_str}{plural_s}, current usage: {current_usage:.2f}, request: {request_value:.2f}",
+                scope_msg = limit_scope_for_message if limit_scope_for_message else limit.scope
+                if limit.scope == LimitScope.USER.value and limit.username:
+                    scope_msg = f"USER (user: {limit.username})"
+                elif limit.scope == LimitScope.MODEL.value and limit.model:
+                    scope_msg = f"MODEL (model: {limit.model})"
+                elif limit.scope == LimitScope.CALLER.value and limit.caller_name:
+                    if limit.username:
+                        scope_msg = f"CALLER (user: {limit.username}, caller: {limit.caller_name})"
+                    else:
+                        scope_msg = f"CALLER (caller: {limit.caller_name})"
+                elif limit.scope == LimitScope.PROJECT.value:
+                    if limit.project_name:
+                        scope_msg = f"PROJECT (project: {limit.project_name})"
+                    else:
+                        scope_msg = "PROJECT (no project)" # For limits on entries with no project
+
+                return False, (
+                    f"{scope_msg} limit: {limit.max_value:.2f} {limit.limit_type} per {limit.interval_value} {limit.interval_unit}"
+                    f" exceeded. Current usage: {current_usage:.2f}, request: {request_value:.2f}."
                 )
         return True, None
 
@@ -348,14 +349,10 @@ class QuotaService:
             year = current_time.year
             month = current_time.month
             total_months_current = year * 12 + month -1
-            
             months_offset = total_months_current % interval_value
-            
             effective_total_months = total_months_current - months_offset
-            
             effective_year = effective_total_months // 12
             effective_month = (effective_total_months % 12) + 1
-            
             return current_time.replace(year=effective_year, month=effective_month, day=1, hour=0, minute=0, second=0, microsecond=0)
         else:
             raise ValueError(f"Unsupported time interval unit: {interval_unit}")

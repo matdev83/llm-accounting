@@ -82,7 +82,9 @@ class TestOutputSilence(unittest.TestCase):
             model="test_model",
             username="test_user",
             caller_name="test_caller",
-            input_tokens=10
+            input_tokens=10,
+            cost=0.01, # Added missing argument
+            project_name="test_project" # Added missing argument
         )
         self.assertEqual(mock_stdout.getvalue(), "")
         self.assertEqual(mock_stderr.getvalue(), "")

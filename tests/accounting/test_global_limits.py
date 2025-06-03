@@ -37,6 +37,7 @@ def test_global_limit(accounting_instance: LLMAccounting, sqlite_backend_for_acc
     )
     sqlite_backend_for_accounting.insert_usage_limit(limit_to_set)
 
+
     # Refresh the cache in QuotaService after inserting limits directly into DB
     accounting_instance.quota_service.refresh_limits_cache()
 
@@ -64,7 +65,7 @@ def test_global_limit(accounting_instance: LLMAccounting, sqlite_backend_for_acc
     assert message is not None, "Denial message should not be None"
     
     expected_message_part_1 = "GLOBAL limit: 10.00 requests per 1 minute"
-    expected_message_part_2 = "current usage: 10.00, request: 1.00"
+    expected_message_part_2 = "exceeded. Current usage: 10.00, request: 1.00."
     
     assert expected_message_part_1 in message
     assert expected_message_part_2 in message
