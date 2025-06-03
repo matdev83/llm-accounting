@@ -117,7 +117,7 @@ class QuotaService:
             limit for limit in self.cache_manager.limits_cache
             if LimitScope(limit.scope) == LimitScope.GLOBAL
         ]
-        return self.limit_evaluator._evaluate_limits(
+        return self.limit_evaluator._evaluate_limits_enhanced(
             limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
         )
 
@@ -138,7 +138,7 @@ class QuotaService:
             limit for limit in self.cache_manager.limits_cache
             if LimitScope(limit.scope) == LimitScope.MODEL and limit.model == model
         ]
-        return self.limit_evaluator._evaluate_limits(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
+        return self.limit_evaluator._evaluate_limits_enhanced(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
 
     def _check_project_limits_enhanced(
         self,
@@ -157,7 +157,7 @@ class QuotaService:
             limit for limit in self.cache_manager.limits_cache
             if LimitScope(limit.scope) == LimitScope.PROJECT and limit.project_name == project_name
         ]
-        return self.limit_evaluator._evaluate_limits(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
+        return self.limit_evaluator._evaluate_limits_enhanced(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
 
     def _check_user_limits_enhanced(
         self,
@@ -176,7 +176,7 @@ class QuotaService:
             limit for limit in self.cache_manager.limits_cache
             if LimitScope(limit.scope) == LimitScope.USER and limit.username == username
         ]
-        return self.limit_evaluator._evaluate_limits(
+        return self.limit_evaluator._evaluate_limits_enhanced(
             limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
         )
 
@@ -200,7 +200,7 @@ class QuotaService:
             and limit.caller_name == caller_name
             and limit.username is None # Explicitly for generic caller limits
         ]
-        return self.limit_evaluator._evaluate_limits(
+        return self.limit_evaluator._evaluate_limits_enhanced(
             limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens, limit_scope_for_message="CALLER (caller: {caller_name})"
         )
 
@@ -224,7 +224,7 @@ class QuotaService:
             and limit.username == username
             and limit.caller_name == caller_name
         ]
-        return self.limit_evaluator._evaluate_limits(
+        return self.limit_evaluator._evaluate_limits_enhanced(
             limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
         )
 
