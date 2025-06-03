@@ -11,6 +11,7 @@ MOCK_CACHE_FILE_FULL_PATH_FOR_PATCHING = Path("tests/temp_test_data_migrations/d
 
 # Get specific logger instance that will be used by the backend
 SQLITE_BACKEND_LOGGER_NAME = 'llm_accounting.backends.sqlite'
+CONNECTION_MANAGER_LOGGER_NAME = 'llm_accounting.backends.sqlite_backend_parts.connection_manager'
 
 class TestSQLiteMigrationCache(unittest.TestCase):
     def setUp(self):
@@ -36,6 +37,12 @@ class TestSQLiteMigrationCache(unittest.TestCase):
         logger_instance = logging.getLogger(SQLITE_BACKEND_LOGGER_NAME)
         logger_instance.disabled = False
         logger_instance.setLevel(logging.INFO)
+        
+        # Ensure connection_manager's logger is also enabled for testing
+        connection_manager_logger_instance = logging.getLogger(CONNECTION_MANAGER_LOGGER_NAME)
+        connection_manager_logger_instance.disabled = False
+        connection_manager_logger_instance.setLevel(logging.INFO)
+
         # Clear existing handlers that might be misconfigured by other tests,
         # assertLogs will add its own.
         # for handler in list(logger_instance.handlers): # Be careful with modifying handlers globally
@@ -46,29 +53,28 @@ class TestSQLiteMigrationCache(unittest.TestCase):
         if hasattr(self, 'backend') and self.backend:
             try:
                 self.backend.close()
-                if self.backend.engine:
-                    self.backend.engine.dispose()
+                # The engine is now managed by connection_manager
+                if self.backend.connection_manager.engine:
+                    self.backend.connection_manager.engine.dispose()
             except Exception as e:
                 logging.error(f"Error closing or disposing backend in tearDown: {e}")
         
         if self.test_dir.exists():
             shutil.rmtree(self.test_dir)
 
-    @patch('llm_accounting.backends.sqlite.Base.metadata.create_all')
-    @patch('llm_accounting.backends.sqlite.stamp_db_head')
-    @patch('llm_accounting.backends.sqlite.run_migrations') 
-    @patch('llm_accounting.backends.sqlite.MIGRATION_CACHE_PATH', new=MOCK_CACHE_FILE_FULL_PATH_FOR_PATCHING)
-    def test_new_database_creates_schema_stamps_and_caches(self, mock_run_migrations_upgrade, mock_stamp_db_head, mock_create_all):
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.Base.metadata.create_all')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.get_head_revision')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.run_migrations') 
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.MIGRATION_CACHE_PATH', new=MOCK_CACHE_FILE_FULL_PATH_FOR_PATCHING)
+    def test_new_database_creates_schema_stamps_and_caches(self, mock_run_migrations_upgrade, mock_get_head_revision, mock_create_all):
         stamped_rev = "stamped_head_rev_123"
-        mock_run_migrations_upgrade.return_value = stamped_rev # Set return value for run_migrations
-        mock_stamp_db_head.return_value = stamped_rev
+        mock_run_migrations_upgrade.return_value = stamped_rev
         
         self.backend = SQLiteBackend(db_path=str(self.mock_db_path)) 
         self.backend.initialize()
 
-        mock_create_all.assert_not_called() # Base.metadata.create_all should not be called for new DBs now
-        mock_stamp_db_head.assert_not_called() # stamp_db_head is no longer called directly in this path
-        mock_run_migrations_upgrade.assert_called_once() # run_migrations should be called
+        mock_create_all.assert_not_called()
+        mock_run_migrations_upgrade.assert_called_once()
 
         self.assertTrue(self.controlled_cache_path.exists())
         with open(self.controlled_cache_path, 'r') as f:
@@ -76,12 +82,11 @@ class TestSQLiteMigrationCache(unittest.TestCase):
         self.assertEqual(cache_data.get("db_path"), str(self.mock_db_path))
         self.assertEqual(cache_data.get("revision"), stamped_rev)
 
-    @patch('llm_accounting.backends.sqlite.Base.metadata.create_all')
-    @patch('llm_accounting.backends.sqlite.stamp_db_head')
-    @patch('llm_accounting.backends.sqlite.get_head_revision')
-    @patch('llm_accounting.backends.sqlite.run_migrations')
-    @patch('llm_accounting.backends.sqlite.MIGRATION_CACHE_PATH', new=MOCK_CACHE_FILE_FULL_PATH_FOR_PATCHING)
-    def test_existing_db_cache_up_to_date(self, mock_run_migrations, mock_get_head_revision, mock_stamp_db_head, mock_create_all):
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.Base.metadata.create_all')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.get_head_revision')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.run_migrations')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.MIGRATION_CACHE_PATH', new=MOCK_CACHE_FILE_FULL_PATH_FOR_PATCHING)
+    def test_existing_db_cache_up_to_date(self, mock_run_migrations, mock_get_head_revision, mock_create_all):
         self.mock_db_path.write_text("dummy db content") 
         current_rev = "head_rev_abc"
         self.controlled_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -91,25 +96,23 @@ class TestSQLiteMigrationCache(unittest.TestCase):
         mock_get_head_revision.return_value = current_rev
         
         self.backend = SQLiteBackend(db_path=str(self.mock_db_path)) 
-        with self.assertLogs(logger=SQLITE_BACKEND_LOGGER_NAME, level='INFO') as cm:
+        with self.assertLogs(logger=CONNECTION_MANAGER_LOGGER_NAME, level='INFO') as cm: # Changed logger name
             self.backend.initialize()
         
-        self.assertTrue(len(cm.output) > 0, f"Expected INFO logs for SQLite, but none were captured. Logger '{SQLITE_BACKEND_LOGGER_NAME}' handlers: {logging.getLogger(SQLITE_BACKEND_LOGGER_NAME).handlers}")
+        self.assertTrue(len(cm.output) > 0, f"Expected INFO logs for SQLite, but none were captured. Logger '{CONNECTION_MANAGER_LOGGER_NAME}' handlers: {logging.getLogger(CONNECTION_MANAGER_LOGGER_NAME).handlers}")
         
         expected_log_msg = f"Cached revision {current_rev} matches head script revision {current_rev}. Migrations will be skipped."
         self.assertTrue(any(expected_log_msg in message for message in cm.output), f"Expected log '{expected_log_msg}' missing. Logs: {cm.output}")
 
         mock_run_migrations.assert_not_called()
-        mock_stamp_db_head.assert_not_called()
         mock_create_all.assert_not_called()
 
 
-    @patch('llm_accounting.backends.sqlite.Base.metadata.create_all')
-    @patch('llm_accounting.backends.sqlite.stamp_db_head')
-    @patch('llm_accounting.backends.sqlite.get_head_revision')
-    @patch('llm_accounting.backends.sqlite.run_migrations')
-    @patch('llm_accounting.backends.sqlite.MIGRATION_CACHE_PATH', new=MOCK_CACHE_FILE_FULL_PATH_FOR_PATCHING)
-    def test_existing_db_cache_outdated(self, mock_run_migrations, mock_get_head_revision, mock_stamp_db_head, mock_create_all):
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.Base.metadata.create_all')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.get_head_revision')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.run_migrations')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.MIGRATION_CACHE_PATH', new=MOCK_CACHE_FILE_FULL_PATH_FOR_PATCHING)
+    def test_existing_db_cache_outdated(self, mock_run_migrations, mock_get_head_revision, mock_create_all):
         self.mock_db_path.write_text("dummy db content")
         old_rev = "old_rev_1"
         new_rev_from_scripts = "new_rev_2_scripts"
@@ -126,19 +129,17 @@ class TestSQLiteMigrationCache(unittest.TestCase):
         self.backend.initialize()
 
         mock_run_migrations.assert_called_once()
-        mock_stamp_db_head.assert_not_called()
         mock_create_all.assert_not_called() 
         self.assertTrue(self.controlled_cache_path.exists())
         with open(self.controlled_cache_path, 'r') as f:
             cache_data = json.load(f)
         self.assertEqual(cache_data.get("revision"), new_rev_from_migration)
 
-    @patch('llm_accounting.backends.sqlite.Base.metadata.create_all')
-    @patch('llm_accounting.backends.sqlite.stamp_db_head')
-    @patch('llm_accounting.backends.sqlite.get_head_revision')
-    @patch('llm_accounting.backends.sqlite.run_migrations')
-    @patch('llm_accounting.backends.sqlite.MIGRATION_CACHE_PATH', new=MOCK_CACHE_FILE_FULL_PATH_FOR_PATCHING)
-    def test_existing_db_cache_missing(self, mock_run_migrations, mock_get_head_revision, mock_stamp_db_head, mock_create_all):
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.Base.metadata.create_all')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.get_head_revision')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.run_migrations')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.MIGRATION_CACHE_PATH', new=MOCK_CACHE_FILE_FULL_PATH_FOR_PATCHING)
+    def test_existing_db_cache_missing(self, mock_run_migrations, mock_get_head_revision, mock_create_all):
         self.mock_db_path.write_text("dummy db content") 
 
         head_rev_scripts = "head_rev_3_scripts"
@@ -150,18 +151,17 @@ class TestSQLiteMigrationCache(unittest.TestCase):
         self.backend.initialize()
 
         mock_run_migrations.assert_called_once()
-        mock_stamp_db_head.assert_not_called()
         mock_create_all.assert_not_called()
         self.assertTrue(self.controlled_cache_path.exists())
         with open(self.controlled_cache_path, 'r') as f:
             cache_data = json.load(f)
         self.assertEqual(cache_data.get("revision"), migrated_rev)
 
-    @patch('llm_accounting.backends.sqlite.Base.metadata.create_all')
-    @patch('llm_accounting.backends.sqlite.stamp_db_head')
-    @patch('llm_accounting.backends.sqlite.run_migrations') 
-    @patch('llm_accounting.backends.sqlite.MIGRATION_CACHE_PATH', new=MOCK_CACHE_FILE_FULL_PATH_FOR_PATCHING)
-    def test_in_memory_database(self, mock_run_migrations_upgrade, mock_stamp_db_head, mock_create_all):
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.Base.metadata.create_all')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.get_head_revision')
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.run_migrations') 
+    @patch('llm_accounting.backends.sqlite_backend_parts.connection_manager.MIGRATION_CACHE_PATH', new=MOCK_CACHE_FILE_FULL_PATH_FOR_PATCHING)
+    def test_in_memory_database(self, mock_run_migrations_upgrade, mock_get_head_revision, mock_create_all):
         if self.controlled_cache_path.exists(): self.controlled_cache_path.unlink()
         
         mock_run_migrations_upgrade.return_value = "in_memory_migrated_rev"
@@ -169,9 +169,9 @@ class TestSQLiteMigrationCache(unittest.TestCase):
         self.backend = SQLiteBackend(db_path=":memory:") 
         self.backend.initialize()
 
-        mock_run_migrations_upgrade.assert_called_once()
-        mock_create_all.assert_not_called() # Changed from assert_called_once()
-        mock_stamp_db_head.assert_not_called()
+        mock_run_migrations_upgrade.assert_not_called() # Changed to assert_not_called()
+        mock_create_all.assert_called_once()
+        mock_get_head_revision.assert_not_called()
         self.assertFalse(self.controlled_cache_path.exists())
 
 if __name__ == '__main__':

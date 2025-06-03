@@ -66,7 +66,7 @@ def sqlite_backend(temp_db_path):
     try:
         yield backend
     finally:
-        if backend.conn or backend.engine:
+        if backend.connection_manager.conn and not backend.connection_manager.conn.closed:
             logger.info(f"Closing SQLiteBackend for db_path: {temp_db_path}")
             backend.close()
         else:

@@ -66,19 +66,32 @@ def test_get_accounting_entries_for_quota_with_project_filter(sqlite_backend: SQ
     
     # Quota for ProjectOne
     cost_project_one = sqlite_backend.get_accounting_entries_for_quota(
-        start_time=start_time, limit_type=LimitType.COST, project_name=project_one
+        start_time=start_time,
+        end_time=now, # Add end_time
+        limit_type=LimitType.COST,
+        interval_unit=TimeInterval.DAY, # Add interval_unit
+        project_name=project_one
     )
     assert cost_project_one == 2.5 # 1.0 + 1.5
 
     # Quota for ProjectTwo
     cost_project_two = sqlite_backend.get_accounting_entries_for_quota(
-        start_time=start_time, limit_type=LimitType.COST, project_name=project_two
+        start_time=start_time,
+        end_time=now, # Add end_time
+        limit_type=LimitType.COST,
+        interval_unit=TimeInterval.DAY, # Add interval_unit
+        project_name=project_two
     )
     assert cost_project_two == 2.0
 
     # Quota for entries with NO project (project_name=None)
     cost_no_project = sqlite_backend.get_accounting_entries_for_quota(
-        start_time=start_time, limit_type=LimitType.COST, project_name=None, filter_project_null=True
+        start_time=start_time,
+        end_time=now, # Add end_time
+        limit_type=LimitType.COST,
+        interval_unit=TimeInterval.DAY, # Add interval_unit
+        project_name=None,
+        filter_project_null=True
     )
     assert cost_no_project == 0.5
 
