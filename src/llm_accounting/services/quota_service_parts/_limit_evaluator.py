@@ -20,7 +20,7 @@ class QuotaServiceLimitEvaluator:
         request_cost: float,
         request_completion_tokens: int,
         limit_scope_for_message: Optional[str] = None,
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> Tuple[bool, Optional[str], Optional[int]]:
         now = datetime.now(timezone.utc) # Keep timezone-aware
         for limit in limits:
             limit_scope_enum = LimitScope(limit.scope)
@@ -168,8 +168,58 @@ class QuotaServiceLimitEvaluator:
                     f"{scope_msg} limit: {limit.max_value:.2f} {limit.limit_type} per {limit.interval_value} {limit.interval_unit}"
                     f" exceeded. Current usage: {current_usage:.2f}, request: {request_value:.2f}."
                 )
-                return False, reason_message
-        return True, None
+
+                retry_after_seconds: Optional[int] = None
+                if interval_unit_enum.is_rolling():
+                    period_end_for_retry: datetime
+                    # For rolling intervals, the period_end_for_retry is period_start_time + interval_duration.
+                    # period_start_time for rolling intervals is calculated as (current_time_truncated - interval_duration).
+                    # So, period_start_time + interval_duration is the time when the specific window,
+                    # that caused the quota check, will end relative to its start.
+
+                    if interval_unit_enum == TimeInterval.MONTH_ROLLING:
+                        # period_start_time for MONTH_ROLLING is already set to the first day, 00:00:00 of the start month.
+                        # We need to add 'interval_value' months to this.
+                        year = period_start_time.year
+                        month = period_start_time.month
+
+                        target_month_val = month + limit.interval_value
+                        target_year_val = year
+
+                        # Adjust year and month if target_month_val exceeds 12
+                        while target_month_val > 12:
+                            target_month_val -= 12
+                            target_year_val += 1
+
+                        # period_end_for_retry must retain all components of period_start_time (day, hour, min, sec)
+                        # and only advance the month and year.
+                        # Since _get_period_start for MONTH_ROLLING sets day=1, hour=0, minute=0, second=0, microsecond=0,
+                        # this will result in the start of the month 'limit.interval_value' months after period_start_time.
+                        period_end_for_retry = period_start_time.replace(year=target_year_val, month=target_month_val)
+
+                    elif interval_unit_enum == TimeInterval.WEEK_ROLLING:
+                        period_end_for_retry = period_start_time + timedelta(weeks=limit.interval_value)
+                    elif interval_unit_enum == TimeInterval.DAY_ROLLING:
+                        period_end_for_retry = period_start_time + timedelta(days=limit.interval_value)
+                    elif interval_unit_enum == TimeInterval.HOUR_ROLLING:
+                        period_end_for_retry = period_start_time + timedelta(hours=limit.interval_value)
+                    elif interval_unit_enum == TimeInterval.MINUTE_ROLLING:
+                        period_end_for_retry = period_start_time + timedelta(minutes=limit.interval_value)
+                    elif interval_unit_enum == TimeInterval.SECOND_ROLLING:
+                        period_end_for_retry = period_start_time + timedelta(seconds=limit.interval_value)
+                    else:
+                        # This case should ideally not be reached if is_rolling() is comprehensive
+                        # and all rolling types are handled above.
+                        raise ValueError(f"Unsupported rolling time interval unit for retry calculation: {interval_unit_enum.value}")
+
+                    retry_after_seconds = max(0, int((period_end_for_retry - now).total_seconds()))
+
+                else: # Non-rolling intervals
+                    # query_end_time is already calculated as the actual end of the fixed period
+                    retry_after_seconds = max(0, int((query_end_time - now).total_seconds()))
+
+                return False, reason_message, retry_after_seconds
+        return True, None, None
 
     def _get_period_start(self, current_time: datetime, interval_unit: TimeInterval, interval_value: int) -> datetime:
         # Ensure current_time is UTC-aware for consistent calculations
