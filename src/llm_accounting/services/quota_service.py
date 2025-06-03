@@ -31,44 +31,11 @@ class QuotaService:
         completion_tokens: int = 0,
         project_name: Optional[str] = None,
     ) -> Tuple[bool, Optional[str]]:
-        # Ensure cache is loaded before starting checks
-        if self.cache_manager.limits_cache is None:
-            self.cache_manager._load_limits_from_backend()
-
-        checks = [
-            self._check_global_limits,
-            self._check_model_limits,
-            self._check_project_limits,
-            self._check_user_limits,
-            self._check_caller_limits,
-            self._check_user_caller_limits,
-        ]
-
-        for check_func in checks:
-            allowed, reason = check_func(
-                model, username, caller_name, input_tokens, cost, completion_tokens, project_name
-            )
-            if not allowed:
-                return False, reason
-        return True, None
-
-    def _check_global_limits(
-        self,
-        model: Optional[str],
-        username: Optional[str],
-        caller_name: Optional[str],
-        input_tokens: int,
-        cost: float,
-        completion_tokens: int,
-        project_name: Optional[str],
-    ) -> Tuple[bool, Optional[str]]:
-        limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.GLOBAL
-        ]
-        return self.limit_evaluator._evaluate_limits(
-            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
+        # Delegate to the enhanced check and discard the retry_after value
+        allowed, reason, _ = self.check_quota_enhanced(
+            model, username, caller_name, input_tokens, cost, completion_tokens, project_name
         )
+        return allowed, reason
 
     # --- Enhanced Check Methods ---
 
@@ -225,113 +192,5 @@ class QuotaService:
             and limit.caller_name == caller_name
         ]
         return self.limit_evaluator._evaluate_limits_enhanced(
-            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
-        )
-
-    def _check_model_limits(
-        self,
-        model: Optional[str],
-        username: Optional[str],
-        caller_name: Optional[str],
-        input_tokens: int,
-        cost: float,
-        completion_tokens: int,
-        project_name: Optional[str],
-    ) -> Tuple[bool, Optional[str]]:
-        if not model:
-            return True, None
-
-        limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.MODEL and limit.model == model
-        ]
-        return self.limit_evaluator._evaluate_limits(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
-
-    def _check_project_limits(
-        self,
-        model: Optional[str],
-        username: Optional[str],
-        caller_name: Optional[str],
-        input_tokens: int,
-        cost: float,
-        completion_tokens: int,
-        project_name: Optional[str],
-    ) -> Tuple[bool, Optional[str]]:
-        if not project_name:
-            return True, None
-
-        limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.PROJECT and limit.project_name == project_name
-        ]
-        return self.limit_evaluator._evaluate_limits(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
-
-
-    def _check_user_limits(
-        self,
-        model: Optional[str],
-        username: Optional[str],
-        caller_name: Optional[str],
-        input_tokens: int,
-        cost: float,
-        completion_tokens: int,
-        project_name: Optional[str],
-    ) -> Tuple[bool, Optional[str]]:
-        if not username:
-             return True, None
-
-        limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.USER and limit.username == username
-        ]
-        return self.limit_evaluator._evaluate_limits(
-            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
-        )
-
-    def _check_caller_limits(
-        self,
-        model: Optional[str],
-        username: Optional[str], # This username is for the request, not the limit's username field here.
-        caller_name: Optional[str],
-        input_tokens: int,
-        cost: float,
-        completion_tokens: int,
-        project_name: Optional[str],
-    ) -> Tuple[bool, Optional[str]]:
-        if not caller_name:
-            return True, None
-
-        # For CALLER scope limits that are *not* specific to a user (i.e., limit.username is None)
-        limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.CALLER
-            and limit.caller_name == caller_name
-            and limit.username is None # Explicitly for generic caller limits
-        ]
-        return self.limit_evaluator._evaluate_limits(
-            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens, limit_scope_for_message="CALLER (caller: {caller_name})"
-        )
-
-    def _check_user_caller_limits(
-        self,
-        model: Optional[str],
-        username: Optional[str],
-        caller_name: Optional[str],
-        input_tokens: int,
-        cost: float,
-        completion_tokens: int,
-        project_name: Optional[str],
-    ) -> Tuple[bool, Optional[str]]:
-        if not username or not caller_name:
-            return True, None
-
-        # For CALLER scope limits that *are* specific to a user (limit.username is not None)
-        limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.CALLER # Scope is still CALLER
-            and limit.username == username
-            and limit.caller_name == caller_name
-        ]
-        return self.limit_evaluator._evaluate_limits(
             limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
         )
