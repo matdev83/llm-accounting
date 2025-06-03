@@ -17,6 +17,7 @@ class QuotaService:
         input_tokens: int,
         cost: float = 0.0,
         project_name: Optional[str] = None,
+        completion_tokens: int = 0,
     ) -> Tuple[bool, Optional[str]]:
         checks = [
             self._check_model_limits,
@@ -29,9 +30,9 @@ class QuotaService:
 
         for check_method in checks:
             if check_method.__name__ == "_check_project_limits":
-                allowed, message = check_method(model, username, caller_name, project_name, input_tokens, cost)
+                allowed, message = check_method(model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
             else:
-                allowed, message = check_method(model, username, caller_name, input_tokens, cost)
+                allowed, message = check_method(model, username, caller_name, input_tokens, cost, completion_tokens)
             
             if not allowed:
                 return False, message
@@ -45,10 +46,11 @@ class QuotaService:
         caller_name: Optional[str],
         input_tokens: int,
         cost: float,
+        completion_tokens: int,
     ) -> Tuple[bool, Optional[str]]:
         limits = self.backend.get_usage_limits(scope=LimitScope.GLOBAL)
         return self._evaluate_limits(
-            limits, None, None, None, None, input_tokens, cost
+            limits, None, None, None, None, input_tokens, cost, completion_tokens
         )
 
     def _check_model_limits(
@@ -58,9 +60,10 @@ class QuotaService:
         caller_name: Optional[str],
         input_tokens: int,
         cost: float,
+        completion_tokens: int,
     ) -> Tuple[bool, Optional[str]]:
         limits = self.backend.get_usage_limits(scope=LimitScope.MODEL, model=model)
-        return self._evaluate_limits(limits, model, None, None, None, input_tokens, cost)
+        return self._evaluate_limits(limits, model, None, None, None, input_tokens, cost, completion_tokens)
 
     def _check_project_limits(
         self,
@@ -70,11 +73,12 @@ class QuotaService:
         project_name: Optional[str],
         input_tokens: int,
         cost: float,
+        completion_tokens: int,
     ) -> Tuple[bool, Optional[str]]:
         if not project_name:
             return True, None 
         limits = self.backend.get_usage_limits(scope=LimitScope.PROJECT, project_name=project_name)
-        return self._evaluate_limits(limits, model, None, None, project_name, input_tokens, cost)
+        return self._evaluate_limits(limits, model, None, None, project_name, input_tokens, cost, completion_tokens)
 
 
     def _check_user_limits(
@@ -84,12 +88,13 @@ class QuotaService:
         caller_name: Optional[str],
         input_tokens: int,
         cost: float,
+        completion_tokens: int,
     ) -> Tuple[bool, Optional[str]]:
         if not username:
              return True, None
         limits = self.backend.get_usage_limits(scope=LimitScope.USER, username=username)
         return self._evaluate_limits(
-            limits, model, username, None, None, input_tokens, cost
+            limits, model, username, None, None, input_tokens, cost, completion_tokens
         )
 
     def _check_caller_limits(
@@ -99,6 +104,7 @@ class QuotaService:
         caller_name: str,
         input_tokens: int,
         cost: float,
+        completion_tokens: int,
     ) -> Tuple[bool, Optional[str]]:
         if not caller_name:
             return True, None
@@ -106,7 +112,7 @@ class QuotaService:
             scope=LimitScope.CALLER, caller_name=caller_name, username=None, filter_username_null=True
         )
         return self._evaluate_limits(
-            limits, model, None, caller_name, None, input_tokens, cost, limit_scope_for_message="CALLER (caller: {caller_name})"
+            limits, model, None, caller_name, None, input_tokens, cost, completion_tokens, limit_scope_for_message="CALLER (caller: {caller_name})"
         )
 
     def _check_user_caller_limits(
@@ -116,6 +122,7 @@ class QuotaService:
         caller_name: str,
         input_tokens: int,
         cost: float,
+        completion_tokens: int,
     ) -> Tuple[bool, Optional[str]]:
         if not username or not caller_name:
             return True, None
@@ -123,7 +130,7 @@ class QuotaService:
             scope=LimitScope.CALLER, username=username, caller_name=caller_name
         )
         return self._evaluate_limits(
-            limits, model, username, caller_name, None, input_tokens, cost
+            limits, model, username, caller_name, None, input_tokens, cost, completion_tokens
         )
 
     def _evaluate_limits(
@@ -135,58 +142,74 @@ class QuotaService:
         project_name_for_usage_sum: Optional[str],
         request_input_tokens: int,
         request_cost: float,
+        request_completion_tokens: int,
         limit_scope_for_message: Optional[str] = None,
     ) -> Tuple[bool, Optional[str]]:
         now = datetime.now(timezone.utc)
         for limit in limits:
-            period_start_time = self._get_period_start(now, TimeInterval(limit.interval_unit), limit.interval_value)
-
-            usage_query_model = None
-            usage_query_username = None
-            usage_query_caller_name = None
-            usage_query_project_name = None
-
-            # Determine parameters for get_accounting_entries_for_quota based on limit scope
-            usage_query_model = None
-            usage_query_username = None
-            usage_query_caller_name = None
-            usage_query_project_name = None
-            usage_query_filter_project_null = None
+            # --- Start: New logic to check if limit applies to the current request ---
+            # If a limit specifies a model, it should only apply if the request is for that model.
+            if limit.model and limit.model != request_model:
+                continue
+            # If a limit specifies a username, it should only apply if the request is for that username.
+            # This is generally ensured by how limits are fetched (e.g., _check_user_limits only fetches for that user),
+            # but this check provides an explicit safeguard.
+            if limit.username and limit.username != request_username:
+                continue
+            # If a limit specifies a caller_name, it should only apply if the request is for that caller.
+            if limit.caller_name and limit.caller_name != request_caller_name:
+                continue
 
             limit_scope_enum = LimitScope(limit.scope)
 
-            if limit_scope_enum == LimitScope.GLOBAL:
-                # For global limits, sum across all entities (no specific filters)
-                pass
-            elif limit_scope_enum == LimitScope.MODEL:
-                usage_query_model = limit.model
-            elif limit_scope_enum == LimitScope.USER:
-                usage_query_username = limit.username
-            elif limit_scope_enum == LimitScope.CALLER:
-                usage_query_caller_name = limit.caller_name
-                usage_query_username = limit.username # For user-caller combination limits
-            elif limit_scope_enum == LimitScope.PROJECT:
-                if limit.project_name is not None:
-                    usage_query_project_name = limit.project_name
-                else:
-                    usage_query_filter_project_null = True # Project limit for entries with NULL project
-                
-                # If a project limit is also scoped to a model, include that filter
-                if limit.model:
-                    usage_query_model = limit.model
+            # If a limit specifies a project_name (and is not a generic PROJECT scope for NULL projects):
+            if limit.project_name:
+                if limit.project_name != project_name_for_usage_sum: # project_name_for_usage_sum is the request's project
+                    continue # Limit is for a specific project, request is for a different project or no project.
+            # If a limit is PROJECT scope and for NULL projects (limit.project_name is None):
+            elif limit_scope_enum == LimitScope.PROJECT and limit.project_name is None:
+                if project_name_for_usage_sum is not None: # Request is for a specific project.
+                    continue # This limit only applies to requests with no project.
+            # --- End: New logic ---
 
-            # The project_name_for_usage_sum parameter is now redundant and can be removed from the signature
-            # as the logic for project filtering is now fully derived from the limit object itself.
-            # However, to avoid changing the signature of _evaluate_limits for now, we'll keep it but ignore it.
+            period_start_time = self._get_period_start(now, TimeInterval(limit.interval_unit), limit.interval_value)
+
+            # Initialize final query parameters
+            final_usage_query_model: Optional[str] = None
+            final_usage_query_username: Optional[str] = None
+            final_usage_query_caller_name: Optional[str] = None
+            final_usage_query_project_name: Optional[str] = None
+            final_usage_query_filter_project_null: Optional[bool] = None
+
+            # Set parameters for get_accounting_entries_for_quota based on the limit object's fields
+            # This part determines *how to sum usage* for the given limit.
+            if limit.model is not None:
+                final_usage_query_model = limit.model
+
+            if limit.username is not None:
+                final_usage_query_username = limit.username
+
+            if limit.caller_name is not None:
+                final_usage_query_caller_name = limit.caller_name
+
+            # Project filtering for usage summation (already correctly refactored)
+            current_limit_scope_enum = LimitScope(limit.scope) # Renamed to avoid conflict with outer scope
+            if current_limit_scope_enum == LimitScope.PROJECT:
+                if limit.project_name is not None:
+                    final_usage_query_project_name = limit.project_name
+                else:
+                    final_usage_query_filter_project_null = True
+            elif limit.project_name is not None:
+                final_usage_query_project_name = limit.project_name
 
             current_usage = self.backend.get_accounting_entries_for_quota(
                 start_time=period_start_time,
                 limit_type=LimitType(limit.limit_type),
-                model=usage_query_model,
-                username=usage_query_username,
-                caller_name=usage_query_caller_name,
-                project_name=usage_query_project_name,
-                filter_project_null=usage_query_filter_project_null,
+                model=final_usage_query_model,
+                username=final_usage_query_username,
+                caller_name=final_usage_query_caller_name,
+                project_name=final_usage_query_project_name,
+                filter_project_null=final_usage_query_filter_project_null,
             )
             
             request_value = 0.0
@@ -196,6 +219,8 @@ class QuotaService:
                 request_value = 1.0
             elif limit_type_enum == LimitType.INPUT_TOKENS:
                 request_value = float(request_input_tokens)
+            elif limit_type_enum == LimitType.OUTPUT_TOKENS:
+                request_value = float(request_completion_tokens)
             elif limit_type_enum == LimitType.COST:
                 request_value = request_cost
             else:

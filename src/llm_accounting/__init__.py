@@ -132,6 +132,7 @@ class LLMAccounting:
         input_tokens: int,
         cost: float = 0.0,
         project_name: Optional[str] = None,
+        completion_tokens: int = 0,
     ) -> Tuple[bool, Optional[str]]:
         """Check if the current request exceeds any defined quotas."""
         self.backend._ensure_connected()
@@ -141,7 +142,8 @@ class LLMAccounting:
             caller_name=caller_name,
             input_tokens=input_tokens,
             cost=cost,
-            project_name=project_name
+            project_name=project_name,
+            completion_tokens=completion_tokens
         )
 
     def set_usage_limit(
