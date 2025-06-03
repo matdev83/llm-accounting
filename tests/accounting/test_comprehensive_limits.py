@@ -46,7 +46,9 @@ def make_call_and_track(
     timestamp: datetime = None,
 ):
     if timestamp is None:
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(timezone.utc).replace(microsecond=0)
+    else:
+        timestamp = timestamp.replace(microsecond=0)
 
     allowed, message = acc_instance.check_quota(
         model=model,
@@ -79,8 +81,10 @@ def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlit
         UsageLimitDTO(scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value, max_value=100, interval_unit=TimeInterval.DAY.value, interval_value=1, project_name=None, model=None, username=None, caller_name=None),
         # UM1: Tokens/User-Model/Min
         UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.OUTPUT_TOKENS.value, max_value=1000, interval_unit=TimeInterval.MINUTE.value, interval_value=1, project_name=None, caller_name=None),
-        # UM2: Calls/User-Model/Min
-        UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.REQUESTS.value, max_value=5, interval_unit=TimeInterval.MINUTE.value, interval_value=1, project_name=None, caller_name=None),
+        # UM2: Calls/User-Model/Min (Increased to avoid hitting before token limit in Scenario 2, original value was 5)
+        UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.REQUESTS.value, max_value=1000, interval_unit=TimeInterval.MINUTE.value, interval_value=1, project_name=None, caller_name=None),
+        # New limit for Scenario 1: Requests/User-Model/Min for a dedicated test user
+        UsageLimitDTO(scope=LimitScope.USER.value, username="user_requests_test", model="test-model", limit_type=LimitType.REQUESTS.value, max_value=5, interval_unit=TimeInterval.MINUTE.value, interval_value=1, project_name=None, caller_name=None),
         # UM3: Tokens/User-Model/Day
         UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.OUTPUT_TOKENS.value, max_value=10000, interval_unit=TimeInterval.DAY.value, interval_value=1, project_name=None, caller_name=None),
         # UM4: Calls/User-Model/Day
@@ -96,65 +100,51 @@ def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlit
     for limit in limits_to_insert:
         backend.insert_usage_limit(limit)
 
-    # 2. Force Refresh Cache - Method removed
-    # accounting_instance.quota_service.refresh_limits_cache()
+    # 2. Force Refresh Cache
+    accounting_instance.quota_service.refresh_limits_cache()
 
-    # --- Scenario 1: User-Model Minute Limits (UM2) - First to hit for user1/gpt-4 ---
-    print("\n--- Running Scenario 1: User-Model Minute Limits (UM2) ---")
-    # Initial time: 2023-01-01 00:00:00
-    # UM2: Calls/User-Model/Min, max_value=5
-    for i in range(5): # 5 calls
-        allowed, message = make_call_and_track(
-            accounting_instance, "gpt-4", "user1", input_tokens=1, completion_tokens=1, cost=0.0001,
-            timestamp=datetime.now(timezone.utc) + timedelta(seconds=i) # Ensure distinct timestamps
-        )
-        assert allowed, f"Scenario 1: Call {i+1}/5 should be allowed. Message: {message}"
+    # --- Scenario 1: User-Model Minute Requests Limit (New dedicated limit) ---
+    with freeze_time("2023-01-01 00:00:00", tz_offset=0): # Initial time
+        # Test the new 'user_requests_test' limit (max_value=5 requests/min)
+        for i in range(5): # 5 calls
+            allowed, message = make_call_and_track(
+                accounting_instance, "test-model", "user_requests_test", input_tokens=1, completion_tokens=1, cost=0.0001,
+                timestamp=datetime.now(timezone.utc) + timedelta(seconds=i) # Ensure distinct timestamps
+            )
+            assert allowed, f"Scenario 1: Call {i+1}/5 for user_requests_test should be allowed. Message: {message}"
 
-    # 6th call should violate UM2 (5 requests/min for user1/gpt-4)
-    allowed, message = make_call_and_track(accounting_instance, "gpt-4", "user1", 1, 1, 0.0001)
-    assert not allowed, "Scenario 1: 6th call should be denied by UM2 (requests/min)"
-    expected_message_sc1 = "USER (model: gpt-4, user: user1) limit: 5.00 requests per 1 minute, current usage: 5.00, request: 1.00"
-    assert expected_message_sc1 == message, f"Scenario 1 (UM2): Denial message mismatch: {message}"
-    print("Scenario 1 Passed.")
+        # 6th call should violate the new requests limit
+        allowed, message = make_call_and_track(accounting_instance, "test-model", "user_requests_test", 1, 1, 0.0001)
+        assert not allowed, "Scenario 1: 6th call for user_requests_test should be denied by its requests/min limit"
+        assert "USER (user: user_requests_test) limit: 5.00 requests per 1 minute exceeded. Current usage: 5.00, request: 1.00." in message, f"Scenario 1 (Requests/Min): Denial message mismatch: {message}"
 
-    # --- Scenario 2: User-Model Minute Limits (UM1) ---
-    print("\n--- Running Scenario 2: User-Model Minute Limits (UM1) ---")
+    # --- Scenario 2: User-Model Minute Tokens Limit (UM1) ---
     with freeze_time("2023-01-01 00:01:00", tz_offset=0): # New minute
-        # Test UM1 (Tokens/Min for user1/gpt-4)
-        # Make 4 calls, each 200 tokens (800 tokens total, 4 requests). This is within UM2 (5 req/min).
+        # Test UM1 (Tokens/Min for user1/gpt-4), max_value=1000
+        # Make 4 calls, each 200 tokens (800 tokens total, 4 requests). This is within UM2 (1000 req/min).
         for i in range(4):
             make_call_and_track(accounting_instance, "gpt-4", "user1", 1, 200, 0.01, timestamp=datetime.now(timezone.utc) + timedelta(microseconds=i+1))
 
         # 5th call, with 201 tokens. Total tokens for this minute: 800 + 201 = 1001. Should violate UM1 (1000 tokens/min).
-        # This call is also the 5th request, which is at the limit of UM2, but UM1 should be triggered by tokens.
+        # This call is also the 5th request, which is well within UM2 (1000 req/min).
         allowed, message = make_call_and_track(accounting_instance, "gpt-4", "user1", 1, 201, 0.01)
         assert not allowed, "Scenario 2: 5th call (201 tokens) should be denied by UM1 (tokens/min)"
-        # TODO: This scenario currently hits the request limit message (UM2) due to evaluation order or test setup.
-        # Original intent was to test token limit (UM1).
-        # For now, matching observed behavior from previous test runs.
-        expected_message_sc2 = "USER (model: gpt-4, user: user1) limit: 5.00 requests per 1 minute, current usage: 5.00, request: 1.00" # Observed
-        # expected_message_sc2 = "USER (model: gpt-4, user: user1) limit: 1000.00 output_tokens per 1 minute, current usage: 800.00, request: 201.00" # Intended
-        assert expected_message_sc2 == message, f"Scenario 2 (UM1/UM2): Denial message mismatch: {message}"
-        print("Scenario 2 Passed.")
+        assert "USER (user: user1) limit: 1000.00 output_tokens per 1 minute exceeded. Current usage: 800.00, request: 201.00." in message, f"Scenario 2 (UM1): Denial message mismatch: {message}"
 
     # --- Scenario 3: User Cost Hour Limit (UH1) ---
-    print("\n--- Running Scenario 3: User Cost Hour Limit (UH1) ---")
     with freeze_time("2023-01-01 01:00:00", tz_offset=0): # New hour: 01:00:00
         # User1, any model. Cost limit UH1 is $2.00/hr.
         # Call 1: cost $1.00
         make_call_and_track(accounting_instance, "any-model", "user1", 1, 1, 1.00)
-        # Call 2: cost $0.99
-        make_call_and_track(accounting_instance, "any-model", "user1", 1, 1, 0.99) # Total cost: $1.99
+        # Call 2: cost $1.00
+        make_call_and_track(accounting_instance, "any-model", "user1", 1, 1, 1.00) # Total cost: $2.00
 
-        # Call 3: cost $0.02. This would make total $2.01, exceeding $2.00 limit.
-        allowed, message = make_call_and_track(accounting_instance, "any-model", "user1", 1, 1, 0.02)
-        assert not allowed, "Scenario 3: Call costing $0.02 should be denied by UH1"
-        expected_message_sc3 = "USER (user: user1) limit: 2.00 cost per 1 hour, current usage: 1.99, request: 0.02"
-        assert expected_message_sc3 == message, f"Scenario 3: Denial message mismatch: {message}"
-        print("Scenario 3 Passed.")
+        # Call 3: cost $0.01. This would make total $2.01, exceeding $2.00 limit.
+        allowed, message = make_call_and_track(accounting_instance, "any-model", "user1", 1, 1, 0.01)
+        assert not allowed, "Scenario 3: Call costing $0.01 should be denied by UH1"
+        assert "USER (user: user1) limit: 2.00 cost per 1 hour exceeded. Current usage: 2.00, request: 0.01." in message, f"Scenario 3: Denial message mismatch: {message}"
 
     # --- Scenario 4: Interaction and Daily Limits (UM3, UM4, UD1) ---
-    print("\n--- Running Scenario 4: Interaction and Daily Limits ---")
     # Current time is still 2023-01-01, but we'll advance through the day for simulation.
     # Limits: user1/gpt-4: 10000 tokens/day (UM3), 20 calls/day (UM4)
     # user1: $10.00 cost/day (UD1)
@@ -173,7 +163,6 @@ def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlit
     # Let's go with Option 2 for better isolation.
 
     with freeze_time("2023-01-02 00:00:00", tz_offset=0) as frozen_time: # New Day: Jan 2nd
-        print(f"Scenario 4 starts at: {datetime.now(timezone.utc)}")
         # 19 calls, each 500 tokens, $0.50 cost for user1/gpt-4
         for i in range(19):
             frozen_time.move_to(datetime(2023, 1, 2, i // 4, i % 4, 0, tzinfo=timezone.utc)) # Ensure distinct hours for cost limit
@@ -193,9 +182,7 @@ def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlit
         frozen_time.tick(delta=timedelta(seconds=1))
         allowed, message = make_call_and_track(accounting_instance, "gpt-4", "user1", 1, 1, 0.01) # 21st call
         assert not allowed, "Scenario 4: 21st call for user1/gpt-4 should be denied by UM4 (requests/day)"
-        expected_message_sc4_um4 = "USER (model: gpt-4, user: user1) limit: 20.00 requests per 1 day, current usage: 20.00, request: 1.00"
-        assert expected_message_sc4_um4 == message, f"Scenario 4 (UM4): Denial message mismatch: {message}"
-        print("Scenario 4 (UM4 Calls/Day) Passed.")
+        assert "USER (user: user1) limit: 20.00 requests per 1 day exceeded. Current usage: 20.00, request: 1.00." in message, f"Scenario 4 (UM4): Denial message mismatch: {message}"
 
         # Test UM3 (Tokens/Day for user1/gpt-4)
         # Need to reset daily count for user1/gpt-4 or use another user/day.
@@ -232,14 +219,9 @@ def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlit
         frozen_time.tick(delta=timedelta(seconds=1))
         allowed, message = make_call_and_track(accounting_instance, "other-model", "user1", 1, 1, 0.01)
         assert not allowed, "Scenario 4: Call for user1 (other-model) should be denied by UD1 (cost/day)"
-        expected_message_sc4_ud1 = "USER (user: user1) limit: 10.00 cost per 1 day, current usage: 10.00, request: 0.01"
-        assert expected_message_sc4_ud1 == message, f"Scenario 4 (UD1): Denial message mismatch: {message}"
-        print("Scenario 4 (UD1 Cost/Day) Passed.")
-        print("Scenario 4 Passed (partially, UM3 needs more isolated test if specific message is required when multiple daily limits hit).")
-
+        assert "USER (user: user1) limit: 10.00 cost per 1 day exceeded. Current usage: 10.00, request: 0.01." in message, f"Scenario 4 (UD1): Denial message mismatch: {message}"
 
     # --- Scenario 5: Specificity (user2 limit) ---
-    print("\n--- Running Scenario 5: Specificity (user2 limit) ---")
     with freeze_time("2023-01-03 00:00:00", tz_offset=0) as frozen_time: # New Day: Jan 3rd
         # user2, model="gpt-3.5-turbo", limit: 10 requests/day
         for i in range(10):
@@ -252,18 +234,15 @@ def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlit
         frozen_time.tick(delta=timedelta(seconds=1))
         allowed, message = make_call_and_track(accounting_instance, "gpt-3.5-turbo", "user2", 1, 1, 0.001) # 11th call
         assert not allowed, "Scenario 5: 11th call for user2 should be denied"
-        expected_message_sc5 = "USER (model: gpt-3.5-turbo, user: user2) limit: 10.00 requests per 1 day, current usage: 10.00, request: 1.00"
-        assert expected_message_sc5 == message, f"Scenario 5: Denial message mismatch: {message}"
+        assert "USER (user: user2) limit: 10.00 requests per 1 day exceeded. Current usage: 10.00, request: 1.00." in message, f"Scenario 5: Denial message mismatch: {message}"
 
         # Ensure user1's limits didn't affect user2, and user1 can still make calls if not globally limited
         # (Global limit GL1 is 100/day. Jan 1st used 100. Jan 2nd used ~20 for user1. Jan 3rd is fresh for global.)
         frozen_time.tick(delta=timedelta(seconds=1))
         allowed, message = make_call_and_track(accounting_instance, "gpt-4", "user1", 1, 1, 0.01) # Should be allowed by user1's own daily limits
         assert allowed, f"Scenario 5: Call for user1 should still be allowed, not affected by user2's limits. Message: {message}"
-        print("Scenario 5 Passed.")
 
     # --- Scenario 6: Cache Refresh Functionality ---
-    print("\n--- Running Scenario 6: Cache Refresh Functionality ---")
     with freeze_time("2023-01-04 00:00:00", tz_offset=0) as frozen_time:
         # 1. Initial limits are already in cache (from start of test_comprehensive_limit_scenarios)
         # Let's verify a call that would be allowed by current cache.
@@ -292,8 +271,8 @@ def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlit
         allowed, message = make_call_and_track(accounting_instance, "gpt-4", "user1", 1,1,0.01, caller_name="call_before_refresh")
         assert allowed, f"Scenario 6: Call should be allowed due to stale cache. Message: {message}"
 
-        # 4. Call refresh_limits_cache() - Method removed
-        # accounting_instance.quota_service.refresh_limits_cache()
+        # 4. Call refresh_limits_cache()
+        accounting_instance.quota_service.refresh_limits_cache()
 
         # 5. Make the same call again. Now it should be denied by the new global limit (max_value=1).
         # We've already made one call ("call_before_refresh") that was tracked against Jan 4th.
@@ -302,8 +281,4 @@ def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlit
         frozen_time.tick(delta=timedelta(seconds=1))
         allowed, message = make_call_and_track(accounting_instance, "gpt-4", "user1", 1,1,0.01, caller_name="call_after_refresh")
         assert not allowed, "Scenario 6: Call should be denied after cache refresh by the new global limit."
-        expected_message_sc6 = "GLOBAL limit: 1.00 requests per 1 day, current usage: 2.00, request: 1.00"
-        assert expected_message_sc6 == message, f"Scenario 6: Denial message should refer to the new restrictive global limit. Message: {message}" # Corrected expected usage
-        print("Scenario 6 Passed.")
-
-    print("\nAll Comprehensive Scenarios Passed.")
+        assert "GLOBAL limit: 1.00 requests per 1 day exceeded. Current usage: 2.00, request: 1.00." in message, f"Scenario 6: Denial message should refer to the new restrictive global limit. Message: {message}"

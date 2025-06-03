@@ -16,7 +16,7 @@ def test_db():
     backend.initialize() # This initializes self.engine and self.conn (SQLAlchemy connection)
     
     # conn is now an SQLAlchemy Connection object
-    conn = backend.conn 
+    conn = backend.connection_manager.get_connection()
     assert conn is not None, "SQLAlchemy connection not initialized in SQLiteBackend"
 
     create_table_sql_script = """

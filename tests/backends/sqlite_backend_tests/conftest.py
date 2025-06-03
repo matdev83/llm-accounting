@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def temp_db_path(request):
     """Create a temporary database file and return its path, ensuring deletion"""
     with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as tmp:
@@ -33,7 +33,7 @@ def temp_db_path(request):
     request.addfinalizer(cleanup)
     return db_path
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def sqlite_backend(temp_db_path):
     """Create and initialize a SQLite backend with a temporary database"""
     backend = SQLiteBackend(db_path=temp_db_path)

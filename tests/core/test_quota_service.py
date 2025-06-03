@@ -28,7 +28,7 @@ def test_check_quota_no_limits(mock_backend: MagicMock):
     
     assert is_allowed is True
     assert reason is None
-    # mock_backend.get_usage_limits.assert_called_once() # Called multiple times for different scopes
+    mock_backend.get_usage_limits.assert_called_once()
 
 
 def test_check_quota_allowed_single_limit(mock_backend: MagicMock):
@@ -52,35 +52,11 @@ def test_check_quota_allowed_single_limit(mock_backend: MagicMock):
     assert is_allowed is True
     assert reason is None
 
-    # mock_backend.get_usage_limits.assert_called_once() # Called multiple times
-    # Change to assert_any_call as per subtask instructions, if this was the failing one.
-    # The specific call's arguments are checked next.
-    kwargs_to_check = {
-        'limit_type': LimitType.COST,
-        'username': "test_user",
-        # 'model': None, # model is not set on user_cost_limit
-        # 'caller_name': None, # caller_name is not set on user_cost_limit
-        # 'project_name': None, # project_name is not set on user_cost_limit
-        # 'filter_project_null': None
-    }
-    # We need to capture the start_time from the actual call to include it in assert_any_call
-    # This is tricky without seeing the actual call. A simpler check for now:
-    assert mock_backend.get_accounting_entries_for_quota.called
-
-    # To be more precise, we'd check the arguments of the call that led to the decision.
-    # For this test, it's the call related to user_cost_limit.
-    # This can get complex if multiple calls happen. The prompt suggests this test was failing on count.
-    # If the goal is to ensure *at least one* call with correct args happened:
-    found_correct_call = False
-    for call_args in mock_backend.get_accounting_entries_for_quota.call_args_list:
-        if call_args.kwargs['limit_type'] == LimitType.COST and \
-           call_args.kwargs['username'] == "test_user" and \
-           call_args.kwargs['model'] is None and \
-           call_args.kwargs['caller_name'] is None and \
-           call_args.kwargs['project_name'] is None:
-            found_correct_call = True
-            break
-    assert found_correct_call, "Expected call to get_accounting_entries_for_quota with specific args not found"
+    mock_backend.get_usage_limits.assert_called_once()
+    mock_backend.get_accounting_entries_for_quota.assert_called_once()
+    kwargs = mock_backend.get_accounting_entries_for_quota.call_args.kwargs
+    assert kwargs['limit_type'] == LimitType.COST
+    assert kwargs['username'] == "test_user"
 
 
 def test_check_quota_denied_single_limit(mock_backend: MagicMock):
@@ -103,11 +79,11 @@ def test_check_quota_denied_single_limit(mock_backend: MagicMock):
     
     assert is_allowed is False
     assert reason is not None
-    expected_message = "USER (user: test_user) limit: 10.00 cost per 1 month, current usage: 9.99, request: 0.02" # Expect 'month'
-    assert expected_message == reason
+    assert "USER (user: test_user) limit: 10.00 cost per 1 month" in reason
+    assert "exceeded. Current usage: 9.99, request: 0.02." in reason
 
-    # mock_backend.get_usage_limits.assert_called_once() # Called multiple times
-    mock_backend.get_accounting_entries_for_quota.assert_called_once() # Key check
+    mock_backend.get_usage_limits.assert_called_once()
+    mock_backend.get_accounting_entries_for_quota.assert_called_once()
 
 
 def test_check_quota_multiple_limits_one_exceeded(mock_backend: MagicMock):
@@ -126,7 +102,7 @@ def test_check_quota_multiple_limits_one_exceeded(mock_backend: MagicMock):
     mock_backend.get_usage_limits.return_value = [cost_limit_user, request_limit_user]
     quota_service = QuotaService(mock_backend)
 
-    def get_accounting_side_effect(start_time, limit_type, model, username, caller_name, project_name, filter_project_null):
+    def get_accounting_side_effect(start_time, end_time, limit_type, interval_unit, model, username, caller_name, project_name, filter_project_null):
         if limit_type == LimitType.COST and username == "test_user":
             return 5.0
         elif limit_type == LimitType.REQUESTS and username == "test_user":
@@ -142,11 +118,11 @@ def test_check_quota_multiple_limits_one_exceeded(mock_backend: MagicMock):
     
     assert is_allowed is False
     assert reason is not None
-    expected_message = "USER (user: test_user) limit: 100.00 requests per 1 day, current usage: 100.00, request: 1.00"
-    assert expected_message == reason
+    assert "USER (user: test_user) limit: 100.00 requests per 1 day" in reason
+    assert "exceeded. Current usage: 100.00, request: 1.00." in reason
 
-    # mock_backend.get_usage_limits.assert_called_once() # Called multiple times
-    assert mock_backend.get_accounting_entries_for_quota.call_count >= 1 # Could be 1 or 2 depending on which limit is evaluated first
+    mock_backend.get_usage_limits.assert_called_once()
+    assert mock_backend.get_accounting_entries_for_quota.call_count == 2
 
 
 def test_check_quota_different_scopes_in_cache(mock_backend: MagicMock):
@@ -167,10 +143,10 @@ def test_check_quota_different_scopes_in_cache(mock_backend: MagicMock):
     )
     
     assert not is_allowed
-    assert "GLOBAL limit: 5.00 requests per 1 minute" in reason # No model/user/caller in GLOBAL
+    assert "GLOBAL limit: 5.00 requests per 1 minute" in reason
 
-    # mock_backend.get_usage_limits.assert_called_once() # Called multiple times
-    mock_backend.get_accounting_entries_for_quota.assert_called_once() # Key check for this test logic
+    mock_backend.get_usage_limits.assert_called_once()
+    mock_backend.get_accounting_entries_for_quota.assert_called_once()
     assert mock_backend.get_accounting_entries_for_quota.call_args.kwargs['limit_type'] == LimitType.REQUESTS
     assert mock_backend.get_accounting_entries_for_quota.call_args.kwargs['model'] is None
     assert mock_backend.get_accounting_entries_for_quota.call_args.kwargs['username'] is None
@@ -197,7 +173,9 @@ def test_check_quota_token_limits(mock_backend: MagicMock):
     assert reason is None
     mock_backend.get_accounting_entries_for_quota.assert_called_with(
         start_time=mock_backend.get_accounting_entries_for_quota.call_args.kwargs['start_time'],
+        end_time=mock_backend.get_accounting_entries_for_quota.call_args.kwargs['end_time'], # Add end_time
         limit_type=LimitType.INPUT_TOKENS,
+        interval_unit=mock_backend.get_accounting_entries_for_quota.call_args.kwargs['interval_unit'], # Add interval_unit
         model="text-davinci-003",
         username=None, caller_name=None, project_name=None, filter_project_null=None
     )
@@ -211,73 +189,71 @@ def test_check_quota_token_limits(mock_backend: MagicMock):
     )
     assert is_allowed is False
     assert reason is not None
-    expected_message = "MODEL (model: text-davinci-003) limit: 1000.00 input_tokens per 1 hour, current usage: 950.00, request: 51.00"
-    assert expected_message == reason
+    assert "MODEL (model: text-davinci-003) limit: 1000.00 input_tokens per 1 hour" in reason
+    assert "exceeded. Current usage: 950.00, request: 51.00." in reason
 
-    # mock_backend.get_usage_limits.assert_called_once() # Called multiple times
-    assert mock_backend.get_accounting_entries_for_quota.call_count == 1 # Key check
+    mock_backend.get_usage_limits.assert_called_once()
+    assert mock_backend.get_accounting_entries_for_quota.call_count == 1
 
 
 def test_get_period_start_monthly(mock_backend: MagicMock):
     quota_service = QuotaService(mock_backend)
     current_time = datetime(2024, 3, 15, 10, 30, 0, tzinfo=timezone.utc)
-    period_start = quota_service._get_period_start(current_time, TimeInterval.MONTH, 1)
+    period_start = quota_service.limit_evaluator._get_period_start(current_time, TimeInterval.MONTH, 1)
     assert period_start == datetime(2024, 3, 1, 0, 0, 0, tzinfo=timezone.utc)
 
     current_time = datetime(2024, 4, 1, 0, 0, 0, tzinfo=timezone.utc)
-    period_start = quota_service._get_period_start(current_time, TimeInterval.MONTH, 1)
+    period_start = quota_service.limit_evaluator._get_period_start(current_time, TimeInterval.MONTH, 1)
     assert period_start == datetime(2024, 4, 1, 0, 0, 0, tzinfo=timezone.utc)
 
 def test_get_period_start_daily(mock_backend: MagicMock):
     quota_service = QuotaService(mock_backend)
     current_time = datetime(2024, 3, 15, 10, 30, 0, tzinfo=timezone.utc)
-    period_start = quota_service._get_period_start(current_time, TimeInterval.DAY, 1)
+    period_start = quota_service.limit_evaluator._get_period_start(current_time, TimeInterval.DAY, 1)
     assert period_start == datetime(2024, 3, 15, 0, 0, 0, tzinfo=timezone.utc)
 
 def test_get_period_start_hourly(mock_backend: MagicMock):
     quota_service = QuotaService(mock_backend)
     current_time = datetime(2024, 3, 15, 10, 30, 0, tzinfo=timezone.utc)
-    period_start = quota_service._get_period_start(current_time, TimeInterval.HOUR, 1)
+    period_start = quota_service.limit_evaluator._get_period_start(current_time, TimeInterval.HOUR, 1)
     assert period_start == datetime(2024, 3, 15, 10, 0, 0, tzinfo=timezone.utc)
 
 def test_get_period_start_minute(mock_backend: MagicMock):
     quota_service = QuotaService(mock_backend)
     current_time = datetime(2024, 3, 15, 10, 37, 45, tzinfo=timezone.utc)
-    period_start = quota_service._get_period_start(current_time, TimeInterval.MINUTE, 1)
+    period_start = quota_service.limit_evaluator._get_period_start(current_time, TimeInterval.MINUTE, 1)
     assert period_start == datetime(2024, 3, 15, 10, 37, 0, tzinfo=timezone.utc)
 
     current_time = datetime(2024, 3, 15, 10, 37, 45, tzinfo=timezone.utc)
-    period_start = quota_service._get_period_start(current_time, TimeInterval.MINUTE, 5)
+    period_start = quota_service.limit_evaluator._get_period_start(current_time, TimeInterval.MINUTE, 5)
     assert period_start == datetime(2024, 3, 15, 10, 35, 0, tzinfo=timezone.utc)
 
 def test_get_period_start_second(mock_backend: MagicMock):
     quota_service = QuotaService(mock_backend)
     current_time = datetime(2024, 3, 15, 10, 37, 45, 123456, tzinfo=timezone.utc)
-    period_start = quota_service._get_period_start(current_time, TimeInterval.SECOND, 1)
+    period_start = quota_service.limit_evaluator._get_period_start(current_time, TimeInterval.SECOND, 1)
     assert period_start == datetime(2024, 3, 15, 10, 37, 45, 0, tzinfo=timezone.utc)
 
     current_time = datetime(2024, 3, 15, 10, 37, 45, 123456, tzinfo=timezone.utc)
-    period_start = quota_service._get_period_start(current_time, TimeInterval.SECOND, 10)
+    period_start = quota_service.limit_evaluator._get_period_start(current_time, TimeInterval.SECOND, 10)
     assert period_start == datetime(2024, 3, 15, 10, 37, 40, 0, tzinfo=timezone.utc)
 
 def test_get_period_start_weekly(mock_backend: MagicMock):
     quota_service = QuotaService(mock_backend)
     current_time = datetime(2024, 3, 13, 10, 30, 0, tzinfo=timezone.utc)
-    period_start = quota_service._get_period_start(current_time, TimeInterval.WEEK, 1)
+    period_start = quota_service.limit_evaluator._get_period_start(current_time, TimeInterval.WEEK, 1)
     assert period_start == datetime(2024, 3, 11, 0, 0, 0, tzinfo=timezone.utc)
 
     current_time = datetime(2024, 3, 11, 10, 30, 0, tzinfo=timezone.utc)
-    period_start = quota_service._get_period_start(current_time, TimeInterval.WEEK, 1)
+    period_start = quota_service.limit_evaluator._get_period_start(current_time, TimeInterval.WEEK, 1)
     assert period_start == datetime(2024, 3, 11, 0, 0, 0, tzinfo=timezone.utc)
 
     current_time = datetime(2024, 3, 11, 10, 30, 0, tzinfo=timezone.utc)
-    period_start = quota_service._get_period_start(current_time, TimeInterval.WEEK, 2)
+    period_start = quota_service.limit_evaluator._get_period_start(current_time, TimeInterval.WEEK, 2)
     assert period_start == datetime(2024, 3, 4, 0, 0, 0, tzinfo=timezone.utc)
 
 def test_get_period_start_unsupported_interval(mock_backend: MagicMock):
     quota_service = QuotaService(mock_backend)
     current_time = datetime.now(timezone.utc)
-    # The method expects TimeInterval enum, not str. Passing str will cause AttributeError.
-    # If an invalid TimeInterval enum member were passed (if possible), then ValueError would be raised.
-    with pytest.raises(AttributeError, match="'str' object has no attribute 'value'"):
-        quota_service._get_period_start(current_time, "unsupported_unit", 1)
+    with pytest.raises(ValueError, match="Unsupported time interval unit"):
+        quota_service.limit_evaluator._get_period_start(current_time, "unsupported_unit", 1)

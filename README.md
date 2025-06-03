@@ -169,7 +169,7 @@ llm-accounting select --query "SELECT model, COUNT(*) as count FROM accounting_e
 
 ### Usage Limits
 
-The `llm-accounting limits` command allows you to manage usage limits for your LLM interactions. You can set, list, and delete limits based on various scopes (global, model, user, caller) and types (requests, input tokens, output tokens, cost) over specified time intervals.
+The `llm-accounting limits` command allows you to manage usage limits for your LLM interactions. It now supports advanced multi-dimensional limiting and rolling time windows. You can set, list, and delete limits based on various scopes (global, model, user, caller, project) and types (requests, input tokens, output tokens, cost) over specified time intervals.
 
 #### Set a Usage Limit
 

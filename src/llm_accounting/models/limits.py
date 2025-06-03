@@ -31,13 +31,23 @@ class TimeInterval(Enum):
     HOUR = "hour"
     DAY = "day"
     WEEK = "week"
-    MONTH = "month" # Changed from "monthly"
+    MONTH = "monthly"
     SECOND_ROLLING = "second_rolling"
     MINUTE_ROLLING = "minute_rolling"
     HOUR_ROLLING = "hour_rolling"
     DAY_ROLLING = "day_rolling"
     WEEK_ROLLING = "week_rolling"
     MONTH_ROLLING = "monthly_rolling"
+
+    def is_rolling(self) -> bool:
+        return self in [
+            TimeInterval.SECOND_ROLLING,
+            TimeInterval.MINUTE_ROLLING,
+            TimeInterval.HOUR_ROLLING,
+            TimeInterval.DAY_ROLLING,
+            TimeInterval.WEEK_ROLLING,
+            TimeInterval.MONTH_ROLLING,
+        ]
 
 
 @dataclass

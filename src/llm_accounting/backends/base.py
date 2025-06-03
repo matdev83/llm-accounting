@@ -172,12 +172,14 @@ class BaseBackend(ABC):
     def get_accounting_entries_for_quota(
         self,
         start_time: datetime,
+        end_time: datetime,
         limit_type: LimitType,
+        interval_unit: Any, # Use Any for now to avoid circular import with TimeInterval
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
         project_name: Optional[str] = None,
-        filter_project_null: Optional[bool] = None,  # New parameter
+        filter_project_null: Optional[bool] = None,
     ) -> float:
         """
         Retrieve aggregated API request data for quota calculation.

@@ -20,12 +20,16 @@ Here's a breakdown of the main files and directories at the project root:
 -   `requirements.txt`: Lists the project's Python dependencies.
 -   `setup.py`: Traditional Python setup script for packaging and distribution.
 -   `tox.ini`: Configuration for `tox`, a tool for automating testing in multiple Python environments.
+-   `alembic.ini`: Configuration file for Alembic, the database migration tool.
 -   `alembic/`: Contains Alembic environment and migration scripts for database schema management.
+-   `build.bat`: Windows batch script for building the project.
 -   `data/`: Directory for storing application data (e.g., SQLite databases).
 -   `docs/`: Contains project documentation, including this `STRUCTURE.md` file.
 -   `llm_accounting/`: Top-level package for the LLM accounting system (editable install).
+-   `release_orchestrator.py`: Script for orchestrating releases.
 -   `src/`: Contains the main source code of the `llm-accounting` library.
 -   `tests/`: Contains all unit and integration tests for the project.
+-   `version_manager.py`: Script for managing project versions.
 
 ## 3. `src/` Directory
 
@@ -55,12 +59,20 @@ This sub-package defines the various database backends supported by the system.
 ##### `src/llm_accounting/backends/mock_backend_parts/`
 
 Components specific to the mock backend.
-
 -   `connection_manager.py`: Manages mock database connections.
 -   `limit_manager.py`: Handles mock limit enforcement.
 -   `query_executor.py`: Executes mock queries.
 -   `stats_manager.py`: Manages mock usage statistics.
 -   `usage_manager.py`: Manages mock usage data.
+
+##### `src/llm_accounting/backends/sqlite_backend_parts/`
+
+Components specific to the SQLite backend.
+-   `audit_log_manager.py`: Manages audit log operations for SQLite.
+-   `connection_manager.py`: Manages SQLite database connections.
+-   `limit_manager.py`: Handles SQLite limit enforcement.
+-   `query_executor.py`: Executes SQLite queries.
+-   `usage_manager.py`: Manages SQLite usage data.
 
 ##### `src/llm_accounting/backends/postgresql_backend_parts/`
 
@@ -111,6 +123,12 @@ Contains business logic and services.
 
 -   `quota_service.py`: Provides services related to quota management and enforcement.
 
+#### `src/llm_accounting/services/quota_service_parts/`
+
+Components specific to the quota service.
+-   `_cache_manager.py`: Manages caching for quota service.
+-   `_limit_evaluator.py`: Evaluates limits for the quota service.
+
 ## 4. `tests/` Directory
 
 This directory contains all tests for the `llm-accounting` project, organized to mirror the `src/` directory structure.
@@ -124,10 +142,26 @@ This directory contains all tests for the `llm-accounting` project, organized to
 
 Tests related to the core accounting logic.
 
+-   `test_account_model_limits.py`: Tests for account-specific model limits.
+-   `test_comprehensive_limits.py`: Comprehensive tests for various limit scenarios.
 -   `test_global_limits.py`: Tests for global usage limits.
 -   `test_model_limits.py`: Tests for limits specific to LLM models.
 -   `test_multiple_limit_types.py`: Tests scenarios involving multiple types of limits.
+-   `test_rolling_limits.py`: Tests for rolling window limits.
 -   `test_user_caller_limits.py`: Tests for limits based on user or caller identity.
+
+#### `tests/accounting/rolling_limits_tests/`
+
+Detailed tests for rolling limits.
+
+-   `base_test_rolling_limits.py`: Base test classes for rolling limits.
+-   `test_day_rolling_limits.py`: Tests for daily rolling limits.
+-   `test_hour_rolling_limits.py`: Tests for hourly rolling limits.
+-   `test_minute_rolling_limits.py`: Tests for minute rolling limits.
+-   `test_mixed_rolling_limits.py`: Tests for mixed rolling limit types.
+-   `test_month_rolling_limits.py`: Tests for monthly rolling limits.
+-   `test_second_rolling_limits.py`: Tests for second rolling limits.
+-   `test_week_rolling_limits.py`: Tests for weekly rolling limits.
 
 ### `tests/api_compatibility/`
 
@@ -156,6 +190,7 @@ Detailed tests for the PostgreSQL backend.
 -   `base_test_postgresql.py`: Base test classes for PostgreSQL tests.
 -   `test_postgresql_audit_log.py`: Tests audit logging in PostgreSQL.
 -   `test_postgresql_init_and_connection.py`: Tests initialization and connection to PostgreSQL.
+-   `test_postgresql_migrations_cache.py`: Tests migration caching in PostgreSQL.
 -   `test_postgresql_query_delegation.py`: Tests query delegation in PostgreSQL.
 -   `test_postgresql_query_execution.py`: Tests query execution in PostgreSQL.
 -   `test_postgresql_quota_accounting.py`: Tests quota accounting in PostgreSQL.
@@ -169,6 +204,7 @@ Detailed tests for the SQLite backend.
 -   `conftest.py`: Fixtures specific to SQLite backend tests.
 -   `test_sqlite_audit_log.py`: Tests audit logging in SQLite.
 -   `test_sqlite_init_and_usage.py`: Tests initialization and basic usage of SQLite backend.
+-   `test_sqlite_migrations_cache.py`: Tests migration caching in SQLite.
 -   `test_sqlite_stats_and_purge.py`: Tests statistics and purging functionality in SQLite.
 -   `test_sqlite_usage_limits.py`: Tests usage limits enforcement in SQLite.
 
@@ -214,8 +250,13 @@ Tests for core accounting functionalities.
 -   `test_accounting_stats.py`: Tests the core statistics generation logic.
 -   `test_accounting_tracking.py`: Tests the core usage tracking logic.
 -   `test_accounting_validation.py`: Tests validation rules for accounting data.
+-   `test_output_silence.py`: Tests for silencing output.
 -   `test_project_quota_service.py`: Tests the project-level quota service.
 -   `test_quota_service.py`: Tests the general quota service.
+
+#### `tests/core/quota_service_tests/`
+
+Tests specific to the quota service.
 
 ## 5. `docs/` Directory
 

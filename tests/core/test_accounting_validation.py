@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone # Import timezone
 
 import pytest
 
@@ -61,12 +61,15 @@ def test_track_usage_without_timestamp(accounting):
         # Verify timestamp was set by database
         assert entries[0].timestamp is not None
         # Verify timestamp is recent (within last minute)
-        assert (datetime.now() - entries[0].timestamp).total_seconds() < 60
+        # entries[0].timestamp is naive UTC, so compare with naive UTC now.
+        now_naive_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        assert (now_naive_utc - entries[0].timestamp).total_seconds() < 60
 
 
 def test_track_usage_with_timestamp(accounting):
     """Test tracking usage with explicit timestamp"""
-    test_timestamp = datetime(2024, 1, 1, 12, 0, 0)
+    # Define test_timestamp as UTC aware
+    test_timestamp = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
     with accounting:
         # Track usage with timestamp
@@ -84,8 +87,8 @@ def test_track_usage_with_timestamp(accounting):
         entries = accounting.tail(1)
         assert len(entries) == 1
 
-        # Verify timestamp was preserved
-        assert entries[0].timestamp == test_timestamp
+        # Verify timestamp was preserved (compare naive UTC with naive UTC)
+        assert entries[0].timestamp == test_timestamp.replace(tzinfo=None)
 
 
 def test_track_usage_with_token_details(accounting):

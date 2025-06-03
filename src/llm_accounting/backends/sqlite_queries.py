@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Dict, List, Tuple
+from datetime import datetime, timezone # Import timezone
+from typing import Dict, List, Optional, Tuple # Optional was missing
 from sqlalchemy import text
 from sqlalchemy.engine import Connection # For type hinting
 
@@ -8,8 +8,17 @@ from llm_accounting.backends.base import UsageEntry, UsageStats
 
 def insert_usage_query(conn: Connection, entry: UsageEntry) -> None:
     """Insert a new usage entry into the database using named parameters."""
+    # Ensure timestamp is naive UTC and formatted consistently
+    formatted_timestamp: Optional[str] = None
+    if entry.timestamp:
+        # Convert to UTC, then make naive, then format
+        utc_timestamp = entry.timestamp.astimezone(timezone.utc) # Corrected
+        naive_utc_timestamp = utc_timestamp.replace(tzinfo=None)
+        # Using .000000 to match the query format in usage_manager.py
+        formatted_timestamp = naive_utc_timestamp.strftime('%Y-%m-%d %H:%M:%S.000000')
+
     params = {
-        "timestamp": entry.timestamp.isoformat() if entry.timestamp else None,
+        "timestamp": formatted_timestamp,
         "model": entry.model,
         "prompt_tokens": entry.prompt_tokens,
         "completion_tokens": entry.completion_tokens,
@@ -67,7 +76,12 @@ def get_period_stats_query(
         WHERE timestamp BETWEEN :start_time AND :end_time
     """)
     
-    result = conn.execute(sql, {"start_time": start.isoformat(), "end_time": end.isoformat()})
+    # Ensure start and end times are naive UTC and formatted consistently for querying
+    fmt = '%Y-%m-%d %H:%M:%S.000000'
+    start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
+    end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
+    
+    result = conn.execute(sql, {"start_time": start_naive_utc_str, "end_time": end_naive_utc_str})
     row = result.fetchone()
 
     if not row or row.sum_cost is None: # Check if any aggregation happened (e.g. sum_cost is a good indicator)
@@ -128,7 +142,12 @@ def get_model_stats_query(
         GROUP BY model
     """)
     
-    result = conn.execute(sql, {"start_time": start.isoformat(), "end_time": end.isoformat()})
+    # Ensure start and end times are naive UTC and formatted consistently for querying
+    fmt = '%Y-%m-%d %H:%M:%S.000000'
+    start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
+    end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
+
+    result = conn.execute(sql, {"start_time": start_naive_utc_str, "end_time": end_naive_utc_str})
     rows = result.fetchall()
 
     return [
@@ -161,7 +180,11 @@ def get_model_rankings_query(
     conn: Connection, start: datetime, end: datetime
 ) -> Dict[str, List[Tuple[str, float]]]:
     """Get model rankings based on different metrics from the database using named parameters."""
-    params = {"start_time": start.isoformat(), "end_time": end.isoformat()}
+    # Ensure start and end times are naive UTC and formatted consistently for querying
+    fmt = '%Y-%m-%d %H:%M:%S.000000'
+    start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
+    end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
+    params = {"start_time": start_naive_utc_str, "end_time": end_naive_utc_str}
 
     prompt_tokens_sql = text("""
         SELECT model, SUM(prompt_tokens) as total
@@ -194,7 +217,7 @@ def tail_query(conn: Connection, n: int = 10) -> List[UsageEntry]:
             local_prompt_tokens, local_completion_tokens, local_total_tokens,
             cost, execution_time, caller_name, username, cached_tokens, reasoning_tokens, project
         FROM accounting_entries
-        ORDER BY timestamp DESC
+        ORDER BY timestamp DESC, id DESC
         LIMIT :limit_n
     """)
     
