@@ -31,7 +31,7 @@ class TimeInterval(Enum):
     HOUR = "hour"
     DAY = "day"
     WEEK = "week"
-    MONTH = "monthly"
+    MONTH = "month" # Changed from "monthly"
     SECOND_ROLLING = "second_rolling"
     MINUTE_ROLLING = "minute_rolling"
     HOUR_ROLLING = "hour_rolling"

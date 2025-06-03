@@ -46,7 +46,7 @@ def test_project_limit_cost(accounting_for_quota: LLMAccounting):
         interval_value=1,
         project_name=project_a
     )
-    accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
+    # accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
 
     # Usage for ProjectA
     add_usage(accounting_for_quota, model="gpt-4", cost=2.0, input_tokens=10, project_name=project_a, count=2) # Total cost 4.0
@@ -57,7 +57,7 @@ def test_project_limit_cost(accounting_for_quota: LLMAccounting):
     allowed, message = accounting_for_quota.check_quota(model="gpt-4", cost=0.01, input_tokens=1, project_name=project_a, username="user1", caller_name="app1")
     assert not allowed, "Should be denied, project limit reached"
     assert message is not None
-    assert f"PROJECT (project: {project_a}) limit: 5.00 cost per 1 day exceeded. Current usage: 5.00, request: 0.01." in message
+    assert f"PROJECT (project: {project_a}) limit: 5.00 cost per 1 day, current usage: 5.00, request: 0.01" in message # Removed period, added comma
 
     # Usage for ProjectB (should not be affected by ProjectA's limit)
     project_b = "ProjectB"
@@ -77,7 +77,7 @@ def test_project_limit_requests(accounting_for_quota: LLMAccounting):
         interval_value=1,
         project_name=project_c
     )
-    accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
+    # accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
 
     add_usage(accounting_for_quota, model="claude-2", cost=0.1, input_tokens=5, project_name=project_c, count=1)
     allowed, _ = accounting_for_quota.check_quota(model="claude-2", cost=0.1, input_tokens=5, project_name=project_c, username="user2", caller_name="app2")
@@ -87,7 +87,7 @@ def test_project_limit_requests(accounting_for_quota: LLMAccounting):
     allowed, message = accounting_for_quota.check_quota(model="claude-2", cost=0.1, input_tokens=5, project_name=project_c, username="user2", caller_name="app2")
     assert not allowed, "Request 3 for ProjectC should be denied"
     assert message is not None
-    assert f"PROJECT (project: {project_c}) limit: 2.00 requests per 1 day exceeded. Current usage: 2.00, request: 1.00." in message
+    assert f"PROJECT (project: {project_c}) limit: 2.00 requests per 1 day, current usage: 2.00, request: 1.00" in message # Removed period, added comma
 
 # --- Interaction with Global Limits ---
 
@@ -97,7 +97,7 @@ def test_project_limit_with_global_limit_cost(accounting_for_quota: LLMAccountin
     # Global limit: 10.0 cost
     accounting_for_quota.set_usage_limit(LimitScope.GLOBAL, LimitType.COST, 10.0, TimeInterval.DAY, 1)
     accounting_for_quota.set_usage_limit(LimitScope.PROJECT, LimitType.COST, 5.0, TimeInterval.DAY, 1, project_name=project_d)
-    accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
+    # accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
 
     # Use 4.0 cost for ProjectD (allowed by both project and global)
     add_usage(accounting_for_quota, model="gpt-4", cost=2.0, input_tokens=10, project_name=project_d, count=2)
@@ -110,7 +110,7 @@ def test_project_limit_with_global_limit_cost(accounting_for_quota: LLMAccountin
     allowed, message = accounting_for_quota.check_quota(model="gpt-4", cost=0.1, input_tokens=1, project_name=project_d, username="user1", caller_name="app1")
     assert not allowed, "ProjectD should be denied by its own limit"
     assert message is not None
-    assert f"PROJECT (project: {project_d}) limit: 5.00 cost per 1 day exceeded. Current usage: 5.00, request: 0.10." in message
+    assert f"PROJECT (project: {project_d}) limit: 5.00 cost per 1 day, current usage: 5.00, request: 0.10" in message # Removed period, added comma
 
     # Use 6.0 cost for ProjectE (ProjectD is at 5.0, Global is at 5.0 + this 6.0 = 11.0)
     # This should be denied by the Global limit
@@ -126,7 +126,7 @@ def test_project_limit_with_global_limit_cost(accounting_for_quota: LLMAccountin
     # Total global would be 10.1, exceeding global limit of 10.0
     assert not allowed, "ProjectE should be denied by the global limit"
     assert message is not None
-    assert f"GLOBAL limit: 10.00 cost per 1 day exceeded. Current usage: 9.00, request: 1.10." in message
+    assert f"GLOBAL limit: 10.00 cost per 1 day, current usage: 9.00, request: 1.10" in message # Removed period, added comma
 
 
 def test_project_limit_with_model_limit(accounting_for_quota: LLMAccounting):
@@ -137,7 +137,7 @@ def test_project_limit_with_model_limit(accounting_for_quota: LLMAccounting):
     # Model limit for "special-model": 3 requests
     accounting_for_quota.set_usage_limit(LimitScope.MODEL, LimitType.REQUESTS, 3, TimeInterval.DAY, 1, model=model_name)
     accounting_for_quota.set_usage_limit(LimitScope.PROJECT, LimitType.REQUESTS, 2, TimeInterval.DAY, 1, model=model_name, project_name=project_f)
-    accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
+    # accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
 
     # Request 1 for special-model in ProjectF (allowed)
     add_usage(accounting_for_quota, model=model_name, cost=0.1, input_tokens=1, project_name=project_f)
@@ -149,7 +149,7 @@ def test_project_limit_with_model_limit(accounting_for_quota: LLMAccounting):
     allowed, message = accounting_for_quota.check_quota(model=model_name, cost=0.1, input_tokens=1, project_name=project_f, username="u", caller_name="c")
     assert not allowed, "Should be denied by ProjectF limit"
     assert message is not None
-    assert f"PROJECT (project: {project_f}) limit: 2.00 requests per 1 day exceeded. Current usage: 2.00, request: 1.00." in message
+    assert f"PROJECT (model: {model_name}, project: {project_f}) limit: 2.00 requests per 1 day, current usage: 2.00, request: 1.00" in message # Added model, removed period, added comma
 
     # Request for special-model in ProjectG (ProjectF limit doesn't apply)
     project_g = "ProjectG"
@@ -158,7 +158,7 @@ def test_project_limit_with_model_limit(accounting_for_quota: LLMAccounting):
     allowed, message = accounting_for_quota.check_quota(model=model_name, cost=0.1, input_tokens=1, project_name=project_g, username="u", caller_name="c")
     assert not allowed, "3rd request for special-model (in ProjectG) should be denied by model limit"
     assert message is not None
-    assert f"MODEL (model: {model_name}) limit: 3.00 requests per 1 day exceeded. Current usage: 3.00, request: 1.00." in message
+    assert f"MODEL (model: {model_name}) limit: 3.00 requests per 1 day, current usage: 3.00, request: 1.00" in message # Removed period, added comma
 
 def test_project_limit_with_no_specific_project_in_request(accounting_for_quota: LLMAccounting):
     """Test that a request with no project is not affected by a project-specific limit."""
@@ -171,7 +171,7 @@ def test_project_limit_with_no_specific_project_in_request(accounting_for_quota:
         interval_value=1,
         project_name=project_h
     )
-    accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
+    # accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
     # This request has no project, so ProjectH's limit should not apply.
     allowed, _ = accounting_for_quota.check_quota(model="gpt-4", cost=2.0, input_tokens=10, project_name=None, username="user1", caller_name="app1")
     assert allowed, "Request with no project should not be affected by ProjectH's limit"
@@ -198,10 +198,10 @@ def test_limit_message_for_project_scope(accounting_for_quota: LLMAccounting):
         project_name=project_name,
         model=model_name # Also associate with a model for more specific message
     )
-    accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
+    # accounting_for_quota.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
     add_usage(accounting_for_quota, model=model_name, cost=0.1, input_tokens=1, project_name=project_name)
     allowed, message = accounting_for_quota.check_quota(model=model_name, cost=0.1, input_tokens=1, project_name=project_name, username="u", caller_name="c")
     
     assert not allowed
     assert message is not None
-    assert f"PROJECT (project: {project_name}) limit: 1.00 requests per 1 day exceeded. Current usage: 1.00, request: 1.00." in message
+    assert f"PROJECT (model: {model_name}, project: {project_name}) limit: 1.00 requests per 1 day, current usage: 1.00, request: 1.00" in message # Added model, removed period, added comma

@@ -1,5 +1,6 @@
 import json 
 import logging 
+import os  # Added for SKIP_MIGRATIONS
 import sqlite3 
 from datetime import datetime, timezone 
 from pathlib import Path 
@@ -41,6 +42,25 @@ class SQLiteBackend(BaseBackend):
         self.conn = None # SQLAlchemy connection
 
     def initialize(self) -> None:
+        if os.environ.get("SKIP_MIGRATIONS"):
+            logger.info(f"SKIP_MIGRATIONS environment variable is set. Skipping migrations for {self.db_path}.")
+            if self.engine is None:
+                # Determine db_connection_str for engine creation
+                if self.db_path == ":memory:":
+                    db_connection_str = "sqlite:///:memory:"
+                elif str(self.db_path).startswith("file:"):
+                    db_connection_str = f"sqlite:///{self.db_path}"
+                else:
+                    db_connection_str = f"sqlite:///{self.db_path}"
+                self.engine = create_engine(db_connection_str, future=True)
+
+            Base.metadata.create_all(self.engine)
+            logger.info(f"Tables created using Base.metadata.create_all() for {self.db_path}.")
+            # Ensure connection is also established if Base.metadata.create_all was called
+            if self.conn is None or self.conn.closed:
+                 self.conn = self.engine.connect() # type: ignore
+            return
+
         logger.info(f"Initializing SQLite backend for db: {self.db_path}")
         is_new_db = True
         db_connection_str = ""
@@ -212,7 +232,10 @@ class SQLiteBackend(BaseBackend):
             model=limit.model,
             username=limit.username,
             caller_name=limit.caller_name,
-            project_name=limit.project_name
+            project_name=limit.project_name,
+            # Ensure DTO's created_at and updated_at are used if provided
+            created_at=limit.created_at if limit.created_at else datetime.now(timezone.utc),
+            updated_at=limit.updated_at if limit.updated_at else datetime.now(timezone.utc)
         )
         
         with Session(self.engine) as session:

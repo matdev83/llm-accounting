@@ -50,8 +50,8 @@ def test_multiple_limit_types(accounting_instance: LLMAccounting, sqlite_backend
     sqlite_backend_for_accounting.insert_usage_limit(cost_limit)
 
 
-    # Refresh the cache in QuotaService after inserting all limits
-    accounting_instance.quota_service.refresh_limits_cache()
+    # Refresh the cache in QuotaService after inserting all limits - Method removed
+    # accounting_instance.quota_service.refresh_limits_cache()
 
     # Test token limit is enforced
     # Ensure a timestamp for the check, though not strictly needed if not tracking yet
@@ -62,8 +62,8 @@ def test_multiple_limit_types(accounting_instance: LLMAccounting, sqlite_backend
     )
     assert not allowed_tokens, "Should be denied due to token limit"
     assert message_tokens is not None, "Denial message for token limit should not be None"
-    assert "USER (user: user2) limit: 10000.00 input_tokens per 1 day" in message_tokens
-    assert "exceeded. Current usage: 0.00, request: 15000.00." in message_tokens
+    expected_message_tokens = "USER (user: user2) limit: 10000.00 input_tokens per 1 day, current usage: 0.00, request: 15000.00"
+    assert expected_message_tokens == message_tokens
 
     # Track some usage that is within token limits (e.g., 200 tokens) but accumulates cost.
     # This loop will also test the cost limit eventually.
@@ -92,5 +92,5 @@ def test_multiple_limit_types(accounting_instance: LLMAccounting, sqlite_backend
     )
     assert not allowed_cost, "Should be denied due to cost limit"
     assert message_cost is not None, "Denial message for cost limit should not be None"
-    assert "USER (user: user2) limit: 50.00 cost per 1 week" in message_cost
-    assert "exceeded. Current usage: 49.00, request: 1.01." in message_cost
+    expected_message_cost = "USER (user: user2) limit: 50.00 cost per 1 week, current usage: 49.00, request: 1.01"
+    assert expected_message_cost == message_cost

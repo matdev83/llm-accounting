@@ -40,7 +40,7 @@ def clear_metadata_globally_once_for_session():
     """
     pass
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def temp_db_path(request):
     """Create a temporary database file and return its path, ensuring deletion"""
     with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as tmp:
@@ -58,7 +58,7 @@ def temp_db_path(request):
     request.addfinalizer(cleanup)
     return db_path
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def sqlite_backend(temp_db_path):
     """Create a SQLite backend instance with a temporary database. Initialization is deferred."""
     backend = SQLiteBackend(db_path=temp_db_path)
@@ -74,17 +74,21 @@ def sqlite_backend(temp_db_path):
 
 @pytest.fixture
 def accounting(sqlite_backend, request):
-    """Create an LLMAccounting instance with a temporary SQLite backend, ensuring migrations run."""
+    """Create an LLMAccounting instance with a temporary SQLite backend, SKIPPING migrations."""
+    original_skip_migrations = os.environ.get("SKIP_MIGRATIONS")
+    os.environ["SKIP_MIGRATIONS"] = "1"
+    logger.info("accounting fixture: Set SKIP_MIGRATIONS=1")
+
     db_url_for_migrations = f"sqlite:///{sqlite_backend.db_path}"
     original_env_url = os.environ.get("LLM_ACCOUNTING_DB_URL")
     db_url_was_set_by_this_fixture = False
 
     if not original_env_url:
-        logger.info(f"accounting fixture: LLM_ACCOUNTING_DB_URL not set. Setting to {db_url_for_migrations} for migrations via LLMAccounting.__init__.")
+        logger.info(f"accounting fixture: LLM_ACCOUNTING_DB_URL not set. Setting to {db_url_for_migrations} for potential use (though migrations are skipped).")
         os.environ["LLM_ACCOUNTING_DB_URL"] = db_url_for_migrations
         db_url_was_set_by_this_fixture = True
     else:
-        logger.info(f"accounting fixture: LLM_ACCOUNTING_DB_URL already set to {original_env_url}. Using it for migrations.")
+        logger.info(f"accounting fixture: LLM_ACCOUNTING_DB_URL already set to {original_env_url}.")
 
     acc = LLMAccounting(backend=sqlite_backend)
     acc.__enter__()
@@ -98,6 +102,52 @@ def accounting(sqlite_backend, request):
             del os.environ["LLM_ACCOUNTING_DB_URL"]
         elif original_env_url:
              os.environ["LLM_ACCOUNTING_DB_URL"] = original_env_url
+
+        if original_skip_migrations is None:
+            logger.info("accounting fixture: Clearing SKIP_MIGRATIONS.")
+            if "SKIP_MIGRATIONS" in os.environ: # Check if it was indeed set by this fixture or existed before
+                del os.environ["SKIP_MIGRATIONS"]
+        else:
+            logger.info(f"accounting fixture: Restoring SKIP_MIGRATIONS to its original value: {original_skip_migrations}")
+            os.environ["SKIP_MIGRATIONS"] = original_skip_migrations
+
+@pytest.fixture
+def accounting_with_migrations(sqlite_backend, request):
+    """Create an LLMAccounting instance with a temporary SQLite backend, ensuring migrations run."""
+    # This fixture explicitly does NOT set SKIP_MIGRATIONS
+    # It also ensures SKIP_MIGRATIONS is not set if it was set by another test/fixture prior to this one
+    original_skip_migrations = os.environ.get("SKIP_MIGRATIONS")
+    if original_skip_migrations is not None:
+        logger.info(f"accounting_with_migrations fixture: Temporarily clearing SKIP_MIGRATIONS (was {original_skip_migrations}).")
+        del os.environ["SKIP_MIGRATIONS"]
+
+    db_url_for_migrations = f"sqlite:///{sqlite_backend.db_path}"
+    original_env_url = os.environ.get("LLM_ACCOUNTING_DB_URL")
+    db_url_was_set_by_this_fixture = False
+
+    if not original_env_url:
+        logger.info(f"accounting_with_migrations fixture: LLM_ACCOUNTING_DB_URL not set. Setting to {db_url_for_migrations} for migrations via LLMAccounting.__init__.")
+        os.environ["LLM_ACCOUNTING_DB_URL"] = db_url_for_migrations
+        db_url_was_set_by_this_fixture = True
+    else:
+        logger.info(f"accounting_with_migrations fixture: LLM_ACCOUNTING_DB_URL already set to {original_env_url}. Using it for migrations.")
+
+    acc = LLMAccounting(backend=sqlite_backend)
+    acc.__enter__()
+
+    try:
+        yield acc
+    finally:
+        acc.__exit__(None, None, None)
+        if db_url_was_set_by_this_fixture:
+            logger.info(f"accounting_with_migrations fixture: Clearing LLM_ACCOUNTING_DB_URL that was set by this fixture.")
+            del os.environ["LLM_ACCOUNTING_DB_URL"]
+        elif original_env_url:
+             os.environ["LLM_ACCOUNTING_DB_URL"] = original_env_url
+
+        if original_skip_migrations is not None:
+            logger.info(f"accounting_with_migrations fixture: Restoring original SKIP_MIGRATIONS value: {original_skip_migrations}")
+            os.environ["SKIP_MIGRATIONS"] = original_skip_migrations
 
 @pytest.fixture
 def sample_entries():

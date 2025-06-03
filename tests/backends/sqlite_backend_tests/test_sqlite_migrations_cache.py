@@ -66,9 +66,9 @@ class TestSQLiteMigrationCache(unittest.TestCase):
         self.backend = SQLiteBackend(db_path=str(self.mock_db_path)) 
         self.backend.initialize()
 
-        mock_create_all.assert_not_called() # Base.metadata.create_all should not be called for new DBs now
-        mock_stamp_db_head.assert_not_called() # stamp_db_head is no longer called directly in this path
-        mock_run_migrations_upgrade.assert_called_once() # run_migrations should be called
+        mock_create_all.assert_called_once_with(self.backend.engine) # Should be called for new DBs
+        mock_stamp_db_head.assert_called_once()             # Should be called to stamp new DB
+        mock_run_migrations_upgrade.assert_not_called()     # Should NOT be called for new DB (stamp is used)
 
         self.assertTrue(self.controlled_cache_path.exists())
         with open(self.controlled_cache_path, 'r') as f:

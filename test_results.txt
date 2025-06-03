@@ -1,0 +1,992 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.17, pytest-8.3.5, pluggy-1.5.0 -- /usr/local/bin/python
+cachedir: .pytest_cache
+metadata: {'Python': '3.10.17', 'Platform': 'Linux-6.8.0-x86_64-with-glibc2.39', 'Packages': {'pytest': '8.3.5', 'pluggy': '1.5.0'}, 'Plugins': {'asyncio': '1.0.0', 'anyio': '4.9.0', 'cov': '6.1.1', 'json-report': '1.5.0', 'metadata': '3.1.1'}}
+rootdir: /app
+configfile: pytest.ini
+testpaths: tests
+plugins: asyncio-1.0.0, anyio-4.9.0, cov-6.1.1, json-report-1.5.0, metadata-3.1.1
+asyncio: mode=strict, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 204 items / 1 deselected / 203 selected
+
+tests/accounting/test_account_model_limits.py::test_account_model_requests_per_minute FAILED [  0%]
+tests/accounting/test_account_model_limits.py::test_account_model_requests_per_day FAILED [  0%]
+tests/accounting/test_account_model_limits.py::test_account_model_completion_tokens_per_minute FAILED [  1%]
+tests/accounting/test_account_model_limits.py::test_account_model_completion_tokens_per_day FAILED [  1%]
+tests/accounting/test_account_model_limits.py::test_account_total_requests_per_minute FAILED [  2%]
+tests/accounting/test_comprehensive_limits.py::test_comprehensive_limit_scenarios FAILED [  2%]
+tests/accounting/test_global_limits.py::test_global_limit FAILED         [  3%]
+tests/accounting/test_model_limits.py::test_model_limit_priority FAILED  [  3%]
+tests/accounting/test_multiple_limit_types.py::test_multiple_limit_types FAILED [  4%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_basic_second_rolling_limit_exceed_limit PASSED [  4%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_basic_second_rolling_limit_within_limit PASSED [  5%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_day_rolling_limit_output_tokens PASSED [  5%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_hour_rolling_boundary_just_inside PASSED [  6%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_hour_rolling_boundary_just_outside PASSED [  6%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_minute_rolling_limit_input_tokens PASSED [  7%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_mixed_fixed_and_rolling_limits_rolling_exceeded PASSED [  7%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_month_rolling_limit_requests PASSED [  8%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_multiple_rolling_limits_one_exceeded PASSED [  8%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_no_usage_rolling_limit PASSED [  9%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_placeholder PASSED [  9%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_second_rolling_limit_usage_outside_window PASSED [ 10%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_week_rolling_limit_cost PASSED [ 10%]
+tests/accounting/test_user_caller_limits.py::test_user_caller_combination FAILED [ 11%]
+tests/api_compatibility/test_audit_logger_api.py::TestAuditLoggerAPI::test_audit_logger_api_methods_exist PASSED [ 11%]
+tests/api_compatibility/test_audit_logger_api.py::TestAuditLoggerAPI::test_get_entries_delegates_to_backend PASSED [ 12%]
+tests/api_compatibility/test_audit_logger_api.py::TestAuditLoggerAPI::test_log_event_delegates_to_backend PASSED [ 12%]
+tests/api_compatibility/test_audit_logger_api.py::TestAuditLoggerAPI::test_log_prompt_delegates_to_backend PASSED [ 13%]
+tests/api_compatibility/test_audit_logger_api.py::TestAuditLoggerAPI::test_log_response_delegates_to_backend PASSED [ 13%]
+tests/api_compatibility/test_llm_accounting_api.py::TestLLMAccountingAPI::test_delete_usage_limit_calls_backend PASSED [ 14%]
+tests/api_compatibility/test_llm_accounting_api.py::TestLLMAccountingAPI::test_get_usage_limits_returns_list_of_usage_limit_data_from_backend PASSED [ 14%]
+tests/api_compatibility/test_llm_accounting_api.py::TestLLMAccountingAPI::test_llm_accounting_api_methods_and_properties_exist PASSED [ 15%]
+tests/api_compatibility/test_llm_accounting_api.py::TestLLMAccountingAPI::test_set_usage_limit_passes_usage_limit_data_to_backend PASSED [ 15%]
+tests/backends/postgresql_backend_tests/test_postgresql_audit_log.py::TestPostgreSQLAuditLog::test_get_audit_log_entries_delegates_to_query_executor SKIPPED [ 16%]
+tests/backends/postgresql_backend_tests/test_postgresql_audit_log.py::TestPostgreSQLAuditLog::test_initialize_audit_log_schema_method_ensures_connection SKIPPED [ 16%]
+tests/backends/postgresql_backend_tests/test_postgresql_audit_log.py::TestPostgreSQLAuditLog::test_initialize_creates_audit_log_table SKIPPED [ 17%]
+tests/backends/postgresql_backend_tests/test_postgresql_audit_log.py::TestPostgreSQLAuditLog::test_log_audit_event_delegates_and_manages_transaction SKIPPED [ 17%]
+tests/backends/postgresql_backend_tests/test_postgresql_init_and_connection.py::TestPostgreSQLInitAndConnection::test_close_connection SKIPPED [ 18%]
+tests/backends/postgresql_backend_tests/test_postgresql_init_and_connection.py::TestPostgreSQLInitAndConnection::test_init_success SKIPPED [ 18%]
+tests/backends/postgresql_backend_tests/test_postgresql_init_and_connection.py::TestPostgreSQLInitAndConnection::test_initialize_connection_error SKIPPED [ 19%]
+tests/backends/postgresql_backend_tests/test_postgresql_init_and_connection.py::TestPostgreSQLInitAndConnection::test_initialize_success SKIPPED [ 19%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_existing_db_cache_for_different_connection_string PASSED [ 20%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_existing_db_cache_missing_runs_migrations PASSED [ 20%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_existing_db_cache_outdated_runs_migrations PASSED [ 21%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_existing_db_cache_up_to_date_skips_migrations PASSED [ 21%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_existing_db_migrated_but_model_table_missing_runs_create_all PASSED [ 22%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_new_database_creates_schema_stamps_and_caches PASSED [ 22%]
+tests/backends/postgresql_backend_tests/test_postgresql_query_delegation.py::TestPostgreSQLQueryDelegation::test_get_model_stats_delegates_to_query_executor SKIPPED [ 23%]
+tests/backends/postgresql_backend_tests/test_postgresql_query_delegation.py::TestPostgreSQLQueryDelegation::test_get_period_stats_delegates_to_query_executor SKIPPED [ 23%]
+tests/backends/postgresql_backend_tests/test_postgresql_query_execution.py::TestPostgreSQLQueryExecution::test_execute_query_non_select_error SKIPPED [ 24%]
+tests/backends/postgresql_backend_tests/test_postgresql_query_execution.py::TestPostgreSQLQueryExecution::test_execute_query_success SKIPPED [ 24%]
+tests/backends/postgresql_backend_tests/test_postgresql_quota_accounting.py::TestPostgreSQLQuotaAccounting::test_get_accounting_entries_for_quota_db_error SKIPPED [ 25%]
+tests/backends/postgresql_backend_tests/test_postgresql_quota_accounting.py::TestPostgreSQLQuotaAccounting::test_get_accounting_entries_for_quota_invalid_type SKIPPED [ 25%]
+tests/backends/postgresql_backend_tests/test_postgresql_quota_accounting.py::TestPostgreSQLQuotaAccounting::test_get_accounting_entries_for_quota_no_data SKIPPED [ 26%]
+tests/backends/postgresql_backend_tests/test_postgresql_quota_accounting.py::TestPostgreSQLQuotaAccounting::test_get_accounting_entries_for_quota_success SKIPPED [ 26%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_insertion.py::TestPostgreSQLUsageInsertion::test_insert_usage_success SKIPPED [ 27%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_limits.py::TestPostgreSQLUsageLimits::test_delete_usage_limit_success SKIPPED [ 27%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_limits.py::TestPostgreSQLUsageLimits::test_get_usage_limits_uses_limit_manager_and_returns_usage_limit_data SKIPPED [ 28%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_limits.py::TestPostgreSQLUsageLimits::test_insert_usage_limit_uses_limit_manager_with_usage_limit_data SKIPPED [ 28%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_limits.py::TestPostgreSQLUsageLimits::test_postgresql_specific_get_usage_limit_delegates_to_limit_manager SKIPPED [ 29%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_limits.py::TestPostgreSQLUsageLimits::test_postgresql_specific_set_usage_limit_delegates_to_query_executor SKIPPED [ 29%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_audit_log_table_creation PASSED [ 30%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_log_single_audit_event PASSED [ 30%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_log_audit_event_minimal_fields PASSED [ 31%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_all_audit_logs PASSED [ 31%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_date_filters PASSED [ 32%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_app_name_filter PASSED [ 32%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_user_name_filter PASSED [ 33%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_project_filter PASSED [ 33%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_log_type_filter PASSED [ 33%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_limit PASSED [ 34%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_combined_filters PASSED [ 34%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_empty_result PASSED [ 35%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_order_by_timestamp PASSED [ 35%]
+tests/backends/sqlite_backend_tests/test_sqlite_init_and_usage.py::test_initialize PASSED [ 36%]
+tests/backends/sqlite_backend_tests/test_sqlite_init_and_usage.py::test_insert_usage PASSED [ 36%]
+tests/backends/sqlite_backend_tests/test_sqlite_init_and_usage.py::test_insert_usage_with_project PASSED [ 37%]
+tests/backends/sqlite_backend_tests/test_sqlite_init_and_usage.py::test_tail_retrieves_project PASSED [ 37%]
+tests/backends/sqlite_backend_tests/test_sqlite_init_and_usage.py::test_execute_query_filter_by_project PASSED [ 38%]
+tests/backends/sqlite_backend_tests/test_sqlite_migrations_cache.py::TestSQLiteMigrationCache::test_existing_db_cache_missing PASSED [ 38%]
+tests/backends/sqlite_backend_tests/test_sqlite_migrations_cache.py::TestSQLiteMigrationCache::test_existing_db_cache_outdated PASSED [ 39%]
+tests/backends/sqlite_backend_tests/test_sqlite_migrations_cache.py::TestSQLiteMigrationCache::test_existing_db_cache_up_to_date PASSED [ 39%]
+tests/backends/sqlite_backend_tests/test_sqlite_migrations_cache.py::TestSQLiteMigrationCache::test_in_memory_database PASSED [ 40%]
+tests/backends/sqlite_backend_tests/test_sqlite_migrations_cache.py::TestSQLiteMigrationCache::test_new_database_creates_schema_stamps_and_caches PASSED [ 40%]
+tests/backends/sqlite_backend_tests/test_sqlite_stats_and_purge.py::test_get_period_stats PASSED [ 41%]
+tests/backends/sqlite_backend_tests/test_sqlite_stats_and_purge.py::test_get_model_stats PASSED [ 41%]
+tests/backends/sqlite_backend_tests/test_sqlite_stats_and_purge.py::test_get_model_rankings PASSED [ 42%]
+tests/backends/sqlite_backend_tests/test_sqlite_stats_and_purge.py::test_purge PASSED [ 42%]
+tests/backends/sqlite_backend_tests/test_sqlite_stats_and_purge.py::test_purge_empty_database PASSED [ 43%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_insert_project_scope_limit PASSED [ 43%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_get_usage_limits_filter_by_project_scope PASSED [ 44%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_get_accounting_entries_for_quota_with_project_filter PASSED [ 44%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_insert_and_get_usage_limits PASSED [ 45%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_get_usage_limits_with_filters PASSED [ 45%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_delete_usage_limit PASSED [ 46%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_datetime_precision_and_timezone_handling PASSED [ 46%]
+tests/backends/test_base.py::test_backend_interface PASSED               [ 47%]
+tests/backends/test_base.py::test_backend_abstract_methods PASSED        [ 47%]
+tests/backends/test_csv_backend.py::TestCSVBackendInitialization::test_initialization_default_dir PASSED [ 48%]
+tests/backends/test_csv_backend.py::TestCSVBackendInitialization::test_initialization_custom_dir PASSED [ 48%]
+tests/backends/test_csv_backend.py::TestCSVBackendInitialization::test_data_dir_creation PASSED [ 49%]
+tests/backends/test_csv_backend.py::TestCSVBackendInitialization::test_initialization_existing_files PASSED [ 49%]
+tests/backends/test_csv_backend.py::TestCSVPurge::test_purge_clears_data_keeps_headers PASSED [ 50%]
+tests/backends/test_csv_backend.py::TestAccountingEntries::test_insert_and_tail_single_entry PASSED [ 50%]
+tests/backends/test_csv_backend.py::TestUsageLimits::test_insert_get_delete_usage_limit PASSED [ 51%]
+tests/backends/test_csv_backend.py::TestAuditLog::test_insert_get_audit_log_entry PASSED [ 51%]
+tests/backends/test_csv_backend.py::TestPeriodStats::test_get_period_stats_aggregation PASSED [ 52%]
+tests/backends/test_csv_backend.py::TestFileHandlingAndEdgeCases::test_missing_files_recreated_on_operation PASSED [ 52%]
+tests/backends/test_csv_backend.py::test_handling_io_error_on_init_standalone PASSED [ 53%]
+tests/backends/test_usage_models.py::test_usage_entry_creation PASSED    [ 53%]
+tests/backends/test_usage_models.py::test_usage_stats_creation PASSED    [ 54%]
+tests/cli/test_cli_limits_project.py::test_cli_limits_set_project_scope_success PASSED [ 54%]
+tests/cli/test_cli_limits_project.py::test_cli_limits_set_project_scope_missing_project_name PASSED [ 55%]
+tests/cli/test_cli_limits_project.py::test_cli_limits_list_with_project_filters PASSED [ 55%]
+tests/cli/test_cli_limits_project.py::test_cli_limits_delete_project_limit PASSED [ 56%]
+tests/cli/test_cli_log_event.py::test_log_event_basic PASSED             [ 56%]
+tests/cli/test_cli_log_event.py::test_log_event_persists_data PASSED     [ 57%]
+tests/cli/test_cli_log_event.py::test_log_event_with_timestamp PASSED    [ 57%]
+tests/cli/test_cli_log_event.py::test_log_event_with_iso_timestamp_and_tz PASSED [ 58%]
+tests/cli/test_cli_log_event.py::test_log_event_timestamp_parse_error PASSED [ 58%]
+tests/cli/test_cli_purge.py::test_purge_with_confirmation PASSED         [ 59%]
+tests/cli/test_cli_purge.py::test_purge_without_confirmation PASSED      [ 59%]
+tests/cli/test_cli_purge.py::test_purge_with_yes_flag PASSED             [ 60%]
+tests/cli/test_cli_purge.py::test_purge_with_yes_flag_long PASSED        [ 60%]
+tests/cli/test_cli_stats.py::test_stats_no_period PASSED                 [ 61%]
+tests/cli/test_cli_stats.py::test_stats_periods[period_args0-Daily Stats] PASSED [ 61%]
+tests/cli/test_cli_stats.py::test_stats_periods[period_args1-Weekly Stats] PASSED [ 62%]
+tests/cli/test_cli_stats.py::test_stats_periods[period_args2-Monthly Stats] PASSED [ 62%]
+tests/cli/test_cli_stats.py::test_stats_periods[period_args3-Yearly Stats] PASSED [ 63%]
+tests/cli/test_cli_stats.py::test_stats_custom_period PASSED             [ 63%]
+tests/cli/test_cli_stats.py::test_custom_db_file_usage PASSED            [ 64%]
+tests/cli/test_cli_stats.py::test_default_db_file_usage PASSED           [ 64%]
+tests/cli/test_cli_stats.py::test_db_file_validation_error PASSED        [ 65%]
+tests/cli/test_cli_stats.py::test_db_file_permission_error PASSED        [ 65%]
+tests/cli/test_cli_tail.py::test_tail_default PASSED                     [ 66%]
+tests/cli/test_cli_tail.py::test_tail_custom_number PASSED               [ 66%]
+tests/cli/test_cli_tail.py::test_tail_empty PASSED                       [ 66%]
+tests/cli/test_cli_track.py::test_track_usage PASSED                     [ 67%]
+tests/cli/test_cli_track.py::test_track_usage_with_project PASSED        [ 67%]
+tests/cli/test_cli_track.py::test_track_usage_with_timestamp PASSED      [ 68%]
+tests/cli/test_cli_track.py::test_track_usage_with_caller_name PASSED    [ 68%]
+tests/cli/test_cli_track.py::test_track_usage_with_username PASSED       [ 69%]
+tests/cli/test_cli_track.py::test_track_usage_with_cached_tokens PASSED  [ 69%]
+tests/cli/test_cli_track.py::test_track_usage_with_reasoning_tokens PASSED [ 70%]
+tests/cli/test_cli_version.py::test_cli_version PASSED                   [ 70%]
+tests/cli/test_select/select/test_aggregation.py::test_select_aggregation PASSED [ 71%]
+tests/cli/test_select/select/test_basic_query.py::test_select_basic_query PASSED [ 71%]
+tests/cli/test_select/select/test_no_results.py::test_select_no_results PASSED [ 72%]
+tests/cli/test_select/select/test_non_select_query.py::test_select_non_select_query PASSED [ 72%]
+tests/cli/test_select/select/test_output_formatting.py::test_select_output_formatting PASSED [ 73%]
+tests/cli/test_select/select/test_syntax_error.py::test_select_syntax_error PASSED [ 73%]
+tests/cli/test_select_project.py::test_select_no_project_filter_displays_project_column PASSED [ 74%]
+tests/cli/test_select_project.py::test_select_filter_by_project_name PASSED [ 74%]
+tests/cli/test_select_project.py::test_select_filter_by_project_null PASSED [ 75%]
+tests/core/test_accounting_purge.py::test_purge PASSED                   [ 75%]
+tests/core/test_accounting_stats.py::test_get_period_stats PASSED        [ 76%]
+tests/core/test_accounting_stats.py::test_get_model_stats PASSED         [ 76%]
+tests/core/test_accounting_stats.py::test_get_model_rankings PASSED      [ 77%]
+tests/core/test_accounting_tracking.py::test_track_usage PASSED          [ 77%]
+tests/core/test_accounting_tracking.py::test_tail PASSED                 [ 78%]
+tests/core/test_accounting_tracking.py::test_tail_empty PASSED           [ 78%]
+tests/core/test_accounting_tracking.py::test_tail_default_limit PASSED   [ 79%]
+tests/core/test_accounting_tracking.py::test_track_usage_with_caller_and_user PASSED [ 79%]
+tests/core/test_accounting_tracking.py::test_tail_with_caller_and_user PASSED [ 80%]
+tests/core/test_accounting_validation.py::test_track_usage_empty_model PASSED [ 80%]
+tests/core/test_accounting_validation.py::test_track_usage_none_model PASSED [ 81%]
+tests/core/test_accounting_validation.py::test_usage_entry_empty_model PASSED [ 81%]
+tests/core/test_accounting_validation.py::test_usage_entry_none_model PASSED [ 82%]
+tests/core/test_accounting_validation.py::test_track_usage_without_timestamp PASSED [ 82%]
+tests/core/test_accounting_validation.py::test_track_usage_with_timestamp PASSED [ 83%]
+tests/core/test_accounting_validation.py::test_track_usage_with_token_details PASSED [ 83%]
+tests/core/test_accounting_validation.py::test_track_usage_default_token_details PASSED [ 84%]
+tests/core/test_output_silence.py::TestOutputSilence::test_audit_logger_silence PASSED [ 84%]
+tests/core/test_output_silence.py::TestOutputSilence::test_llm_accounting_context_manager_silence PASSED [ 85%]
+tests/core/test_output_silence.py::TestOutputSilence::test_mock_backend_operations_debug_silence PASSED [ 85%]
+tests/core/test_output_silence.py::TestOutputSilence::test_quota_service_silence PASSED [ 86%]
+tests/core/test_project_quota_service.py::test_project_limit_cost PASSED [ 86%]
+tests/core/test_project_quota_service.py::test_project_limit_requests PASSED [ 87%]
+tests/core/test_project_quota_service.py::test_project_limit_with_global_limit_cost PASSED [ 87%]
+tests/core/test_project_quota_service.py::test_project_limit_with_model_limit PASSED [ 88%]
+tests/core/test_project_quota_service.py::test_project_limit_with_no_specific_project_in_request PASSED [ 88%]
+tests/core/test_project_quota_service.py::test_limit_message_for_project_scope PASSED [ 89%]
+tests/core/test_quota_service.py::test_check_quota_no_limits PASSED      [ 89%]
+tests/core/test_quota_service.py::test_check_quota_allowed_single_limit FAILED [ 90%]
+tests/core/test_quota_service.py::test_check_quota_denied_single_limit FAILED [ 90%]
+tests/core/test_quota_service.py::test_check_quota_multiple_limits_one_exceeded FAILED [ 91%]
+tests/core/test_quota_service.py::test_check_quota_different_scopes_in_cache PASSED [ 91%]
+tests/core/test_quota_service.py::test_check_quota_token_limits FAILED   [ 92%]
+tests/core/test_quota_service.py::test_get_period_start_monthly PASSED   [ 92%]
+tests/core/test_quota_service.py::test_get_period_start_daily PASSED     [ 93%]
+tests/core/test_quota_service.py::test_get_period_start_hourly PASSED    [ 93%]
+tests/core/test_quota_service.py::test_get_period_start_minute PASSED    [ 94%]
+tests/core/test_quota_service.py::test_get_period_start_second PASSED    [ 94%]
+tests/core/test_quota_service.py::test_get_period_start_weekly PASSED    [ 95%]
+tests/core/test_quota_service.py::test_get_period_start_unsupported_interval PASSED [ 95%]
+tests/test_audit_log.py::test_log_prompt PASSED                          [ 96%]
+tests/test_audit_log.py::test_log_response PASSED                        [ 96%]
+tests/test_audit_log.py::test_log_event_method PASSED                    [ 97%]
+tests/test_audit_log.py::test_nullable_fields PASSED                     [ 97%]
+tests/test_audit_log.py::test_get_entries PASSED                         [ 98%]
+tests/test_migrations.py::test_sqlite_initial_migration_creates_schema PASSED [ 98%]
+tests/test_migrations.py::test_sqlite_applies_new_migration_and_preserves_data PASSED [ 99%]
+tests/test_migrations.py::test_postgresql_initial_migration_creates_schema SKIPPED [ 99%]
+tests/test_migrations.py::test_postgresql_applies_new_migration_and_preserves_data SKIPPED [100%]
+
+=================================== FAILURES ===================================
+____________________ test_account_model_requests_per_minute ____________________
+
+accounting_instance = <llm_accounting.LLMAccounting object at 0x7fb12bc1e590>
+sqlite_backend_for_accounting = <llm_accounting.backends.sqlite.SQLiteBackend object at 0x7fb12bc1d1e0>
+
+    def test_account_model_requests_per_minute(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
+        """Test requests per minute limit for a specific account and model."""
+        username = "test_user_ab"
+        model_name = "model_x"
+        caller = "caller_rpm"
+
+        global_limit = UsageLimitDTO(
+            scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value,
+            max_value=100, interval_unit=TimeInterval.MINUTE.value, interval_value=1
+        )
+        account_model_limit = UsageLimitDTO(
+            scope=LimitScope.USER.value,
+            username=username,
+            model=model_name,
+            limit_type=LimitType.REQUESTS.value,
+            max_value=3,
+            interval_unit=TimeInterval.MINUTE.value,
+            interval_value=1
+        )
+        sqlite_backend_for_accounting.insert_usage_limit(account_model_limit)
+        sqlite_backend_for_accounting.insert_usage_limit(global_limit)
+        # accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
+
+        for i in range(3):
+            allowed, reason = accounting_instance.check_quota(
+                model=model_name, username=username, caller_name=caller, input_tokens=10, completion_tokens=10
+            )
+            assert allowed, f"Request {i+1}/3 for {model_name} by {username} should be allowed. Reason: {reason}"
+            accounting_instance.track_usage(
+                model=model_name, username=username, caller_name=caller,
+                prompt_tokens=10, completion_tokens=10, cost=0.01, timestamp=datetime.now(timezone.utc)
+            )
+
+        allowed, message = accounting_instance.check_quota(
+            model=model_name, username=username, caller_name=caller, input_tokens=10, completion_tokens=10
+        )
+        assert not allowed, f"4th request for {model_name} by {username} should be denied"
+        assert message is not None, "Denial message should not be None"
+        assert f"USER (model: {model_name}, user: {username})" in message
+        assert "limit: 3.00 requests per 1 minute" in message
+>       assert "exceeded. Current usage: 3.00, request: 1.00" in message
+E       AssertionError: assert 'exceeded. Current usage: 3.00, request: 1.00' in 'USER (model: model_x, user: test_user_ab) limit: 3.00 requests per 1 minute, current usage: 3.00, request: 1.00'
+
+tests/accounting/test_account_model_limits.py:68: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO:llm_accounting.backends.sqlite:Initializing SQLite backend for db: /tmp/pytest-of-swebot/pytest-2/test_account_model_requests_pe0/test_accounting.sqlite
+INFO:llm_accounting.backends.sqlite:Creating SQLAlchemy engine for sqlite:////tmp/pytest-of-swebot/pytest-2/test_account_model_requests_pe0/test_accounting.sqlite
+INFO:llm_accounting.backends.sqlite:Database /tmp/pytest-of-swebot/pytest-2/test_account_model_requests_pe0/test_accounting.sqlite is new. Creating schema from models and stamping with head revision.
+INFO:llm_accounting.backends.sqlite:Schema creation complete for new database.
+INFO:llm_accounting.db_migrations.migrations_stamp:Attempting to stamp database for URL context: sqlite:////tmp/pytest-of-swebot/pytest-2/test_account_model_requests_pe0/test_accounting.sqlite
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -> ba9718840e75
+------------------------------ Captured log setup ------------------------------
+INFO     llm_accounting.backends.sqlite:sqlite.py:64 Initializing SQLite backend for db: /tmp/pytest-of-swebot/pytest-2/test_account_model_requests_pe0/test_accounting.sqlite
+INFO     llm_accounting.backends.sqlite:sqlite.py:92 Creating SQLAlchemy engine for sqlite:////tmp/pytest-of-swebot/pytest-2/test_account_model_requests_pe0/test_accounting.sqlite
+INFO     llm_accounting.backends.sqlite:sqlite.py:115 Database /tmp/pytest-of-swebot/pytest-2/test_account_model_requests_pe0/test_accounting.sqlite is new. Creating schema from models and stamping with head revision.
+INFO     llm_accounting.backends.sqlite:sqlite.py:117 Schema creation complete for new database.
+INFO     llm_accounting.db_migrations.migrations_stamp:db_migrations.py:195 Attempting to stamp database for URL context: sqlite:////tmp/pytest-of-swebot/pytest-2/test_account_model_requests_pe0/test_accounting.sqlite
+_____________________ test_account_model_requests_per_day ______________________
+
+accounting_instance = <llm_accounting.LLMAccounting object at 0x7fb12afb3070>
+sqlite_backend_for_accounting = <llm_accounting.backends.sqlite.SQLiteBackend object at 0x7fb12afb3190>
+
+    def test_account_model_requests_per_day(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
+        """Test requests per day limit for a specific account and model."""
+        username = "test_user_cd"
+        model_name = "model_y"
+        caller = "caller_rpd"
+
+        global_limit = UsageLimitDTO(
+            scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value,
+            max_value=100, interval_unit=TimeInterval.DAY.value, interval_value=1
+        )
+        account_model_limit = UsageLimitDTO(
+            scope=LimitScope.USER.value,
+            username=username,
+            model=model_name,
+            limit_type=LimitType.REQUESTS.value,
+            max_value=2,
+            interval_unit=TimeInterval.DAY.value,
+            interval_value=1
+        )
+        sqlite_backend_for_accounting.insert_usage_limit(account_model_limit)
+        sqlite_backend_for_accounting.insert_usage_limit(global_limit)
+        # accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
+
+        for i in range(2):
+            allowed, reason = accounting_instance.check_quota(
+                model=model_name, username=username, caller_name=caller, input_tokens=10, completion_tokens=10
+            )
+            assert allowed, f"Request {i+1}/2 for {model_name} by {username} should be allowed. Reason: {reason}"
+            accounting_instance.track_usage(
+                model=model_name, username=username, caller_name=caller,
+                prompt_tokens=10, completion_tokens=10, cost=0.01, timestamp=datetime.now(timezone.utc)
+            )
+
+        allowed, message = accounting_instance.check_quota(
+            model=model_name, username=username, caller_name=caller, input_tokens=10, completion_tokens=10
+        )
+        assert not allowed, f"3rd request for {model_name} by {username} should be denied"
+        assert message is not None, "Denial message should not be None"
+        assert f"USER (model: {model_name}, user: {username})" in message
+        assert "limit: 2.00 requests per 1 day" in message
+>       assert "exceeded. Current usage: 2.00, request: 1.00" in message
+E       AssertionError: assert 'exceeded. Current usage: 2.00, request: 1.00' in 'USER (model: model_y, user: test_user_cd) limit: 2.00 requests per 1 day, current usage: 2.00, request: 1.00'
+
+tests/accounting/test_account_model_limits.py:121: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -> ba9718840e75
+_______________ test_account_model_completion_tokens_per_minute ________________
+
+accounting_instance = <llm_accounting.LLMAccounting object at 0x7fb12ab44b20>
+sqlite_backend_for_accounting = <llm_accounting.backends.sqlite.SQLiteBackend object at 0x7fb12ab44a90>
+
+    def test_account_model_completion_tokens_per_minute(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
+        """Test completion tokens per minute limit for a specific account and model."""
+        username = "test_user_ef"
+        model_name = "model_z"
+        caller = "caller_ctpm"
+
+        global_limit = UsageLimitDTO(
+            scope=LimitScope.GLOBAL.value, limit_type=LimitType.OUTPUT_TOKENS.value,
+            max_value=5000, interval_unit=TimeInterval.MINUTE.value, interval_value=1
+        )
+        account_model_limit = UsageLimitDTO(
+            scope=LimitScope.USER.value,
+            username=username,
+            model=model_name,
+            limit_type=LimitType.OUTPUT_TOKENS.value,
+            max_value=1000,
+            interval_unit=TimeInterval.MINUTE.value,
+            interval_value=1
+        )
+        sqlite_backend_for_accounting.insert_usage_limit(account_model_limit)
+        sqlite_backend_for_accounting.insert_usage_limit(global_limit)
+        # accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
+
+        # First request: 500 tokens
+        allowed, reason = accounting_instance.check_quota(
+            model=model_name, username=username, caller_name=caller, input_tokens=10, completion_tokens=500
+        )
+        assert allowed, f"Request 1 (500 tokens) for {model_name} by {username} should be allowed. Reason: {reason}"
+        accounting_instance.track_usage(
+            model=model_name, username=username, caller_name=caller,
+            prompt_tokens=10, completion_tokens=500, cost=0.01, timestamp=datetime.now(timezone.utc)
+        )
+
+        # Second request: 500 tokens (total 1000)
+        allowed, reason = accounting_instance.check_quota(
+            model=model_name, username=username, caller_name=caller, input_tokens=10, completion_tokens=500
+        )
+        assert allowed, f"Request 2 (500 tokens) for {model_name} by {username} should be allowed. Reason: {reason}"
+        accounting_instance.track_usage(
+            model=model_name, username=username, caller_name=caller,
+            prompt_tokens=10, completion_tokens=500, cost=0.01, timestamp=datetime.now(timezone.utc)
+        )
+
+        # Third request: 1 token (total 1001 - should be denied)
+        allowed, message = accounting_instance.check_quota(
+            model=model_name, username=username, caller_name=caller, input_tokens=10, completion_tokens=1
+        )
+        assert not allowed, f"Request 3 (1 token) for {model_name} by {username} should be denied"
+        assert message is not None, "Denial message should not be None"
+        assert f"USER (model: {model_name}, user: {username})" in message
+        assert f"limit: 1000.00 {LimitType.OUTPUT_TOKENS.value} per 1 minute" in message
+>       assert "exceeded. Current usage: 1000.00, request: 1.00" in message
+E       AssertionError: assert 'exceeded. Current usage: 1000.00, request: 1.00' in 'USER (model: model_z, user: test_user_ef) limit: 1000.00 output_tokens per 1 minute, current usage: 1000.00, request: 1.00'
+
+tests/accounting/test_account_model_limits.py:185: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -> ba9718840e75
+_________________ test_account_model_completion_tokens_per_day _________________
+
+accounting_instance = <llm_accounting.LLMAccounting object at 0x7fb12ab45db0>
+sqlite_backend_for_accounting = <llm_accounting.backends.sqlite.SQLiteBackend object at 0x7fb12ab45cc0>
+
+    def test_account_model_completion_tokens_per_day(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
+        """Test completion tokens per day limit for a specific account and model."""
+        username = "test_user_gh"
+        model_name = "model_a"
+        caller = "caller_ctpd"
+
+        global_limit = UsageLimitDTO(
+            scope=LimitScope.GLOBAL.value, limit_type=LimitType.OUTPUT_TOKENS.value,
+            max_value=5000, interval_unit=TimeInterval.DAY.value, interval_value=1
+        )
+        account_model_limit = UsageLimitDTO(
+            scope=LimitScope.USER.value,
+            username=username,
+            model=model_name,
+            limit_type=LimitType.OUTPUT_TOKENS.value,
+            max_value=200,
+            interval_unit=TimeInterval.DAY.value,
+            interval_value=1
+        )
+        sqlite_backend_for_accounting.insert_usage_limit(account_model_limit)
+        sqlite_backend_for_accounting.insert_usage_limit(global_limit)
+        # accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
+
+        # First request: 150 tokens
+        allowed, reason = accounting_instance.check_quota(
+            model=model_name, username=username, caller_name=caller, input_tokens=10, completion_tokens=150
+        )
+        assert allowed, f"Request 1 (150 tokens) for {model_name} by {username} should be allowed. Reason: {reason}"
+        accounting_instance.track_usage(
+            model=model_name, username=username, caller_name=caller,
+            prompt_tokens=10, completion_tokens=150, cost=0.01, timestamp=datetime.now(timezone.utc)
+        )
+
+        # Second request: 51 tokens (total 201 - should be denied)
+        allowed, message = accounting_instance.check_quota(
+            model=model_name, username=username, caller_name=caller, input_tokens=10, completion_tokens=51
+        )
+        assert not allowed, f"Request 2 (51 tokens) for {model_name} by {username} should be denied"
+        assert message is not None, "Denial message should not be None"
+        assert f"USER (model: {model_name}, user: {username})" in message
+        assert f"limit: 200.00 {LimitType.OUTPUT_TOKENS.value} per 1 day" in message
+>       assert "exceeded. Current usage: 150.00, request: 51.00" in message
+E       AssertionError: assert 'exceeded. Current usage: 150.00, request: 51.00' in 'USER (model: model_a, user: test_user_gh) limit: 200.00 output_tokens per 1 day, current usage: 150.00, request: 51.00'
+
+tests/accounting/test_account_model_limits.py:239: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -> ba9718840e75
+____________________ test_account_total_requests_per_minute ____________________
+
+accounting_instance = <llm_accounting.LLMAccounting object at 0x7fb12abbb6d0>
+sqlite_backend_for_accounting = <llm_accounting.backends.sqlite.SQLiteBackend object at 0x7fb12abbb7f0>
+
+    def test_account_total_requests_per_minute(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
+        """Test account-wide total requests per minute, ensuring it sums across models and takes precedence."""
+        username = "test_user_account_wide"
+        caller = "caller_account_total"
+
+        # Account-wide limit (no model specified)
+        account_wide_limit = UsageLimitDTO(
+            scope=LimitScope.USER.value,
+            username=username,
+            model=None,  # Explicitly None for account-wide
+            caller_name=None, # Explicitly None for account-wide
+            limit_type=LimitType.REQUESTS.value,
+            max_value=4,
+            interval_unit=TimeInterval.MINUTE.value,
+            interval_value=1
+        )
+        user_model_specific_limit = UsageLimitDTO(
+            scope=LimitScope.USER.value, # Could also be MODEL scope if username and model are set
+            username=username,
+            model="specific_model_q",
+            limit_type=LimitType.REQUESTS.value,
+            max_value=10, # Higher than the account-wide limit
+            interval_unit=TimeInterval.MINUTE.value,
+            interval_value=1
+        )
+        global_limit = UsageLimitDTO(
+            scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value,
+            max_value=100, interval_unit=TimeInterval.MINUTE.value, interval_value=1
+        )
+        sqlite_backend_for_accounting.insert_usage_limit(account_wide_limit)
+        sqlite_backend_for_accounting.insert_usage_limit(user_model_specific_limit)
+        sqlite_backend_for_accounting.insert_usage_limit(global_limit)
+        # accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
+
+        # Track 2 requests for model_a
+        for i in range(2):
+            allowed, reason = accounting_instance.check_quota(
+                model="model_a", username=username, caller_name=caller, input_tokens=10, completion_tokens=10
+            )
+            assert allowed, f"Request {i+1}/2 for model_a by {username} should be allowed. Reason: {reason}"
+            accounting_instance.track_usage(
+                model="model_a", username=username, caller_name=caller,
+                prompt_tokens=10, completion_tokens=10, cost=0.01, timestamp=datetime.now(timezone.utc)
+            )
+
+        # Track 2 requests for model_b (total 4 requests for the user)
+        for i in range(2):
+            allowed, reason = accounting_instance.check_quota(
+                model="model_b", username=username, caller_name=caller, input_tokens=10, completion_tokens=10
+            )
+            assert allowed, f"Request {i+1}/2 for model_b by {username} should be allowed. Reason: {reason}"
+            accounting_instance.track_usage(
+                model="model_b", username=username, caller_name=caller,
+                prompt_tokens=10, completion_tokens=10, cost=0.01, timestamp=datetime.now(timezone.utc)
+            )
+
+        # Attempt a 5th request for model_c - should be denied by account-wide limit
+        allowed, message = accounting_instance.check_quota(
+            model="model_c", username=username, caller_name=caller, input_tokens=10, completion_tokens=10
+        )
+        assert not allowed, f"5th request for model_c by {username} should be denied by account-wide limit"
+        assert message is not None, "Denial message should not be None for 5th request"
+        # Message should be from the account-wide limit (user: test_user_account_wide, no model)
+        assert f"USER (user: {username}) limit: 4.00 requests per 1 minute" in message # This is a user-only limit, so no model in details
+>       assert "exceeded. Current usage: 4.00, request: 1.00" in message
+E       AssertionError: assert 'exceeded. Current usage: 4.00, request: 1.00' in 'USER (user: test_user_account_wide) limit: 4.00 requests per 1 minute, current usage: 4.00, request: 1.00'
+
+tests/accounting/test_account_model_limits.py:317: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -> ba9718840e75
+______________________ test_comprehensive_limit_scenarios ______________________
+
+accounting_instance = <llm_accounting.LLMAccounting object at 0x7fb12d05dd20>
+sqlite_backend_for_accounting = <llm_accounting.backends.sqlite.SQLiteBackend object at 0x7fb12d05ce20>
+
+    @freeze_time("2023-01-01 00:00:00", tz_offset=0)
+    def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
+        backend = sqlite_backend_for_accounting # alias for convenience
+
+        # 1. Define and Insert Limits
+        limits_to_insert = [
+            # GL1: Global Daily Requests
+            UsageLimitDTO(scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value, max_value=100, interval_unit=TimeInterval.DAY.value, interval_value=1, project_name=None, model=None, username=None, caller_name=None),
+            # UM1: Tokens/User-Model/Min
+            UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.OUTPUT_TOKENS.value, max_value=1000, interval_unit=TimeInterval.MINUTE.value, interval_value=1, project_name=None, caller_name=None),
+            # UM2: Calls/User-Model/Min
+            UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.REQUESTS.value, max_value=5, interval_unit=TimeInterval.MINUTE.value, interval_value=1, project_name=None, caller_name=None),
+            # UM3: Tokens/User-Model/Day
+            UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.OUTPUT_TOKENS.value, max_value=10000, interval_unit=TimeInterval.DAY.value, interval_value=1, project_name=None, caller_name=None),
+            # UM4: Calls/User-Model/Day
+            UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.REQUESTS.value, max_value=20, interval_unit=TimeInterval.DAY.value, interval_value=1, project_name=None, caller_name=None),
+            # UH1: Cost/User/Hour
+            UsageLimitDTO(scope=LimitScope.USER.value, username="user1", limit_type=LimitType.COST.value, max_value=2.00, interval_unit=TimeInterval.HOUR.value, interval_value=1, project_name=None, model=None, caller_name=None),
+            # UD1: Cost/User/Day
+            UsageLimitDTO(scope=LimitScope.USER.value, username="user1", limit_type=LimitType.COST.value, max_value=10.00, interval_unit=TimeInterval.DAY.value, interval_value=1, project_name=None, model=None, caller_name=None),
+            # User2 specific limit
+            UsageLimitDTO(scope=LimitScope.USER.value, username="user2", model="gpt-3.5-turbo", limit_type=LimitType.REQUESTS.value, max_value=10, interval_unit=TimeInterval.DAY.value, interval_value=1, project_name=None, caller_name=None),
+        ]
+
+        for limit in limits_to_insert:
+            backend.insert_usage_limit(limit)
+
+        # 2. Force Refresh Cache - Method removed
+        # accounting_instance.quota_service.refresh_limits_cache()
+
+        # --- Scenario 1: User-Model Minute Limits (UM2) - First to hit for user1/gpt-4 ---
+        print("\n--- Running Scenario 1: User-Model Minute Limits (UM2) ---")
+        # Initial time: 2023-01-01 00:00:00
+        # UM2: Calls/User-Model/Min, max_value=5
+        for i in range(5): # 5 calls
+            allowed, message = make_call_and_track(
+                accounting_instance, "gpt-4", "user1", input_tokens=1, completion_tokens=1, cost=0.0001,
+                timestamp=datetime.now(timezone.utc) + timedelta(seconds=i) # Ensure distinct timestamps
+            )
+            assert allowed, f"Scenario 1: Call {i+1}/5 should be allowed. Message: {message}"
+
+        # 6th call should violate UM2 (5 requests/min for user1/gpt-4)
+        allowed, message = make_call_and_track(accounting_instance, "gpt-4", "user1", 1, 1, 0.0001)
+        assert not allowed, "Scenario 1: 6th call should be denied by UM2 (requests/min)"
+        assert "USER (model: gpt-4, user: user1) limit: 5.00 requests per 1 minute, current usage: 5.00, request: 1.00" in message, f"Scenario 1 (UM2): Denial message mismatch: {message}"
+        print("Scenario 1 Passed.")
+
+        # --- Scenario 2: User-Model Minute Limits (UM1) ---
+        print("\n--- Running Scenario 2: User-Model Minute Limits (UM1) ---")
+        with freeze_time("2023-01-01 00:01:00", tz_offset=0): # New minute
+            # Test UM1 (Tokens/Min for user1/gpt-4)
+            # Make 4 calls, each 200 tokens (800 tokens total, 4 requests). This is within UM2 (5 req/min).
+            for i in range(4):
+                make_call_and_track(accounting_instance, "gpt-4", "user1", 1, 200, 0.01, timestamp=datetime.now(timezone.utc) + timedelta(microseconds=i+1))
+
+            # 5th call, with 201 tokens. Total tokens for this minute: 800 + 201 = 1001. Should violate UM1 (1000 tokens/min).
+            # This call is also the 5th request, which is at the limit of UM2, but UM1 should be triggered by tokens.
+            allowed, message = make_call_and_track(accounting_instance, "gpt-4", "user1", 1, 201, 0.01)
+            assert not allowed, "Scenario 2: 5th call (201 tokens) should be denied by UM1 (tokens/min)"
+>           assert "USER (model: gpt-4, user: user1) limit: 1000.00 output_tokens per 1 minute, current usage: 800.00, request: 201.00" in message, f"Scenario 2 (UM1): Denial message mismatch: {message}"
+E           AssertionError: Scenario 2 (UM1): Denial message mismatch: USER (model: gpt-4, user: user1) limit: 5.00 requests per 1 minute, current usage: 5.00, request: 1.00
+E           assert 'USER (model: gpt-4, user: user1) limit: 1000.00 output_tokens per 1 minute, current usage: 800.00, request: 201.00' in 'USER (model: gpt-4, user: user1) limit: 5.00 requests per 1 minute, current usage: 5.00, request: 1.00'
+
+tests/accounting/test_comprehensive_limits.py:131: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -> ba9718840e75
+----------------------------- Captured stdout call -----------------------------
+
+--- Running Scenario 1: User-Model Minute Limits (UM2) ---
+Scenario 1 Passed.
+
+--- Running Scenario 2: User-Model Minute Limits (UM1) ---
+______________________________ test_global_limit _______________________________
+
+accounting_instance = <llm_accounting.LLMAccounting object at 0x7fb12aab2ec0>
+sqlite_backend_for_accounting = <llm_accounting.backends.sqlite.SQLiteBackend object at 0x7fb12aab2800>
+
+    def test_global_limit(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
+        # Use the backend directly to add UsageLimitData for setup
+        limit_to_set = UsageLimitDTO(
+            scope=LimitScope.GLOBAL.value,
+            limit_type=LimitType.REQUESTS.value,
+            max_value=10,
+            interval_unit=TimeInterval.MINUTE.value,
+            interval_value=1
+        )
+        sqlite_backend_for_accounting.insert_usage_limit(limit_to_set)
+
+
+        # Refresh the cache in QuotaService after inserting limits directly into DB - Method removed
+        # accounting_instance.quota_service.refresh_limits_cache()
+
+        # Check and add requests sequentially using accounting_instance
+        for i in range(10):
+            # Ensure distinct timestamps if tests run very fast, to avoid period calculation issues.
+            current_timestamp = datetime.now(timezone.utc) # Define before check_quota
+            allowed, reason = accounting_instance.check_quota(
+                "gpt-4", "user1", "app1", 1000, 0.25
+            )
+            assert allowed, f"Request {i+1}/10 should be allowed. Reason: {reason}"
+            accounting_instance.track_usage(
+                model="gpt-4",
+                username="user1",
+                caller_name="app1",
+                prompt_tokens=1000,
+                completion_tokens=500,
+                cost=0.25,
+                timestamp=current_timestamp # Use the same timestamp for track_usage
+            )
+
+        # Add 11th request to exceed limit
+        allowed, message = accounting_instance.check_quota("gpt-4", "user1", "app1", 1000, 0.25)
+        assert not allowed, "11th request should be denied"
+        assert message is not None, "Denial message should not be None"
+
+        expected_message_part_1 = "GLOBAL limit: 10.00 requests per 1 minute"
+        expected_message_part_2 = "exceeded. Current usage: 10.00, request: 1.00" # Removed trailing period
+
+        assert expected_message_part_1 in message
+>       assert expected_message_part_2 in message
+E       AssertionError: assert 'exceeded. Current usage: 10.00, request: 1.00' in 'GLOBAL limit: 10.00 requests per 1 minute, current usage: 10.00, request: 1.00'
+
+tests/accounting/test_global_limits.py:71: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -> ba9718840e75
+__________________________ test_model_limit_priority ___________________________
+
+accounting_instance = <llm_accounting.LLMAccounting object at 0x7fb12afb30d0>
+sqlite_backend_for_accounting = <llm_accounting.backends.sqlite.SQLiteBackend object at 0x7fb12afb2860>
+
+    def test_model_limit_priority(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
+        # Setting up a global limit directly on the backend using UsageLimitData
+        global_limit = UsageLimitDTO(
+            scope=LimitScope.GLOBAL.value,
+            limit_type=LimitType.REQUESTS.value,
+            max_value=100,
+            interval_unit=TimeInterval.MINUTE.value,
+            interval_value=1
+        )
+        model_limit = UsageLimitDTO(
+            scope=LimitScope.MODEL.value,
+            model="gpt-4",
+            limit_type=LimitType.REQUESTS.value,
+            max_value=5,
+            interval_unit=TimeInterval.HOUR.value,
+            interval_value=1
+        )
+        sqlite_backend_for_accounting.insert_usage_limit(global_limit)
+        sqlite_backend_for_accounting.insert_usage_limit(model_limit)
+        # accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
+
+        # Make 5 requests that should be allowed by the model-specific limit
+        for i in range(5):
+            allowed, reason = accounting_instance.check_quota("gpt-4", "user1", "app1", 1000, 0.25)
+            assert allowed, f"Request {i+1}/5 for gpt-4 should be allowed. Reason: {reason}"
+            accounting_instance.track_usage(
+                model="gpt-4",
+                username="user1",
+                caller_name="app1",
+                prompt_tokens=1000,
+                completion_tokens=500,
+                cost=0.25,
+                timestamp=datetime.now(timezone.utc)
+            )
+
+        # Check 6th request for "gpt-4" should be blocked by the model-specific limit
+        allowed, message = accounting_instance.check_quota("gpt-4", "user1", "app1", 1000, 0.25)
+        assert not allowed, "6th request for gpt-4 should be denied by model limit"
+        assert message is not None, "Denial message should not be None for gpt-4"
+
+        expected_message_part_1 = "MODEL (model: gpt-4) limit: 5.00 requests per 1 hour"
+        expected_message_part_2 = "exceeded. Current usage: 5.00, request: 1.00" # Removed trailing period
+
+        assert expected_message_part_1 in message
+>       assert expected_message_part_2 in message
+E       AssertionError: assert 'exceeded. Current usage: 5.00, request: 1.00' in 'MODEL (model: gpt-4) limit: 5.00 requests per 1 hour, current usage: 5.00, request: 1.00'
+
+tests/accounting/test_model_limits.py:73: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -> ba9718840e75
+__________________________ test_multiple_limit_types ___________________________
+
+accounting_instance = <llm_accounting.LLMAccounting object at 0x7fb12aab1a50>
+sqlite_backend_for_accounting = <llm_accounting.backends.sqlite.SQLiteBackend object at 0x7fb12aaffa30>
+
+    def test_multiple_limit_types(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
+        # Setting up a token-based limit directly on the backend using UsageLimitData
+        token_limit = UsageLimitDTO(
+            scope=LimitScope.USER.value,
+            username="user2",
+            limit_type=LimitType.INPUT_TOKENS.value,
+            max_value=10000,
+            interval_unit=TimeInterval.DAY.value,
+            interval_value=1
+        )
+        sqlite_backend_for_accounting.insert_usage_limit(token_limit)
+
+        # Setting up a cost-based limit directly on the backend using UsageLimitData
+        cost_limit = UsageLimitDTO(
+            scope=LimitScope.USER.value,
+            username="user2",
+            limit_type=LimitType.COST.value,
+            max_value=50.00,
+            interval_unit=TimeInterval.WEEK.value,
+            interval_value=1
+        )
+        sqlite_backend_for_accounting.insert_usage_limit(cost_limit)
+
+
+        # Refresh the cache in QuotaService after inserting all limits - Method removed
+        # accounting_instance.quota_service.refresh_limits_cache()
+
+        # Test token limit is enforced
+        # Ensure a timestamp for the check, though not strictly needed if not tracking yet
+        current_time_token_check = datetime.now(timezone.utc)
+        allowed_tokens, message_tokens = accounting_instance.check_quota(
+            "gpt-4", "user2", "app2", 15000, 0.0
+            # project_name and completion_tokens can be omitted if not relevant to specific limits being tested
+        )
+        assert not allowed_tokens, "Should be denied due to token limit"
+        assert message_tokens is not None, "Denial message for token limit should not be None"
+        assert "USER (user: user2) limit: 10000.00 input_tokens per 1 day" in message_tokens
+>       assert "exceeded. Current usage: 0.00, request: 15000.00" in message_tokens # Removed trailing period
+E       AssertionError: assert 'exceeded. Current usage: 0.00, request: 15000.00' in 'USER (user: user2) limit: 10000.00 input_tokens per 1 day, current usage: 0.00, request: 15000.00'
+
+tests/accounting/test_multiple_limit_types.py:66: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -> ba9718840e75
+_________________________ test_user_caller_combination _________________________
+
+accounting_instance = <llm_accounting.LLMAccounting object at 0x7fb12a5437c0>
+sqlite_backend_for_accounting = <llm_accounting.backends.sqlite.SQLiteBackend object at 0x7fb12a543970>
+
+    def test_user_caller_combination(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
+        # Setting up a caller-specific limit directly on the backend using UsageLimitData
+        caller_limit = UsageLimitDTO(
+            scope=LimitScope.CALLER.value,
+            username="user1",
+            caller_name="app1",
+            limit_type=LimitType.REQUESTS.value,
+            max_value=3,
+            interval_unit=TimeInterval.DAY.value,
+            interval_value=1
+        )
+        sqlite_backend_for_accounting.insert_usage_limit(caller_limit)
+        # accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits - Method removed
+
+        # Make 3 allowed requests for user1, app1
+        for i in range(3):
+            allowed, reason = accounting_instance.check_quota("gpt-3", "user1", "app1", 1000, 0.25)
+            assert allowed, f"Request {i+1}/3 for user1/app1 should be allowed. Reason: {reason}"
+            accounting_instance.track_usage(
+                model="gpt-3",
+                username="user1",
+                caller_name="app1",
+                prompt_tokens=1000,
+                completion_tokens=500,
+                cost=0.25,
+                timestamp=datetime.now(timezone.utc)
+            )
+
+        # Make 4th request for user1, app1, which should be blocked
+        allowed, message = accounting_instance.check_quota("gpt-3", "user1", "app1", 1000, 0.25)
+        assert not allowed, "4th request for user1/app1 should be denied"
+        assert message is not None, "Denial message for user1/app1 should not be None"
+        assert "CALLER (user: user1, caller: app1) limit: 3.00 requests per 1 day" in message
+>       assert "exceeded. Current usage: 3.00, request: 1.00" in message # Removed trailing period
+E       AssertionError: assert 'exceeded. Current usage: 3.00, request: 1.00' in 'CALLER (user: user1, caller: app1) limit: 3.00 requests per 1 day, current usage: 3.00, request: 1.00'
+
+tests/accounting/test_user_caller_limits.py:62: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -> ba9718840e75
+____________________ test_check_quota_allowed_single_limit _____________________
+
+mock_backend = <MagicMock spec='BaseBackend' id='140398901322336'>
+
+    def test_check_quota_allowed_single_limit(mock_backend: MagicMock):
+        """Test check_quota when usage is within a single configured limit."""
+        now = datetime.now(timezone.utc)
+        user_cost_limit = UsageLimitDTO(
+            id=1, scope=LimitScope.USER.value, limit_type=LimitType.COST.value,
+            max_value=10.0, interval_unit=TimeInterval.MONTH.value, interval_value=1,
+            username="test_user", created_at=now, updated_at=now
+        )
+        mock_backend.get_usage_limits.return_value = [user_cost_limit]
+        quota_service = QuotaService(mock_backend)
+
+        mock_backend.get_accounting_entries_for_quota.return_value = 5.0
+
+        is_allowed, reason = quota_service.check_quota(
+            model="gpt-4", username="test_user", caller_name="test_caller",
+            input_tokens=100, cost=0.01
+        )
+
+        assert is_allowed is True
+        assert reason is None
+
+        # mock_backend.get_usage_limits.assert_called_once() # Called multiple times
+>       mock_backend.get_accounting_entries_for_quota.assert_called_once() # This is key for this test
+
+tests/core/test_quota_service.py:56:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <MagicMock name='mock.get_accounting_entries_for_quota' id='140398895413088'>
+
+    def assert_called_once(self):
+        """assert that the mock was called only once.
+        """
+        if not self.call_count == 1:
+            msg = ("Expected '%s' to have been called once. Called %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+>           raise AssertionError(msg)
+E           AssertionError: Expected 'get_accounting_entries_for_quota' to have been called once. Called 2 times.
+E           Calls: [call(start_time=datetime.datetime(2025, 6, 1, 0, 0, tzinfo=datetime.timezone.utc), limit_type=<LimitType.COST: 'cost'>, model=None, username='test_user', caller_name=None, project_name=None, filter_project_null=None),
+E            call(start_time=datetime.datetime(2025, 6, 1, 0, 0, tzinfo=datetime.timezone.utc), limit_type=<LimitType.COST: 'cost'>, model=None, username='test_user', caller_name=None, project_name=None, filter_project_null=None)].
+
+/usr/lib/python3.10/unittest/mock.py:908: AssertionError
+_____________________ test_check_quota_denied_single_limit _____________________
+
+mock_backend = <MagicMock spec='BaseBackend' id='140398896785888'>
+
+    def test_check_quota_denied_single_limit(mock_backend: MagicMock):
+        """Test check_quota when usage exceeds a single configured limit."""
+        now = datetime.now(timezone.utc)
+        user_cost_limit = UsageLimitDTO(
+            id=1, scope=LimitScope.USER.value, limit_type=LimitType.COST.value,
+            max_value=10.0, interval_unit=TimeInterval.MONTH.value, interval_value=1,
+            username="test_user", created_at=now, updated_at=now
+        )
+        mock_backend.get_usage_limits.return_value = [user_cost_limit]
+        quota_service = QuotaService(mock_backend)
+
+        mock_backend.get_accounting_entries_for_quota.return_value = 9.99
+
+        is_allowed, reason = quota_service.check_quota(
+            model="gpt-4", username="test_user", caller_name="test_caller",
+            input_tokens=0, cost=0.02
+        )
+
+        assert is_allowed is False
+        assert reason is not None
+        assert "USER (user: test_user) limit: 10.00 cost per 1 month" in reason # 'month' not 'monthly'
+>       assert "exceeded. Current usage: 9.99, request: 0.02" in reason # No trailing period
+E       AssertionError: assert 'exceeded. Current usage: 9.99, request: 0.02' in 'USER (user: test_user) limit: 10.00 cost per 1 monthly, current usage: 9.99, request: 0.02'
+
+tests/core/test_quota_service.py:83: AssertionError
+________________ test_check_quota_multiple_limits_one_exceeded _________________
+
+mock_backend = <MagicMock spec='BaseBackend' id='140398941357584'>
+
+    def test_check_quota_multiple_limits_one_exceeded(mock_backend: MagicMock):
+        """Test check_quota with multiple limits, where one is exceeded."""
+        now = datetime.now(timezone.utc)
+        cost_limit_user = UsageLimitDTO(
+            id=1, scope=LimitScope.USER.value, limit_type=LimitType.COST.value,
+            max_value=10.0, interval_unit=TimeInterval.MONTH.value, interval_value=1,
+            username="test_user", created_at=now, updated_at=now
+        )
+        request_limit_user = UsageLimitDTO(
+            id=2, scope=LimitScope.USER.value, limit_type=LimitType.REQUESTS.value,
+            max_value=100.0, interval_unit=TimeInterval.DAY.value, interval_value=1,
+            username="test_user", created_at=now, updated_at=now
+        )
+        mock_backend.get_usage_limits.return_value = [cost_limit_user, request_limit_user]
+        quota_service = QuotaService(mock_backend)
+
+        def get_accounting_side_effect(start_time, limit_type, model, username, caller_name, project_name, filter_project_null):
+            if limit_type == LimitType.COST and username == "test_user":
+                return 5.0
+            elif limit_type == LimitType.REQUESTS and username == "test_user":
+                return 100.0
+            return 0.0
+
+        mock_backend.get_accounting_entries_for_quota.side_effect = get_accounting_side_effect
+
+        is_allowed, reason = quota_service.check_quota(
+            model="gpt-4", username="test_user", caller_name="test_caller",
+            input_tokens=10, cost=0.01
+        )
+
+        assert is_allowed is False
+        assert reason is not None
+        assert "USER (user: test_user) limit: 100.00 requests per 1 day" in reason
+>       assert "exceeded. Current usage: 100.00, request: 1.00" in reason # No trailing period
+E       AssertionError: assert 'exceeded. Current usage: 100.00, request: 1.00' in 'USER (user: test_user) limit: 100.00 requests per 1 day, current usage: 100.00, request: 1.00'
+
+tests/core/test_quota_service.py:122: AssertionError
+________________________ test_check_quota_token_limits _________________________
+
+mock_backend = <MagicMock spec='BaseBackend' id='140398907038960'>
+
+    def test_check_quota_token_limits(mock_backend: MagicMock):
+        """Test check_quota for input token limits from cache."""
+        now = datetime.now(timezone.utc)
+        model_token_limit = UsageLimitDTO(
+            id=1, scope=LimitScope.MODEL.value, limit_type=LimitType.INPUT_TOKENS.value,
+            max_value=1000.0, interval_unit=TimeInterval.HOUR.value, interval_value=1,
+            model="text-davinci-003", created_at=now, updated_at=now
+        )
+        mock_backend.get_usage_limits.return_value = [model_token_limit]
+        quota_service = QuotaService(mock_backend)
+
+        mock_backend.get_accounting_entries_for_quota.return_value = 950.0
+
+        is_allowed, reason = quota_service.check_quota(
+            model="text-davinci-003", username="any_user", caller_name="any_caller",
+            input_tokens=50, cost=0.0
+        )
+        assert is_allowed is True
+        assert reason is None
+        mock_backend.get_accounting_entries_for_quota.assert_called_with(
+            start_time=mock_backend.get_accounting_entries_for_quota.call_args.kwargs['start_time'],
+            limit_type=LimitType.INPUT_TOKENS,
+            model="text-davinci-003",
+            username=None, caller_name=None, project_name=None, filter_project_null=None
+        )
+
+        mock_backend.get_accounting_entries_for_quota.reset_mock()
+        mock_backend.get_accounting_entries_for_quota.return_value = 950.0
+
+        is_allowed, reason = quota_service.check_quota(
+            model="text-davinci-003", username="any_user", caller_name="any_caller",
+            input_tokens=51, cost=0.0
+        )
+        assert is_allowed is False
+        assert reason is not None
+        assert "MODEL (model: text-davinci-003) limit: 1000.00 input_tokens per 1 hour" in reason
+>       assert "exceeded. Current usage: 950.00, request: 51.00" in reason # No trailing period
+E       AssertionError: assert 'exceeded. Current usage: 950.00, request: 51.00' in 'MODEL (model: text-davinci-003) limit: 1000.00 input_tokens per 1 hour, current usage: 950.00, request: 51.00'
+
+tests/core/test_quota_service.py:191: AssertionError
+=========================== short test summary info ============================
+FAILED tests/accounting/test_account_model_limits.py::test_account_model_requests_per_minute
+FAILED tests/accounting/test_account_model_limits.py::test_account_model_requests_per_day
+FAILED tests/accounting/test_account_model_limits.py::test_account_model_completion_tokens_per_minute
+FAILED tests/accounting/test_account_model_limits.py::test_account_model_completion_tokens_per_day
+FAILED tests/accounting/test_account_model_limits.py::test_account_total_requests_per_minute
+FAILED tests/accounting/test_comprehensive_limits.py::test_comprehensive_limit_scenarios
+FAILED tests/accounting/test_global_limits.py::test_global_limit - AssertionE...
+FAILED tests/accounting/test_model_limits.py::test_model_limit_priority - Ass...
+FAILED tests/accounting/test_multiple_limit_types.py::test_multiple_limit_types
+FAILED tests/accounting/test_user_caller_limits.py::test_user_caller_combination
+FAILED tests/core/test_quota_service.py::test_check_quota_allowed_single_limit
+FAILED tests/core/test_quota_service.py::test_check_quota_denied_single_limit
+FAILED tests/core/test_quota_service.py::test_check_quota_multiple_limits_one_exceeded
+FAILED tests/core/test_quota_service.py::test_check_quota_token_limits - Asse...
+========== 14 failed, 165 passed, 24 skipped, 1 deselected in 10.06s ===========
