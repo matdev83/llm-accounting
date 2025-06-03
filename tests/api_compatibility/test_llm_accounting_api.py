@@ -11,9 +11,10 @@ class TestLLMAccountingAPI(unittest.TestCase):
     def setUp(self):
         """Set up for each test."""
         self.mock_backend = MagicMock()
-        # Configure the backend mock to return something for get_db_path if needed by LLMAccounting init or methods
-        self.mock_backend.db_path = None # Assuming it's not a SQLite backend for these general tests
+        self.mock_backend.db_path = None
         self.accounting = LLMAccounting(backend=self.mock_backend)
+        # Reset mock calls after LLMAccounting initialization, as it internally calls get_usage_limits
+        self.mock_backend.reset_mock()
 
     def test_llm_accounting_api_methods_and_properties_exist(self) -> None:
         self.assertIsNotNone(self.accounting)

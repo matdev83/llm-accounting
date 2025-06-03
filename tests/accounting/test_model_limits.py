@@ -35,9 +35,6 @@ def test_model_limit_priority(accounting_instance: LLMAccounting, sqlite_backend
         interval_unit=TimeInterval.MINUTE.value,
         interval_value=1
     )
-    sqlite_backend_for_accounting.insert_usage_limit(global_limit)
-
-    # Setting up a model-specific limit directly on the backend using UsageLimitData
     model_limit = UsageLimitDTO(
         scope=LimitScope.MODEL.value,
         model="gpt-4",
@@ -46,7 +43,9 @@ def test_model_limit_priority(accounting_instance: LLMAccounting, sqlite_backend
         interval_unit=TimeInterval.HOUR.value,
         interval_value=1
     )
+    sqlite_backend_for_accounting.insert_usage_limit(global_limit)
     sqlite_backend_for_accounting.insert_usage_limit(model_limit)
+    accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
 
     # Make 5 requests that should be allowed by the model-specific limit
     for i in range(5):
@@ -68,7 +67,7 @@ def test_model_limit_priority(accounting_instance: LLMAccounting, sqlite_backend
     assert message is not None, "Denial message should not be None for gpt-4"
     
     expected_message_part_1 = "MODEL (model: gpt-4) limit: 5.00 requests per 1 hour"
-    expected_message_part_2 = "current usage: 5.00, request: 1.00"
+    expected_message_part_2 = "exceeded. Current usage: 5.00, request: 1.00."
     
     assert expected_message_part_1 in message
     assert expected_message_part_2 in message
