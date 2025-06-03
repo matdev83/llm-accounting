@@ -37,9 +37,16 @@ def test_global_limit(accounting_instance: LLMAccounting, sqlite_backend_for_acc
     )
     sqlite_backend_for_accounting.insert_usage_limit(limit_to_set)
 
+    # Refresh the cache in QuotaService after inserting limits directly into DB
+    accounting_instance.quota_service.refresh_limits_cache()
+
     # Check and add requests sequentially using accounting_instance
     for i in range(10):
-        allowed, reason = accounting_instance.check_quota("gpt-4", "user1", "app1", 1000, 0.25)
+        # Ensure distinct timestamps if tests run very fast, to avoid period calculation issues.
+        current_timestamp = datetime.now(timezone.utc) # Define before check_quota
+        allowed, reason = accounting_instance.check_quota(
+            "gpt-4", "user1", "app1", 1000, 0.25
+        )
         assert allowed, f"Request {i+1}/10 should be allowed. Reason: {reason}"
         accounting_instance.track_usage(
             model="gpt-4",
@@ -48,7 +55,7 @@ def test_global_limit(accounting_instance: LLMAccounting, sqlite_backend_for_acc
             prompt_tokens=1000,
             completion_tokens=500,
             cost=0.25,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=current_timestamp # Use the same timestamp for track_usage
         )
 
     # Add 11th request to exceed limit
