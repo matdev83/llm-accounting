@@ -1,3 +1,4 @@
+import logging # Added import
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, List, Any
 
@@ -224,6 +225,8 @@ class QuotaService:
             elif limit_type_enum == LimitType.COST:
                 request_value = request_cost
             else:
+                # This case should ideally not be reached if limit_type is validated upon creation
+                # logging.warning(f"Unknown limit type: {limit.limit_type} encountered for limit ID: {limit.id}")
                 continue
 
             potential_usage = current_usage + request_value
@@ -255,44 +258,69 @@ class QuotaService:
         if current_time.tzinfo is None:
             current_time = current_time.replace(tzinfo=timezone.utc)
 
+        calculated_start_time: datetime
+
         if interval_unit == TimeInterval.SECOND:
             new_second = current_time.second - (current_time.second % interval_value)
-            return current_time.replace(second=new_second, microsecond=0)
+            calculated_start_time = current_time.replace(second=new_second, microsecond=0)
         elif interval_unit == TimeInterval.MINUTE:
             new_minute = current_time.minute - (current_time.minute % interval_value)
-            return current_time.replace(minute=new_minute, second=0, microsecond=0)
+            calculated_start_time = current_time.replace(minute=new_minute, second=0, microsecond=0)
         elif interval_unit == TimeInterval.HOUR:
             new_hour = current_time.hour - (current_time.hour % interval_value)
-            return current_time.replace(hour=new_hour, minute=0, second=0, microsecond=0)
+            calculated_start_time = current_time.replace(hour=new_hour, minute=0, second=0, microsecond=0)
         elif interval_unit == TimeInterval.DAY:
             if interval_value != 1:
+                # This condition seems to do nothing. If it was intended for specific handling
+                # of interval_value != 1 for DAY, that logic is missing.
+                # For now, it behaves like interval_value = 1 for the day calculation part.
                 pass
             start_of_current_day = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
             days_since_epoch = (start_of_current_day - datetime(1970, 1, 1, tzinfo=timezone.utc)).days
             days_offset = days_since_epoch % interval_value
-            return start_of_current_day - timedelta(days=days_offset)
+            calculated_start_time = start_of_current_day - timedelta(days=days_offset)
         elif interval_unit == TimeInterval.WEEK:
             start_of_day = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
-            start_of_current_iso_week = start_of_day - timedelta(days=start_of_day.weekday())
+            start_of_current_iso_week = start_of_day - timedelta(days=start_of_day.weekday()) # Monday
             if interval_value == 1:
-                return start_of_current_iso_week
+                calculated_start_time = start_of_current_iso_week
             else:
-                epoch_week_start = datetime(1970, 1, 5, tzinfo=timezone.utc)
+                # Using a fixed epoch reference for week calculations (e.g. a known Monday)
+                epoch_week_start = datetime(1970, 1, 5, tzinfo=timezone.utc) # Monday, Jan 5, 1970
                 weeks_since_epoch = (start_of_current_iso_week - epoch_week_start).days // 7
                 weeks_offset = weeks_since_epoch % interval_value
-                return start_of_current_iso_week - timedelta(weeks=weeks_offset)
+                calculated_start_time = start_of_current_iso_week - timedelta(weeks=weeks_offset)
         elif interval_unit == TimeInterval.MONTH:
             year = current_time.year
-            month = current_time.month
-            total_months_current = year * 12 + month -1
-            
+            month = current_time.month # 1-indexed
+            # Convert to 0-indexed months since epoch (0 = Jan year 0, assuming year 0 for simplicity)
+            total_months_current = year * 12 + (month - 1)
             months_offset = total_months_current % interval_value
-            
             effective_total_months = total_months_current - months_offset
-            
             effective_year = effective_total_months // 12
-            effective_month = (effective_total_months % 12) + 1
-            
-            return current_time.replace(year=effective_year, month=effective_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+            effective_month = (effective_total_months % 12) + 1 # Convert back to 1-indexed
+            calculated_start_time = current_time.replace(year=effective_year, month=effective_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+        elif interval_unit == TimeInterval.SECOND_ROLLING:
+            interval_duration = timedelta(seconds=interval_value)
+            calculated_start_time = current_time - interval_duration
+        elif interval_unit == TimeInterval.MINUTE_ROLLING:
+            interval_duration = timedelta(minutes=interval_value)
+            calculated_start_time = current_time - interval_duration
+        elif interval_unit == TimeInterval.HOUR_ROLLING:
+            interval_duration = timedelta(hours=interval_value)
+            calculated_start_time = current_time - interval_duration
+        elif interval_unit == TimeInterval.DAY_ROLLING:
+            interval_duration = timedelta(days=interval_value)
+            calculated_start_time = current_time - interval_duration
+        elif interval_unit == TimeInterval.WEEK_ROLLING:
+            interval_duration = timedelta(weeks=interval_value)
+            calculated_start_time = current_time - interval_duration
+        elif interval_unit == TimeInterval.MONTH_ROLLING:
+            target_month_absolute = current_time.year * 12 + (current_time.month - 1) - interval_value
+            final_year = target_month_absolute // 12
+            final_month = (target_month_absolute % 12) + 1
+            calculated_start_time = current_time.replace(year=final_year, month=final_month, day=1, hour=0, minute=0, second=0, microsecond=0)
         else:
-            raise ValueError(f"Unsupported time interval unit: {interval_unit}")
+            raise ValueError(f"Unsupported time interval unit: {interval_unit.value}")
+
+        return calculated_start_time

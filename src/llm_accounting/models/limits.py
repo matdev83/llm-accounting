@@ -3,8 +3,9 @@ from enum import Enum
 from typing import Any, Optional
 from dataclasses import dataclass
 
-from sqlalchemy import Column, DateTime, Float, Integer, String, Index
+from sqlalchemy import Column, DateTime, Float, Integer, String, Index, event, DDL
 from sqlalchemy.schema import UniqueConstraint
+from sqlalchemy.orm import attributes # Required for event.listen on ORM attributes if needed, but here using __table__
 
 from llm_accounting.models.base import Base
 
@@ -31,6 +32,12 @@ class TimeInterval(Enum):
     DAY = "day"
     WEEK = "week"
     MONTH = "monthly"
+    SECOND_ROLLING = "second_rolling"
+    MINUTE_ROLLING = "minute_rolling"
+    HOUR_ROLLING = "hour_rolling"
+    DAY_ROLLING = "day_rolling"
+    WEEK_ROLLING = "week_rolling"
+    MONTH_ROLLING = "monthly_rolling"
 
 
 @dataclass
@@ -61,7 +68,7 @@ class UsageLimit(Base):
             "project_name",
             name="_unique_limit_constraint",
         ),
-        Index("ix_usage_limits_project_name", "project_name"),
+        # Index("ix_usage_limits_project_name", "project_name"), # Removed to be handled by event listener
         {"extend_existing": True},
     )
 
@@ -105,3 +112,10 @@ class UsageLimit(Base):
             raise ValueError(f"Unsupported time interval unit: {unit}")
             
         return delta_map[unit]
+
+# Event listener to create the index with IF NOT EXISTS for SQLite
+event.listen(
+    UsageLimit.__table__,
+    'after_create',
+    DDL("CREATE INDEX IF NOT EXISTS ix_usage_limits_project_name ON usage_limits (project_name)").execute_if(dialect='sqlite')
+)

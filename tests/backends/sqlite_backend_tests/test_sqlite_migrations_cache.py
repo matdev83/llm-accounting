@@ -169,7 +169,7 @@ class TestSQLiteMigrationCache(unittest.TestCase):
         self.backend.initialize()
 
         mock_run_migrations_upgrade.assert_called_once()
-        mock_create_all.assert_called_once()
+        mock_create_all.assert_not_called() # Changed from assert_called_once()
         mock_stamp_db_head.assert_not_called()
         self.assertFalse(self.controlled_cache_path.exists())
 

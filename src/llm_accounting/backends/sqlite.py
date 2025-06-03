@@ -5,14 +5,21 @@ from datetime import datetime, timezone
 from pathlib import Path 
 from typing import Dict, List, Optional, Tuple, Any 
 
-from sqlalchemy import create_engine, text 
+from sqlalchemy import create_engine, text, Connection
 from sqlalchemy.orm import Session 
-from llm_accounting.models.base import Base 
+
+# Ensure all models are loaded for Base.metadata
+import llm_accounting.models # <--- ADDED THIS IMPORT
+
+from llm_accounting.models.base import Base
+from llm_accounting.models.accounting import AccountingEntry # Added for ORM query
 from ..models.limits import LimitScope, LimitType, UsageLimitDTO, UsageLimit 
 from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry 
 from .sqlite_queries import (get_model_rankings_query, get_model_stats_query, 
                              get_period_stats_query, insert_usage_query, 
-                             tail_query) 
+                             tail_query)
+from sqlalchemy.orm import Session as OrmSession # Renamed to avoid conflict
+from sqlalchemy.sql import func # Added for func.sum/count
 from .sqlite_utils import validate_db_filename 
 # MODIFIED IMPORT BELOW
 from ..db_migrations import run_migrations, get_head_revision, stamp_db_head
@@ -65,19 +72,23 @@ class SQLiteBackend(BaseBackend):
             logger.info(f"Creating SQLAlchemy engine for {db_connection_str}")
             self.engine = create_engine(db_connection_str, future=True)
         if self.conn is None or self.conn.closed: 
-            self.conn = self.engine.connect()
+            self.conn = self.engine.connect() # type: ignore
 
         migration_cache_file = Path(MIGRATION_CACHE_PATH) # Define for use in file ops
 
         # Main logic based on DB type and state
         if self.db_path == ":memory:":
             logger.info("Initializing in-memory SQLite database: running migrations and ensuring schema.")
-            # For in-memory, we typically want the latest schema.
-            # Running migrations ensures Alembic history is aligned if it were a persistent DB.
-            # Then create_all ensures any non-Alembic managed tables (if any) are also present.
-            run_migrations(db_url=db_connection_str) 
-            Base.metadata.create_all(self.engine)
-            logger.info("In-memory database initialization complete.")
+            # For in-memory, we must pass the existing connection to run_migrations
+            # so that Alembic operates on the same in-memory database.
+            if self.conn is None: # Should have been created above
+                raise RuntimeError("SQLiteBackend connection not initialized before in-memory migration.")
+            run_migrations(db_url=db_connection_str, connection=self.conn)
+            # After migrations, tables should exist. Base.metadata.create_all might be redundant
+            # if all tables are managed by Alembic. If some are not, it's still needed.
+            # For safety, and assuming Alembic is the source of truth for its tables:
+            # Base.metadata.create_all(self.engine) # This might be okay if checkfirst=True is implicit
+            logger.info("In-memory database initialization complete (migrations run).")
             # No caching for in-memory databases
         
         elif is_new_db:
@@ -85,7 +96,8 @@ class SQLiteBackend(BaseBackend):
             Base.metadata.create_all(self.engine)
             logger.info("Schema creation complete for new database.")
             
-            stamped_revision = stamp_db_head(db_connection_str)
+            # The stamp_db_head function in db_migrations.py expects a db_url string.
+            stamped_revision = stamp_db_head(db_url=db_connection_str)
             if stamped_revision:
                 try:
                     migration_cache_file.parent.mkdir(parents=True, exist_ok=True)
@@ -316,50 +328,52 @@ class SQLiteBackend(BaseBackend):
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
         project_name: Optional[str] = None,
-        filter_project_null: Optional[bool] = None, 
+        filter_project_null: Optional[bool] = None,
     ) -> float:
         self._ensure_connected()
-        assert self.conn is not None
+        assert self.engine is not None # ORM needs engine for session
+        limit_type_val = limit_type.value
 
-        if limit_type == LimitType.REQUESTS:
-            select_clause = "COUNT(*)"
-        elif limit_type == LimitType.INPUT_TOKENS:
-            select_clause = "SUM(prompt_tokens)"
-        elif limit_type == LimitType.OUTPUT_TOKENS:
-            select_clause = "SUM(completion_tokens)"
-        elif limit_type == LimitType.COST:
-            select_clause = "SUM(cost)"
-        else:
-            raise ValueError(f"Unknown limit type: {limit_type}")
+        orm_session = OrmSession(self.engine)
+        try:
+            # Select the appropriate column based on limit_type
+            if limit_type == LimitType.REQUESTS:
+                selected_column = func.count(AccountingEntry.id)
+            elif limit_type == LimitType.INPUT_TOKENS:
+                selected_column = func.sum(AccountingEntry.prompt_tokens)
+            elif limit_type == LimitType.OUTPUT_TOKENS:
+                selected_column = func.sum(AccountingEntry.completion_tokens)
+            elif limit_type == LimitType.COST:
+                selected_column = func.sum(AccountingEntry.cost)
+            else:
+                # Should not happen if LimitType enum is used correctly
+                raise ValueError(f"Unsupported limit type: {limit_type}")
 
-        query_base = f"SELECT {select_clause} FROM accounting_entries WHERE timestamp >= :start_time"
-        params_dict: Dict[str, Any] = {"start_time": start_time.isoformat()}
-        conditions = []
+            query = orm_session.query(selected_column)
 
-        if model:
-            conditions.append("model = :model")
-            params_dict["model"] = model
-        if username:
-            conditions.append("username = :username")
-            params_dict["username"] = username
-        if caller_name:
-            conditions.append("caller_name = :caller_name")
-            params_dict["caller_name"] = caller_name
-        
-        if project_name is not None:
-            conditions.append("project = :project_name") 
-            params_dict["project_name"] = project_name
-        elif filter_project_null is True: 
-            conditions.append("project IS NULL")
-        elif filter_project_null is False:
-            conditions.append("project IS NOT NULL")
+            # Apply mandatory timestamp filter
+            query = query.filter(AccountingEntry.timestamp >= start_time)
 
-        if conditions:
-            query_base += " AND " + " AND ".join(conditions)
-        
-        result = self.conn.execute(text(query_base), params_dict)
-        scalar_result = result.scalar_one_or_none()
-        return float(scalar_result) if scalar_result is not None else 0.0
+            # Apply optional filters
+            if model:
+                query = query.filter(AccountingEntry.model == model)
+            if username:
+                query = query.filter(AccountingEntry.username == username)
+            if caller_name:
+                query = query.filter(AccountingEntry.caller_name == caller_name)
+
+            # Project name filtering
+            if project_name is not None:
+                query = query.filter(AccountingEntry.project == project_name)
+            elif filter_project_null is True: # Explicitly filter for NULL project names
+                query = query.filter(AccountingEntry.project.is_(None))
+            # If filter_project_null is False or None, and project_name is None, no project filter is applied.
+
+            scalar_result = query.scalar() # Changed from scalar_one_or_none()
+            usage_value = float(scalar_result) if scalar_result is not None else 0.0
+            return usage_value
+        finally:
+            orm_session.close()
 
     def delete_usage_limit(self, limit_id: int) -> None:
         """Delete a usage limit entry by its ID."""

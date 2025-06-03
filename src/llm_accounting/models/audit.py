@@ -7,6 +7,7 @@ from llm_accounting.models.base import Base
 
 class AuditLogEntryModel(Base):
     __tablename__ = "audit_log_entries"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp = Column(DateTime, nullable=False)

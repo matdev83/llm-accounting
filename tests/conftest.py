@@ -13,17 +13,21 @@ from llm_accounting.backends.sqlite import SQLiteBackend
 from tests.backends.mock_backends import MockBackend
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# Ensure all SQLAlchemy models are loaded into Base.metadata before any potential clearing or usage.
+import llm_accounting.models
+
 # This line is commented out as it might conflict with tox's path management or standard Python packaging.
 
 # Attempt to fix "Table already defined" error by clearing metadata once per session
-try:
-    from llm_accounting.models.base import Base
-    Base.metadata.clear()
-    logging.getLogger(__name__).info("Cleared SQLAlchemy Base.metadata at the start of the test session (tests/conftest.py module level).")
-except ImportError:
-    logging.getLogger(__name__).warning("Could not import Base from llm_accounting.models.base to clear metadata in tests/conftest.py.")
-except Exception as e:
-    logging.getLogger(__name__).error(f"Error clearing metadata in tests/conftest.py: {e}")
+# try:
+#     from llm_accounting.models.base import Base
+#     Base.metadata.clear()
+#     logging.getLogger(__name__).info("Cleared SQLAlchemy Base.metadata at the start of the test session (tests/conftest.py module level).")
+# except ImportError:
+#     logging.getLogger(__name__).warning("Could not import Base from llm_accounting.models.base to clear metadata in tests/conftest.py.")
+# except Exception as e:
+#     logging.getLogger(__name__).error(f"Error clearing metadata in tests/conftest.py: {e}")
 
 logging.basicConfig(level=logging.INFO) # Ensure logging is configured
 logger = logging.getLogger(__name__)

@@ -81,20 +81,38 @@ def run_migrations_online() -> None:
     # by reading them from config.get_section(config.config_ini_section)
     # and adding them to engine_args with 'sqlalchemy.' prefix.
 
-    connectable = engine_from_config(
-        engine_args, # Pass the dictionary
-        prefix="sqlalchemy.", # Standard prefix
-        poolclass=pool.NullPool # Explicitly NullPool for safety
-    )
+    # Check if a connection object is available from the config attributes
+    # This allows the calling application (e.g., tests) to pass an existing connection
+    connection = config.attributes.get('connection', None)
 
-    with connectable.connect() as connection:
+    if connection:
+        # If a connection is provided, use it directly
         context.configure(
-            connection=connection, 
+            connection=connection,
             target_metadata=target_metadata,
-            render_as_batch=db_url.startswith("sqlite") # Batch mode for SQLite
+            render_as_batch=db_url.startswith("sqlite") if db_url else False
         )
+        # For an externally provided connection, transaction management might be handled by the caller.
+        # However, Alembic's default templates often include begin_transaction/run_migrations/commit.
+        # If the external connection is already in a transaction, this might be an issue.
+        # For now, assume the standard Alembic transactional block is okay or will be adapted by caller.
         with context.begin_transaction():
             context.run_migrations()
+    else:
+        # No external connection provided, create engine as before
+        connectable = engine_from_config(
+            engine_args, # Pass the dictionary
+            prefix="sqlalchemy.", # Standard prefix
+            poolclass=pool.NullPool # Explicitly NullPool for safety
+        )
+        with connectable.connect() as connection:
+            context.configure(
+                connection=connection,
+                target_metadata=target_metadata,
+                render_as_batch=db_url.startswith("sqlite") if db_url else False # Batch mode for SQLite
+            )
+            with context.begin_transaction():
+                context.run_migrations()
 
 
 if context.is_offline_mode():

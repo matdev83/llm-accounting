@@ -3,7 +3,7 @@ import os
 from alembic.config import Config as AlembicConfig
 from alembic import command as alembic_command
 from sqlalchemy.engine.url import make_url
-from sqlalchemy import text # Added
+from sqlalchemy import text, Connection # Added Connection
 from pathlib import Path
 import sys
 from typing import Optional
@@ -16,16 +16,24 @@ from alembic.runtime.environment import EnvironmentContext
 
 logger = logging.getLogger(__name__)
 
-def run_migrations(db_url: str) -> Optional[str]: 
+def run_migrations(db_url: str, connection: Optional[Connection] = None) -> Optional[str]:
     """
     Checks and applies any pending database migrations for the given DB URL.
-    This function expects a database URL to be provided.
+    If a SQLAlchemy Connection object is provided, it will be used by Alembic,
+    which is essential for in-memory SQLite databases to ensure operations
+    occur on the same database instance.
     Returns the current database revision after upgrade.
     """
-    migration_logger = logging.getLogger(__name__ + ".migrations") 
-    
+    migration_logger = logging.getLogger(__name__ + ".migrations")
+
     if not db_url:
-        raise ValueError("Database URL must be provided to run migrations.")
+        # If a connection is provided, db_url might be redundant for configuration,
+        # but AlembicConfig still typically expects it.
+        if connection and connection.engine:
+            db_url = str(connection.engine.url)
+            migration_logger.info(f"Using db_url from provided connection: {db_url}")
+        else:
+            raise ValueError("Database URL must be provided to run migrations if no connection is given.")
 
     # Alembic path setup (remains the same)
     current_file_dir = Path(__file__).parent
@@ -60,16 +68,22 @@ def run_migrations(db_url: str) -> Optional[str]:
         alembic_cfg = AlembicConfig(file_=str(alembic_ini_path))
         alembic_cfg.set_main_option("script_location", str(alembic_dir))
         alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+
+        # If an external connection is provided, pass it to env.py via attributes
+        if connection:
+            alembic_cfg.attributes['connection'] = connection
+            migration_logger.info("Using provided external connection for migrations.")
         
-        # The 'env.py' script is expected to place the connection on alembic_cfg.attributes['connection']
-        # This is standard practice for online migrations.
         alembic_command.upgrade(alembic_cfg, "head")
         migration_logger.info("Database migration upgrade to 'head' completed.")
 
-        connection = alembic_cfg.attributes.get('connection')
-        if connection:
+        # Use the potentially passed-in connection for querying version,
+        # or the one that env.py might have established and put in attributes.
+        conn_to_query = connection if connection else alembic_cfg.attributes.get('connection')
+
+        if conn_to_query:
             try:
-                result = connection.execute(text("SELECT version_num FROM alembic_version ORDER BY version_num DESC LIMIT 1"))
+                result = conn_to_query.execute(text("SELECT version_num FROM alembic_version ORDER BY version_num DESC LIMIT 1"))
                 current_rev = result.scalar_one_or_none()
                 if current_rev:
                     migration_logger.info(f"Current database revision from DB query: {current_rev}")
