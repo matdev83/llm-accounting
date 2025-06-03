@@ -138,17 +138,17 @@ def test_insert_and_get_usage_limits(sqlite_backend: SQLiteBackend, now_utc: dat
             # Compare by checking if they are within a small time delta (e.g., 1 second)
             # This accounts for potential slight differences in timestamp due to test execution time
             # and database precision.
-            # Assert that created_at and updated_at are close to now_utc, as they are set by the DB
-            assert limit_obj.created_at is not None and abs((limit_obj.created_at - now_utc).total_seconds()) < 5 # Allow a few seconds for test execution
-            assert limit_obj.updated_at is not None and abs((limit_obj.updated_at - now_utc).total_seconds()) < 5 # Allow a few seconds for test execution
+            # Compare with the original inserted values, ensuring timezone awareness
+            assert limit_obj.created_at is not None and limit_obj.created_at == limit_to_insert1.created_at.replace(tzinfo=timezone.utc)
+            assert limit_obj.updated_at is not None and limit_obj.updated_at == limit_to_insert1.updated_at.replace(tzinfo=timezone.utc)
         elif limit_obj.model == "gpt-4-turbo":
             found_limit2 = True
             assert limit_obj.scope == limit_to_insert2.scope
             assert limit_obj.limit_type == limit_to_insert2.limit_type
             
-            # Assert that created_at and updated_at are close to now_utc, as they are set by the DB
-            assert limit_obj.created_at is not None and abs((limit_obj.created_at - now_utc).total_seconds()) < 5
-            assert limit_obj.updated_at is not None and abs((limit_obj.updated_at - now_utc).total_seconds()) < 5
+            # Compare with the original inserted values, ensuring timezone awareness
+            assert limit_obj.created_at is not None and limit_obj.created_at == limit_to_insert2.created_at.replace(tzinfo=timezone.utc)
+            assert limit_obj.updated_at is not None and limit_obj.updated_at == limit_to_insert2.updated_at.replace(tzinfo=timezone.utc)
             
     assert found_limit1
     assert found_limit2

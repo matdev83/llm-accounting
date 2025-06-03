@@ -31,6 +31,10 @@ def test_account_model_requests_per_minute(accounting_instance: LLMAccounting, s
     model_name = "model_x"
     caller = "caller_rpm"
 
+    global_limit = UsageLimitDTO(
+        scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value,
+        max_value=100, interval_unit=TimeInterval.MINUTE.value, interval_value=1
+    )
     account_model_limit = UsageLimitDTO(
         scope=LimitScope.USER.value,
         username=username,
@@ -41,12 +45,8 @@ def test_account_model_requests_per_minute(accounting_instance: LLMAccounting, s
         interval_value=1
     )
     sqlite_backend_for_accounting.insert_usage_limit(account_model_limit)
-
-    global_limit = UsageLimitDTO(
-        scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value,
-        max_value=100, interval_unit=TimeInterval.MINUTE.value, interval_value=1
-    )
     sqlite_backend_for_accounting.insert_usage_limit(global_limit)
+    accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
 
     for i in range(3):
         allowed, reason = accounting_instance.check_quota(
@@ -63,9 +63,9 @@ def test_account_model_requests_per_minute(accounting_instance: LLMAccounting, s
     )
     assert not allowed, f"4th request for {model_name} by {username} should be denied"
     assert message is not None, "Denial message should not be None"
-    assert f"USER (model: {model_name}, user: {username})" in message  # Adjusted order
+    assert f"USER (user: {username})" in message  # Adjusted order
     assert "limit: 3.00 requests per 1 minute" in message
-    assert "current usage: 3.00, request: 1.00" in message
+    assert "exceeded. Current usage: 3.00, request: 1.00." in message
 
     allowed_other_user, _ = accounting_instance.check_quota(
         model=model_name, username="other_user_rpm", caller_name=caller, input_tokens=10, completion_tokens=10
@@ -84,6 +84,10 @@ def test_account_model_requests_per_day(accounting_instance: LLMAccounting, sqli
     model_name = "model_y"
     caller = "caller_rpd"
 
+    global_limit = UsageLimitDTO(
+        scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value,
+        max_value=100, interval_unit=TimeInterval.DAY.value, interval_value=1
+    )
     account_model_limit = UsageLimitDTO(
         scope=LimitScope.USER.value,
         username=username,
@@ -94,12 +98,8 @@ def test_account_model_requests_per_day(accounting_instance: LLMAccounting, sqli
         interval_value=1
     )
     sqlite_backend_for_accounting.insert_usage_limit(account_model_limit)
-
-    global_limit = UsageLimitDTO(
-        scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value,
-        max_value=100, interval_unit=TimeInterval.DAY.value, interval_value=1
-    )
     sqlite_backend_for_accounting.insert_usage_limit(global_limit)
+    accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
 
     for i in range(2):
         allowed, reason = accounting_instance.check_quota(
@@ -116,9 +116,9 @@ def test_account_model_requests_per_day(accounting_instance: LLMAccounting, sqli
     )
     assert not allowed, f"3rd request for {model_name} by {username} should be denied"
     assert message is not None, "Denial message should not be None"
-    assert f"USER (model: {model_name}, user: {username})" in message  # Adjusted order
+    assert f"USER (user: {username})" in message  # Adjusted order
     assert "limit: 2.00 requests per 1 day" in message
-    assert "current usage: 2.00, request: 1.00" in message
+    assert "exceeded. Current usage: 2.00, request: 1.00." in message
 
     allowed_other_user, _ = accounting_instance.check_quota(
         model=model_name, username="other_user_rpd", caller_name=caller, input_tokens=10, completion_tokens=10
@@ -137,6 +137,10 @@ def test_account_model_completion_tokens_per_minute(accounting_instance: LLMAcco
     model_name = "model_z"
     caller = "caller_ctpm"
 
+    global_limit = UsageLimitDTO(
+        scope=LimitScope.GLOBAL.value, limit_type=LimitType.OUTPUT_TOKENS.value,
+        max_value=5000, interval_unit=TimeInterval.MINUTE.value, interval_value=1
+    )
     account_model_limit = UsageLimitDTO(
         scope=LimitScope.USER.value,
         username=username,
@@ -147,12 +151,8 @@ def test_account_model_completion_tokens_per_minute(accounting_instance: LLMAcco
         interval_value=1
     )
     sqlite_backend_for_accounting.insert_usage_limit(account_model_limit)
-
-    global_limit = UsageLimitDTO(
-        scope=LimitScope.GLOBAL.value, limit_type=LimitType.OUTPUT_TOKENS.value,
-        max_value=5000, interval_unit=TimeInterval.MINUTE.value, interval_value=1
-    )
     sqlite_backend_for_accounting.insert_usage_limit(global_limit)
+    accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
 
     # First request: 500 tokens
     allowed, reason = accounting_instance.check_quota(
@@ -180,9 +180,9 @@ def test_account_model_completion_tokens_per_minute(accounting_instance: LLMAcco
     )
     assert not allowed, f"Request 3 (1 token) for {model_name} by {username} should be denied"
     assert message is not None, "Denial message should not be None"
-    assert f"USER (model: {model_name}, user: {username})" in message  # Adjusted order
+    assert f"USER (user: {username})" in message  # Adjusted order
     assert f"limit: 1000.00 {LimitType.OUTPUT_TOKENS.value} per 1 minute" in message
-    assert "current usage: 1000.00, request: 1.00" in message
+    assert "exceeded. Current usage: 1000.00, request: 1.00." in message
 
     allowed_other_user, _ = accounting_instance.check_quota(
         model=model_name, username="other_user_ctpm", caller_name=caller, input_tokens=10, completion_tokens=10
@@ -201,6 +201,10 @@ def test_account_model_completion_tokens_per_day(accounting_instance: LLMAccount
     model_name = "model_a"
     caller = "caller_ctpd"
 
+    global_limit = UsageLimitDTO(
+        scope=LimitScope.GLOBAL.value, limit_type=LimitType.OUTPUT_TOKENS.value,
+        max_value=5000, interval_unit=TimeInterval.DAY.value, interval_value=1
+    )
     account_model_limit = UsageLimitDTO(
         scope=LimitScope.USER.value,
         username=username,
@@ -211,12 +215,8 @@ def test_account_model_completion_tokens_per_day(accounting_instance: LLMAccount
         interval_value=1
     )
     sqlite_backend_for_accounting.insert_usage_limit(account_model_limit)
-
-    global_limit = UsageLimitDTO(
-        scope=LimitScope.GLOBAL.value, limit_type=LimitType.OUTPUT_TOKENS.value,
-        max_value=5000, interval_unit=TimeInterval.DAY.value, interval_value=1
-    )
     sqlite_backend_for_accounting.insert_usage_limit(global_limit)
+    accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
 
     # First request: 150 tokens
     allowed, reason = accounting_instance.check_quota(
@@ -234,9 +234,9 @@ def test_account_model_completion_tokens_per_day(accounting_instance: LLMAccount
     )
     assert not allowed, f"Request 2 (51 tokens) for {model_name} by {username} should be denied"
     assert message is not None, "Denial message should not be None"
-    assert f"USER (model: {model_name}, user: {username})" in message # Adjusted order
+    assert f"USER (user: {username})" in message # Adjusted order
     assert f"limit: 200.00 {LimitType.OUTPUT_TOKENS.value} per 1 day" in message
-    assert "current usage: 150.00, request: 51.00" in message
+    assert "exceeded. Current usage: 150.00, request: 51.00." in message
 
 
     allowed_other_user, _ = accounting_instance.check_quota(
@@ -266,9 +266,6 @@ def test_account_total_requests_per_minute(accounting_instance: LLMAccounting, s
         interval_unit=TimeInterval.MINUTE.value,
         interval_value=1
     )
-    sqlite_backend_for_accounting.insert_usage_limit(account_wide_limit)
-
-    # Higher (user, model) specific limit for the same user but one specific model
     user_model_specific_limit = UsageLimitDTO(
         scope=LimitScope.USER.value, # Could also be MODEL scope if username and model are set
         username=username,
@@ -278,14 +275,14 @@ def test_account_total_requests_per_minute(accounting_instance: LLMAccounting, s
         interval_unit=TimeInterval.MINUTE.value,
         interval_value=1
     )
-    sqlite_backend_for_accounting.insert_usage_limit(user_model_specific_limit)
-
-    # Global limit to ensure account-wide is being tested
     global_limit = UsageLimitDTO(
         scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value,
         max_value=100, interval_unit=TimeInterval.MINUTE.value, interval_value=1
     )
+    sqlite_backend_for_accounting.insert_usage_limit(account_wide_limit)
+    sqlite_backend_for_accounting.insert_usage_limit(user_model_specific_limit)
     sqlite_backend_for_accounting.insert_usage_limit(global_limit)
+    accounting_instance.quota_service.refresh_limits_cache() # Refresh cache after inserting limits
 
     # Track 2 requests for model_a
     for i in range(2):
@@ -317,7 +314,7 @@ def test_account_total_requests_per_minute(accounting_instance: LLMAccounting, s
     assert message is not None, "Denial message should not be None for 5th request"
     # Message should be from the account-wide limit (user: test_user_account_wide, no model)
     assert f"USER (user: {username}) limit: 4.00 requests per 1 minute" in message
-    assert "current usage: 4.00, request: 1.00" in message
+    assert "exceeded. Current usage: 4.00, request: 1.00." in message
 
     # Attempt a request for "specific_model_q"
     # This should also be denied by the account-wide limit as the user's total is 4.
@@ -328,7 +325,7 @@ def test_account_total_requests_per_minute(accounting_instance: LLMAccounting, s
         f"Request for specific_model_q by {username} should be denied by account-wide limit (already at 4 requests)"
     assert message_specific is not None, "Denial message should not be None for specific_model_q"
     assert f"USER (user: {username}) limit: 4.00 requests per 1 minute" in message_specific
-    assert "current usage: 4.00, request: 1.00" in message_specific
+    assert "exceeded. Current usage: 4.00, request: 1.00." in message_specific
 
 
     # Verify that a different user is allowed

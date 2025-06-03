@@ -49,31 +49,48 @@ def test_multiple_limit_types(accounting_instance: LLMAccounting, sqlite_backend
     )
     sqlite_backend_for_accounting.insert_usage_limit(cost_limit)
 
+
+    # Refresh the cache in QuotaService after inserting all limits
+    accounting_instance.quota_service.refresh_limits_cache()
+
     # Test token limit is enforced
-    allowed_tokens, message_tokens = accounting_instance.check_quota("gpt-4", "user2", "app2", 15000, 0.0)
+    # Ensure a timestamp for the check, though not strictly needed if not tracking yet
+    current_time_token_check = datetime.now(timezone.utc)
+    allowed_tokens, message_tokens = accounting_instance.check_quota(
+        "gpt-4", "user2", "app2", 15000, 0.0
+        # project_name and completion_tokens can be omitted if not relevant to specific limits being tested
+    )
     assert not allowed_tokens, "Should be denied due to token limit"
     assert message_tokens is not None, "Denial message for token limit should not be None"
     assert "USER (user: user2) limit: 10000.00 input_tokens per 1 day" in message_tokens
-    assert "current usage: 0.00, request: 15000.00" in message_tokens
+    assert "exceeded. Current usage: 0.00, request: 15000.00." in message_tokens
 
     # Track some usage that is within token limits (e.g., 200 tokens) but accumulates cost.
+    # This loop will also test the cost limit eventually.
+    # The cache is already loaded. Each check_quota will use the cached limits.
     for i in range(49):
-        allowed_cost_accumulation, reason_cost_accumulation = accounting_instance.check_quota("gpt-4", "user2", "app2", 200, 1.00)
+        current_timestamp_loop = datetime.now(timezone.utc)
+        allowed_cost_accumulation, reason_cost_accumulation = accounting_instance.check_quota(
+            "gpt-4", "user2", "app2", 200, 1.00
+        )
         assert allowed_cost_accumulation, f"Request {i+1}/49 (cost accumulation) should be allowed. Reason: {reason_cost_accumulation}"
         accounting_instance.track_usage(
             model="gpt-4",
             username="user2",
             caller_name="app2",
             prompt_tokens=200,
-            completion_tokens=500,
+            completion_tokens=500, # Assuming some completion tokens
             cost=1.00,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=current_timestamp_loop
         )
 
     # Now, current weekly cost usage is $49.00. Limit is $50.00.
     # A request costing $1.01 should exceed the limit.
-    allowed_cost, message_cost = accounting_instance.check_quota("gpt-4", "user2", "app2", 200, 1.01)
+    current_time_cost_check = datetime.now(timezone.utc)
+    allowed_cost, message_cost = accounting_instance.check_quota(
+        "gpt-4", "user2", "app2", 200, 1.01
+    )
     assert not allowed_cost, "Should be denied due to cost limit"
     assert message_cost is not None, "Denial message for cost limit should not be None"
     assert "USER (user: user2) limit: 50.00 cost per 1 week" in message_cost
-    assert "current usage: 49.00, request: 1.01" in message_cost
+    assert "exceeded. Current usage: 49.00, request: 1.01." in message_cost
