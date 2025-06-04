@@ -95,7 +95,7 @@ The following options can be used with any `llm-accounting` command:
 
 *   `--db-file <path>`: Specifies the SQLite database file path. Only applicable when `--db-backend` is `sqlite`.
 *   `--db-backend <backend>`: Selects the database backend (`sqlite`, `postgresql`, or `csv`). Defaults to `sqlite`.
-*   `--csv-data-dir <path>`: Specifies the directory for CSV data files (e.g., `accounting_entries.csv`). Only applicable when `--db-backend` is `csv`. Defaults to `data/`.
+*   `--csv-data-dir <path>`: Specifies the directory for CSV data files (e.g., `accounting_entries.csv`). Only applicable when `--db-backend` is `csv`. Defaults to `data/`. This option sets the `data_dir` used by `CSVBackend`.
 *   `--postgresql-connection-string <string>`: Connection string for the PostgreSQL database. Required when `--db-backend` is `postgresql`. Can also be provided via `POSTGRESQL_CONNECTION_STRING` environment variable.
 *   `--project-name <name>`: Default project name to associate with usage entries. Can be overridden by command-specific `--project`.
 *   `--app-name <name>`: Default application name to associate with usage entries. Can be overridden by command-specific `--caller-name`.
@@ -504,7 +504,7 @@ The `CSVBackend` provides a simple, file-based way to store and manage LLM usage
 **Characteristics:**
 
 *   **Data Storage**: Stores data in plain CSV files.
-*   **Default Directory**: Uses `data/` in the current working directory by default. This can be configured using the `--csv-data-dir` CLI option or the `csv_data_dir` parameter when instantiating `CSVBackend`.
+*   **Default Directory**: Uses `data/` in the current working directory by default. You can change this with the `--csv-data-dir` CLI option, which maps to the `data_dir` parameter when instantiating `CSVBackend`.
 *   **Files Created**:
     *   `accounting_entries.csv`: Stores detailed LLM usage records.
     *   `usage_limits.csv`: Stores defined usage limits.
@@ -522,7 +522,7 @@ from llm_accounting.backends.csv_backend import CSVBackend
 from datetime import datetime, timedelta
 
 # Initialize CSVBackend, optionally specify data directory
-csv_backend = CSVBackend(csv_data_dir="my_csv_data") 
+csv_backend = CSVBackend(data_dir="my_csv_data")
 accounting = LLMAccounting(backend=csv_backend)
 
 # Use accounting as usual
