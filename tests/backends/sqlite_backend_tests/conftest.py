@@ -7,10 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from llm_accounting.backends.sqlite import SQLiteBackend
-
-# Add src directory to Python path
+# Add src directory to Python path so ``llm_accounting`` can be imported without
+# installing the package first.
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+
+from llm_accounting.backends.sqlite import SQLiteBackend
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
