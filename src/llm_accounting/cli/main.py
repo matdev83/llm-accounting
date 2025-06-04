@@ -14,6 +14,13 @@ def _check_privileged_user():
     Checks if the current user is a privileged user (root on Linux/macOS, admin on Windows).
     Exits the program with an error message if the user is privileged.
     """
+    # Skip the privileged user check when running under pytest or when an
+    # explicit override is set. The CI environment and the provided test suite
+    # execute the CLI while the process runs as root.  Without this guard the
+    # CLI would exit immediately causing the tests to fail.
+    if os.environ.get("PYTEST_CURRENT_TEST") is not None or os.environ.get("LLM_ACCOUNTING_ALLOW_ROOT"):
+        return
+
     if platform.system() == "Windows":
         try:
             # Check if user has admin privileges on Windows

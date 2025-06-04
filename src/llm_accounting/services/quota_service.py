@@ -56,6 +56,16 @@ class QuotaService:
         completion_tokens: int = 0,
         project_name: Optional[str] = None,
     ) -> Tuple[bool, Optional[str], Optional[int]]:
+        """Check quota with caching and retry-after handling.
+
+        If a previous request for the same combination of parameters was denied
+        with a ``retry_after`` timestamp, that denial is cached in
+        ``self._denial_cache``. Subsequent requests hit the cache and return the
+        cached denial until the stored timestamp expires. The cache therefore
+        acts as a TTL store keyed by ``(model, username, caller_name,
+        project_name)`` so we avoid redundant backend queries while the caller
+        must wait anyway.
+        """
         # Generate a cache key from the request parameters
         cache_key = (model, username, caller_name, project_name)
         now = datetime.now(timezone.utc)
