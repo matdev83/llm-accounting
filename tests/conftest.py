@@ -8,11 +8,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Ensure the package under test can be imported when running tests without
+# installing it into the environment. The import of ``llm_accounting`` happens
+# immediately after updating ``sys.path`` so the local ``src`` directory is
+# picked up correctly.
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
 from llm_accounting import LLMAccounting, UsageEntry, UsageStats
 from llm_accounting.backends.sqlite import SQLiteBackend
 from tests.backends.mock_backends import MockBackend
-
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Ensure all SQLAlchemy models are loaded into Base.metadata before any potential clearing or usage.
 import llm_accounting.models
