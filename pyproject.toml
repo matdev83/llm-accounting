@@ -16,18 +16,34 @@ dependencies = [
     "rich>=10.0.0",
     "sqlalchemy>=2.0.0", # Added as a core dependency due to model reliance
     "alembic>=1.7.0", # Added for migrations
+    "click==8.1.7",
+    "colorama==0.4.6",
+    "packaging==24.1",
+    "python-dotenv==1.0.1",
+    "pytz==2024.1",
+    "typer==0.12.3",
+    "cachetools==5.3.3",
+    "psycopg2-binary>=2.9,<3.0", # Moved from optional-dependencies as it's a core import
 ]
 
 [project.optional-dependencies]
 sqlite = ["aiosqlite>=0.17.0"]
 mysql = ["aiomysql>=0.1.1"]
-postgresql = ["asyncpg>=0.25.0", "psycopg2-binary>=2.9,<3.0"] # Added psycopg2-binary
-neon = ["psycopg2-binary>=2.9,<3.0"] # Added for Neon backend
+postgresql = ["asyncpg>=0.25.0"]
+neon = [] # psycopg2-binary is now a core dependency
 test = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
     "toml>=0.10.2",
+    "coverage==7.5.4",
+    "Faker==25.0.0",
+    "freezegun==1.5.1",
+    "pytest==8.3.5",
+    "pytest-asyncio==0.23.7",
+    "pytest-cov==5.0.0",
+    "pytest-mock==3.14.0",
+    "virtualenv",
 ]
 
 [project.scripts]

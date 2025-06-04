@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 from sqlalchemy import text
 from ..base import UsageEntry, UsageStats
@@ -14,45 +14,45 @@ class SQLiteUsageManager:
     def __init__(self, connection_manager):
         self.connection_manager = connection_manager
 
-    def insert_usage(self, entry: UsageEntry) -> None:
-        conn = self.connection_manager.get_connection()
-        insert_usage_query(conn, entry)
-        conn.commit()
+from sqlalchemy.engine import Connection # Import Connection for type hinting
 
-    def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
-        conn = self.connection_manager.get_connection()
+class SQLiteUsageManager:
+    def __init__(self, connection_manager):
+        self.connection_manager = connection_manager
+
+    def insert_usage(self, conn: Connection, entry: UsageEntry) -> None:
+        insert_usage_query(conn, entry)
+        # conn.commit() # Let the caller handle commit
+
+    def get_period_stats(self, conn: Connection, start: datetime, end: datetime) -> UsageStats:
         return get_period_stats_query(conn, start, end)
 
     def get_model_stats(
-        self, start: datetime, end: datetime
+        self, conn: Connection, start: datetime, end: datetime
     ) -> List[Tuple[str, UsageStats]]:
-        conn = self.connection_manager.get_connection()
         return get_model_stats_query(conn, start, end)
 
     def get_model_rankings(
-        self, start: datetime, end: datetime
+        self, conn: Connection, start: datetime, end: datetime
     ) -> Dict[str, List[Tuple[str, float]]]:
-        conn = self.connection_manager.get_connection()
         return get_model_rankings_query(conn, start, end)
 
-    def tail(self, n: int = 10) -> List[UsageEntry]:
-        conn = self.connection_manager.get_connection()
+    def tail(self, conn: Connection, n: int = 10) -> List[UsageEntry]:
         return tail_query(conn, n)
 
     def get_accounting_entries_for_quota(
         self,
+        conn: Connection,
         start_time: datetime,
         end_time: datetime,
         limit_type: LimitType,
-        interval_unit: Any, # Add interval_unit parameter
+        interval_unit: Any,
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
         project_name: Optional[str] = None,
         filter_project_null: Optional[bool] = None,
     ) -> float:
-        conn = self.connection_manager.get_connection()
-
         if limit_type == LimitType.REQUESTS:
             select_clause = "COUNT(*)"
         elif limit_type == LimitType.INPUT_TOKENS:
@@ -64,20 +64,13 @@ class SQLiteUsageManager:
         else:
             raise ValueError(f"Unknown limit type: {limit_type}")
 
-        # Determine the end_time comparison operator based on whether it's a rolling interval
-        end_time_operator = "<"
-        # We need to import TimeInterval to use is_rolling()
-        from llm_accounting.models.limits import TimeInterval
-        if isinstance(interval_unit, TimeInterval) and interval_unit.is_rolling():
-            end_time_operator = "<="
+        end_time_operator = "<="
 
         query_base = f"SELECT {select_clause} FROM accounting_entries WHERE timestamp >= :start_time AND timestamp {end_time_operator} :end_time"
         
-        # Convert to timezone-naive and format for consistency with SQLite's TIMESTAMP WITHOUT TIME ZONE
-        # Use strftime to ensure consistent string format for SQLite comparison
         params_dict: Dict[str, Any] = {
-            "start_time": start_time.replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S.000000'),
-            "end_time": end_time.replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S.000000')
+            "start_time": start_time.replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S.%f'),
+            "end_time": end_time.replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S.%f')
         }
         conditions = []
 
@@ -111,22 +104,20 @@ class SQLiteUsageManager:
         logger.debug(f"Raw scalar result from DB: {scalar_result}")
         
         final_result = float(scalar_result) if scalar_result is not None else 0.0
-        logger.debug(f"Returning final_result: {final_result}")
+        logger.debug(f"Returning final_result: {final_result} for limit_type: {limit_type.value}, model: {model}, username: {username}, caller: {caller_name}, project: {project_name}")
         return final_result
 
-    def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
-        conn = self.connection_manager.get_connection()
-
+    def get_usage_costs(self, conn: Connection, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
         query_base = "SELECT SUM(cost) FROM accounting_entries WHERE username = :user_id"
         params_dict: Dict[str, Any] = {"user_id": user_id}
         conditions = []
 
         if start_date:
             conditions.append("timestamp >= :start_date")
-            params_dict["start_date"] = start_date.strftime('%Y-%m-%d %H:%M:%S.%f')
+            params_dict["start_date"] = start_date.replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S.%f')
         if end_date:
             conditions.append("timestamp <= :end_date")
-            params_dict["end_date"] = end_date.strftime('%Y-%m-%d %H:%M:%S.%f')
+            params_dict["end_date"] = end_date.replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S.%f')
 
         if conditions:
             query_base += " AND " + " AND ".join(conditions)

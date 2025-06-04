@@ -52,7 +52,7 @@ class QuotaServiceLimitEvaluator:
 
             # Calculate query_end_time
             if interval_unit_enum.is_rolling():
-                query_end_time = now.replace(microsecond=0)
+                query_end_time = now
             else:
                 # For fixed intervals, query_end_time is the actual end of the period
                 duration: timedelta
@@ -86,8 +86,9 @@ class QuotaServiceLimitEvaluator:
                     duration = base_delta * limit.interval_value
                     query_end_time = period_start_time + duration
 
-            # Ensure query_end_time is also truncated for consistency if it came from 'now'
-            query_end_time = query_end_time.replace(microsecond=0)
+            # query_end_time should include the current moment with full
+            # precision to avoid excluding entries recorded within the same
+            # second.  Do not truncate microseconds.
 
             final_usage_query_model: Optional[str] = None
             final_usage_query_username: Optional[str] = None
@@ -142,9 +143,15 @@ class QuotaServiceLimitEvaluator:
 
             potential_usage = current_usage + request_value
 
-            potential_usage_float = float(potential_usage)
-            limit_max_value_float = float(limit.max_value)
+            # Convert to float for comparison, and round to avoid floating point inaccuracies
+            # Assuming costs and token counts are typically integers or have limited decimal places.
+            # Using a precision of 6 decimal places should be sufficient for most cases.
+            potential_usage_float = round(float(potential_usage), 6)
+            limit_max_value_float = round(float(limit.max_value), 6)
 
+            # Compare with a small epsilon to account for floating point inaccuracies
+            # If potential_usage is slightly above max_value due to precision, it should still trigger.
+            # Using a direct comparison after rounding is generally safer than epsilon for >
             comparison_result = potential_usage_float > limit_max_value_float
 
             if comparison_result:
@@ -182,7 +189,7 @@ class QuotaServiceLimitEvaluator:
         request_cost: float,
         request_completion_tokens: int,
         limit_scope_for_message: Optional[str] = None,
-    ) -> Tuple[bool, Optional[str], Optional[int]]:
+    ) -> Tuple[bool, Optional[str], Optional[datetime]]: # Changed return type
         now = datetime.now(timezone.utc) # Keep timezone-aware
         for limit in limits:
             limit_scope_enum = LimitScope(limit.scope)
@@ -212,30 +219,48 @@ class QuotaServiceLimitEvaluator:
             interval_unit_enum = TimeInterval(limit.interval_unit) # Get enum member
             period_start_time = self._get_period_start(now, interval_unit_enum, limit.interval_value)
 
-            # Calculate query_end_time
+            # Calculate query_end_time (which will be the reset_timestamp for fixed intervals)
             if interval_unit_enum.is_rolling():
-                query_end_time = now.replace(microsecond=0)
-            else:
-                # For fixed intervals, query_end_time is the actual end of the period
+                # For rolling, the reset time is when the oldest entry in the window expires.
+                # This is period_start_time + interval_duration.
+                # The period_start_time is already calculated relative to 'now'.
+                # So, period_end_for_retry is the absolute time when the current window "rolls over".
+                period_end_for_retry: datetime
+                if interval_unit_enum == TimeInterval.MONTH_ROLLING:
+                    year = period_start_time.year
+                    month = period_start_time.month
+                    target_month_val = month + limit.interval_value
+                    target_year_val = year
+                    while target_month_val > 12:
+                        target_month_val -= 12
+                        target_year_val += 1
+                    period_end_for_retry = period_start_time.replace(year=target_year_val, month=target_month_val)
+                elif interval_unit_enum == TimeInterval.WEEK_ROLLING:
+                    period_end_for_retry = period_start_time + timedelta(weeks=limit.interval_value)
+                elif interval_unit_enum == TimeInterval.DAY_ROLLING:
+                    period_end_for_retry = period_start_time + timedelta(days=limit.interval_value)
+                elif interval_unit_enum == TimeInterval.HOUR_ROLLING:
+                    period_end_for_retry = period_start_time + timedelta(hours=limit.interval_value)
+                elif interval_unit_enum == TimeInterval.MINUTE_ROLLING:
+                    period_end_for_retry = period_start_time + timedelta(minutes=limit.interval_value)
+                elif interval_unit_enum == TimeInterval.SECOND_ROLLING:
+                    period_end_for_retry = period_start_time + timedelta(seconds=limit.interval_value)
+                else:
+                    raise ValueError(f"Unsupported rolling time interval unit for retry calculation: {interval_unit_enum.value}")
+                reset_timestamp = period_end_for_retry
+            else: # Non-rolling (fixed) intervals
+                # For fixed intervals, the reset time is the end of the current fixed period.
                 duration: timedelta
                 if interval_unit_enum == TimeInterval.MONTH:
-                    # Calculate the start of the next period directly
                     start_year = period_start_time.year
-                    start_month = period_start_time.month # 1-indexed
-
-                    # (start_month - 1) makes it 0-indexed for easier month arithmetic
-                    # Then add interval_value to find the 0-indexed month offset for the start of the next period
-                    raw_target_month_0_indexed = (start_month - 1) + limit.interval_value
-
-                    # Calculate the target year and 1-indexed month for the start of the next period
-                    target_year = start_year + raw_target_month_0_indexed // 12
-                    target_month_1_indexed = (raw_target_month_0_indexed % 12) + 1
-
-                    # query_end_time is the start of the next period, ensure it is timezone-aware
-                    query_end_time = datetime(target_year, target_month_1_indexed, 1, 0, 0, 0, tzinfo=period_start_time.tzinfo)
+                    start_month = period_start_time.month
+                    next_period_raw_month = start_month + limit.interval_value
+                    next_period_year = start_year + (next_period_raw_month - 1) // 12
+                    next_period_month = (next_period_raw_month - 1) % 12 + 1
+                    reset_timestamp = datetime(next_period_year, next_period_month, 1, 0, 0, 0, tzinfo=period_start_time.tzinfo)
                 elif interval_unit_enum == TimeInterval.WEEK:
                     duration = timedelta(weeks=limit.interval_value)
-                    query_end_time = period_start_time + duration
+                    reset_timestamp = period_start_time + duration
                 else: # SECOND, MINUTE, HOUR, DAY
                     simple_interval_map = {
                         TimeInterval.SECOND.value: timedelta(seconds=1),
@@ -247,10 +272,10 @@ class QuotaServiceLimitEvaluator:
                     if not base_delta:
                         raise ValueError(f"Unsupported fixed time interval unit for duration: {interval_unit_enum.value}")
                     duration = base_delta * limit.interval_value
-                    query_end_time = period_start_time + duration
-
-            # Ensure query_end_time is also truncated for consistency if it came from 'now'
-            query_end_time = query_end_time.replace(microsecond=0)
+                    reset_timestamp = period_start_time + duration
+            
+            # Ensure reset_timestamp is truncated for consistency
+            reset_timestamp = reset_timestamp.replace(microsecond=0)
 
             final_usage_query_model: Optional[str] = None
             final_usage_query_username: Optional[str] = None
@@ -278,9 +303,15 @@ class QuotaServiceLimitEvaluator:
                 elif limit.project_name is not None:
                     final_usage_query_project_name = limit.project_name
 
+            # Add logging here
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug(f"Evaluating limit: {limit.limit_type} for {limit.scope} (model: {limit.model}, user: {limit.username}, project: {limit.project_name})")
+            logger.debug(f"Period start: {period_start_time}, Query end (now): {now}")
+
             current_usage = self.backend.get_accounting_entries_for_quota(
                 start_time=period_start_time,
-                end_time=query_end_time,
+                end_time=now,  # Always query up to 'now' for current usage with full precision
                 limit_type=LimitType(limit.limit_type),
                 interval_unit=TimeInterval(limit.interval_unit), # Pass the interval_unit
                 model=final_usage_query_model,
@@ -289,6 +320,7 @@ class QuotaServiceLimitEvaluator:
                 project_name=final_usage_query_project_name,
                 filter_project_null=final_usage_query_filter_project_null,
             )
+            logger.debug(f"Current usage calculated: {current_usage}")
 
             limit_type_enum = LimitType(limit.limit_type)
             request_value: float
@@ -305,9 +337,12 @@ class QuotaServiceLimitEvaluator:
 
             potential_usage = current_usage + request_value
 
-            potential_usage_float = float(potential_usage)
-            limit_max_value_float = float(limit.max_value)
+            # Convert to float for comparison, and round to avoid floating point inaccuracies
+            # Using a precision of 6 decimal places should be sufficient for most cases.
+            potential_usage_float = round(float(potential_usage), 6)
+            limit_max_value_float = round(float(limit.max_value), 6)
 
+            # Compare with a small epsilon to account for floating point inaccuracies
             comparison_result = potential_usage_float > limit_max_value_float
 
             if comparison_result:
@@ -331,36 +366,8 @@ class QuotaServiceLimitEvaluator:
                     f"{scope_msg} limit: {limit.max_value:.2f} {limit.limit_type} per {limit.interval_value} {limit.interval_unit}"
                     f" exceeded. Current usage: {current_usage:.2f}, request: {request_value:.2f}."
                 )
-
-                retry_after_seconds: Optional[int] = None
-                if interval_unit_enum.is_rolling():
-                    period_end_for_retry: datetime
-                    if interval_unit_enum == TimeInterval.MONTH_ROLLING:
-                        year = period_start_time.year
-                        month = period_start_time.month
-                        target_month_val = month + limit.interval_value
-                        target_year_val = year
-                        while target_month_val > 12:
-                            target_month_val -= 12
-                            target_year_val += 1
-                        period_end_for_retry = period_start_time.replace(year=target_year_val, month=target_month_val)
-                    elif interval_unit_enum == TimeInterval.WEEK_ROLLING:
-                        period_end_for_retry = period_start_time + timedelta(weeks=limit.interval_value)
-                    elif interval_unit_enum == TimeInterval.DAY_ROLLING:
-                        period_end_for_retry = period_start_time + timedelta(days=limit.interval_value)
-                    elif interval_unit_enum == TimeInterval.HOUR_ROLLING:
-                        period_end_for_retry = period_start_time + timedelta(hours=limit.interval_value)
-                    elif interval_unit_enum == TimeInterval.MINUTE_ROLLING:
-                        period_end_for_retry = period_start_time + timedelta(minutes=limit.interval_value)
-                    elif interval_unit_enum == TimeInterval.SECOND_ROLLING:
-                        period_end_for_retry = period_start_time + timedelta(seconds=limit.interval_value)
-                    else:
-                        raise ValueError(f"Unsupported rolling time interval unit for retry calculation: {interval_unit_enum.value}")
-                    retry_after_seconds = max(0, int((period_end_for_retry - now).total_seconds()))
-                else: # Non-rolling intervals
-                    retry_after_seconds = max(0, int((query_end_time - now).total_seconds()))
-                return False, reason_message, retry_after_seconds
-        return True, None, None
+                return False, reason_message, reset_timestamp # Return reset_timestamp
+        return True, None, None # Return None for reset_timestamp if allowed
 
     def _get_period_start(self, current_time: datetime, interval_unit: TimeInterval, interval_value: int) -> datetime:
         # Ensure current_time is UTC-aware for consistent calculations
@@ -398,14 +405,22 @@ class QuotaServiceLimitEvaluator:
                 weeks_offset = weeks_since_epoch % interval_value
                 period_start = start_of_current_iso_week - timedelta(weeks=weeks_offset)
         elif interval_unit == TimeInterval.MONTH:
+            # Calculate the start of the current interval based on interval_value
+            # For example, if interval_value is 3 (quarterly), it should find the start of the current quarter.
             year = current_time_truncated.year
             month = current_time_truncated.month
-            total_months_current = year * 12 + month -1
-            months_offset = total_months_current % interval_value
-            effective_total_months = total_months_current - months_offset
-            effective_year = effective_total_months // 12
-            effective_month = (effective_total_months % 12) + 1
-            period_start = current_time_truncated.replace(year=effective_year, month=effective_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+            
+            # Calculate the number of months from year 0 to current month
+            total_months_since_epoch = year * 12 + month - 1 # 0-indexed month from year 0
+            
+            # Find the start of the current interval block
+            interval_start_month_index = (total_months_since_epoch // interval_value) * interval_value
+            
+            # Convert back to year and month
+            start_year = interval_start_month_index // 12
+            start_month = (interval_start_month_index % 12) + 1 # 1-indexed month
+            
+            period_start = current_time_truncated.replace(year=start_year, month=start_month, day=1, hour=0, minute=0, second=0, microsecond=0)
         elif interval_unit.is_rolling(): # Covers all rolling types
              # Common logic for all _ROLLING types from _get_period_start
             delta_map = {
