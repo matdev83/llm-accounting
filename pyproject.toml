@@ -1,14 +1,13 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "setuptools"]
 build-backend = "hatchling.build"
 
 [project]
 name = "llm-accounting"
-version = "0.1.31"
+version = "0.1.32"
 description = "A package for tracking LLM usage and costs"
 readme = "README.md"
 requires-python = ">=3.8"
-license = "MIT"
 authors = [
     { name = "Mateusz", email = "matdev83@github.com" }
 ]
@@ -18,7 +17,7 @@ dependencies = [
     "alembic>=1.7.0", # Added for migrations
     "click==8.1.7",
     "colorama==0.4.6",
-    "packaging==24.1",
+    "packaging>=24.1",
     "python-dotenv==1.0.1",
     "pytz==2024.1",
     "typer==0.12.3",
@@ -44,13 +43,19 @@ test = [
     "pytest-cov==5.0.0",
     "pytest-mock==3.14.0",
     "virtualenv",
+    "twine", # Added for publishing
 ]
 
 [project.scripts]
 llm-accounting = "llm_accounting.cli.main:main"
 
 [tool.hatch.build]
-include = ["alembic", "alembic.ini", "src/llm_accounting"]
+include = [
+    "alembic",
+    "alembic.ini",
+    "src/llm_accounting",
+    "LICENSE"
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/llm_accounting"]
