@@ -52,7 +52,7 @@ class QuotaServiceLimitEvaluator:
 
             # Calculate query_end_time
             if interval_unit_enum.is_rolling():
-                query_end_time = now.replace(microsecond=0)
+                query_end_time = now
             else:
                 # For fixed intervals, query_end_time is the actual end of the period
                 duration: timedelta
@@ -86,8 +86,9 @@ class QuotaServiceLimitEvaluator:
                     duration = base_delta * limit.interval_value
                     query_end_time = period_start_time + duration
 
-            # Ensure query_end_time is also truncated for consistency if it came from 'now'
-            query_end_time = query_end_time.replace(microsecond=0)
+            # query_end_time should include the current moment with full
+            # precision to avoid excluding entries recorded within the same
+            # second.  Do not truncate microseconds.
 
             final_usage_query_model: Optional[str] = None
             final_usage_query_username: Optional[str] = None
@@ -306,11 +307,11 @@ class QuotaServiceLimitEvaluator:
             import logging
             logger = logging.getLogger(__name__)
             logger.debug(f"Evaluating limit: {limit.limit_type} for {limit.scope} (model: {limit.model}, user: {limit.username}, project: {limit.project_name})")
-            logger.debug(f"Period start: {period_start_time}, Query end (now): {now.replace(microsecond=0)}")
+            logger.debug(f"Period start: {period_start_time}, Query end (now): {now}")
 
             current_usage = self.backend.get_accounting_entries_for_quota(
                 start_time=period_start_time,
-                end_time=now.replace(microsecond=0), # Always query up to 'now' for current usage
+                end_time=now,  # Always query up to 'now' for current usage with full precision
                 limit_type=LimitType(limit.limit_type),
                 interval_unit=TimeInterval(limit.interval_unit), # Pass the interval_unit
                 model=final_usage_query_model,
