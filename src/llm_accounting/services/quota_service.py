@@ -105,3 +105,136 @@ class QuotaService:
                 retry_after_seconds = 0 
             return False, reason, retry_after_seconds
         return True, None, None
+
+    def _check_global_limits_enhanced(
+        self,
+        model: Optional[str],
+        username: Optional[str],
+        caller_name: Optional[str],
+        input_tokens: int,
+        cost: float,
+        completion_tokens: int,
+        project_name: Optional[str],
+    ) -> Tuple[bool, Optional[str], Optional[int]]:
+        limits_to_evaluate = [
+            limit for limit in self.cache_manager.limits_cache
+            if LimitScope(limit.scope) == LimitScope.GLOBAL
+        ]
+        return self.limit_evaluator._evaluate_limits_enhanced(
+            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
+        )
+
+    def _check_model_limits_enhanced(
+        self,
+        model: Optional[str],
+        username: Optional[str],
+        caller_name: Optional[str],
+        input_tokens: int,
+        cost: float,
+        completion_tokens: int,
+        project_name: Optional[str],
+    ) -> Tuple[bool, Optional[str], Optional[int]]:
+        if not model:
+            return True, None, None
+
+        limits_to_evaluate = [
+            limit for limit in self.cache_manager.limits_cache
+            if LimitScope(limit.scope) == LimitScope.MODEL and limit.model == model
+        ]
+        return self.limit_evaluator._evaluate_limits_enhanced(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
+
+    def _check_project_limits_enhanced(
+        self,
+        model: Optional[str],
+        username: Optional[str],
+        caller_name: Optional[str],
+        input_tokens: int,
+        cost: float,
+        completion_tokens: int,
+        project_name: Optional[str],
+    ) -> Tuple[bool, Optional[str], Optional[int]]:
+        if not project_name:
+            return True, None, None
+
+        limits_to_evaluate = [
+            limit for limit in self.cache_manager.limits_cache
+            if LimitScope(limit.scope) == LimitScope.PROJECT and limit.project_name == project_name
+        ]
+        return self.limit_evaluator._evaluate_limits_enhanced(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
+
+    def _check_user_limits_enhanced(
+        self,
+        model: Optional[str],
+        username: Optional[str],
+        caller_name: Optional[str],
+        input_tokens: int,
+        cost: float,
+        completion_tokens: int,
+        project_name: Optional[str],
+    ) -> Tuple[bool, Optional[str], Optional[int]]:
+        if not username:
+             return True, None, None
+
+        limits_to_evaluate = [
+            limit for limit in self.cache_manager.limits_cache
+            if LimitScope(limit.scope) == LimitScope.USER and limit.username == username
+        ]
+        return self.limit_evaluator._evaluate_limits_enhanced(
+            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
+        )
+
+    def _check_caller_limits_enhanced(
+        self,
+        model: Optional[str],
+        username: Optional[str], # This username is for the request, not the limit's username field here.
+        caller_name: Optional[str],
+        input_tokens: int,
+        cost: float,
+        completion_tokens: int,
+        project_name: Optional[str],
+    ) -> Tuple[bool, Optional[str], Optional[int]]:
+        if not caller_name:
+            return True, None, None
+
+        # For CALLER scope limits that are *not* specific to a user (i.e., limit.username is None)
+        limits_to_evaluate = [
+            limit for limit in self.cache_manager.limits_cache
+            if LimitScope(limit.scope) == LimitScope.CALLER
+            and limit.caller_name == caller_name
+            and limit.username is None # Explicitly for generic caller limits
+        ]
+        return self.limit_evaluator._evaluate_limits_enhanced(
+            limits_to_evaluate,
+            model,
+            username,
+            caller_name,
+            project_name,
+            input_tokens,
+            cost,
+            completion_tokens,
+            limit_scope_for_message=f"CALLER (caller: {caller_name})",
+        )
+
+    def _check_user_caller_limits_enhanced(
+        self,
+        model: Optional[str],
+        username: Optional[str],
+        caller_name: Optional[str],
+        input_tokens: int,
+        cost: float,
+        completion_tokens: int,
+        project_name: Optional[str],
+    ) -> Tuple[bool, Optional[str], Optional[int]]:
+        if not username or not caller_name:
+            return True, None, None
+
+        # For CALLER scope limits that *are* specific to a user (limit.username is not None)
+        limits_to_evaluate = [
+            limit for limit in self.cache_manager.limits_cache
+            if LimitScope(limit.scope) == LimitScope.CALLER # Scope is still CALLER
+            and limit.username == username
+            and limit.caller_name == caller_name
+        ]
+        return self.limit_evaluator._evaluate_limits_enhanced(
+            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
+        )
