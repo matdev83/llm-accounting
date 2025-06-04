@@ -36,23 +36,28 @@ class SQLiteBackend(BaseBackend):
 
     def insert_usage(self, entry: UsageEntry) -> None:
         """Insert a new usage entry into the database"""
-        self.usage_manager.insert_usage(entry)
+        conn = self.connection_manager.get_connection()
+        self.usage_manager.insert_usage(conn, entry)
+        conn.commit()
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """Get aggregated statistics for a time period"""
-        return self.usage_manager.get_period_stats(start, end)
+        conn = self.connection_manager.get_connection()
+        return self.usage_manager.get_period_stats(conn, start, end)
 
     def get_model_stats(
         self, start: datetime, end: datetime
     ) -> List[Tuple[str, UsageStats]]:
         """Get statistics grouped by model for a time period"""
-        return self.usage_manager.get_model_stats(start, end)
+        conn = self.connection_manager.get_connection()
+        return self.usage_manager.get_model_stats(conn, start, end)
 
     def get_model_rankings(
         self, start: datetime, end: datetime
     ) -> Dict[str, List[Tuple[str, float]]]:
         """Get model rankings based on different metrics"""
-        return self.usage_manager.get_model_rankings(start, end)
+        conn = self.connection_manager.get_connection()
+        return self.usage_manager.get_model_rankings(conn, start, end)
 
     def purge(self) -> None:
         """Delete all usage entries from the database"""
@@ -68,7 +73,8 @@ class SQLiteBackend(BaseBackend):
 
     def tail(self, n: int = 10) -> List[UsageEntry]:
         """Get the n most recent usage entries"""
-        return self.usage_manager.tail(n)
+        conn = self.connection_manager.get_connection()
+        return self.usage_manager.tail(conn, n)
 
     def close(self) -> None:
         """Close the SQLAlchemy database connection"""
@@ -108,8 +114,9 @@ class SQLiteBackend(BaseBackend):
         project_name: Optional[str] = None,
         filter_project_null: Optional[bool] = None, 
     ) -> float:
+        conn = self.connection_manager.get_connection()
         return self.usage_manager.get_accounting_entries_for_quota(
-            start_time, end_time, limit_type, interval_unit, model, username, caller_name, project_name, filter_project_null
+            conn, start_time, end_time, limit_type, interval_unit, model, username, caller_name, project_name, filter_project_null
         )
 
     def delete_usage_limit(self, limit_id: int) -> None:
@@ -144,4 +151,5 @@ class SQLiteBackend(BaseBackend):
 
     def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
         """Retrieve aggregated usage costs for a user."""
-        return self.usage_manager.get_usage_costs(user_id, start_date, end_date)
+        conn = self.connection_manager.get_connection()
+        return self.usage_manager.get_usage_costs(conn, user_id, start_date, end_date)

@@ -1,18 +1,17 @@
-# Development dependencies
-pytest>=7.0.0
-pytest-cov>=4.1.0
-black>=23.0.0
-isort>=5.12.0
-flake8>=6.0.0
-mypy>=1.0.0
-sqlalchemy>=2.0.0
-alembic>=1.13.0
-
-# Build dependencies
-hatchling>=1.18.0
-build>=1.0.0
-twine>=4.0.0
-setuptools
-
-# LLM Accounting Backends
-psycopg2-binary>=2.9,<3.0
+alembic==1.13.1
+click==8.1.7
+colorama==0.4.6
+coverage==7.5.4
+Faker==25.0.0
+freezegun==1.5.1
+packaging==24.1
+psycopg2-binary==2.9.9
+pytest==8.3.5
+pytest-asyncio==0.23.7
+pytest-cov==5.0.0
+pytest-mock==3.14.0
+python-dotenv==1.0.1
+pytz==2024.1
+SQLAlchemy==2.0.30
+typer==0.12.3
+cachetools==5.3.3

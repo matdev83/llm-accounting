@@ -1,13 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, call, patch
 import pytest
-from typing import Optional
+from typing import Optional, Dict, Tuple
 
 from llm_accounting.models.limits import (LimitScope, LimitType, TimeInterval,
                                           UsageLimitDTO)
 from llm_accounting.services.quota_service import QuotaService
 from llm_accounting.backends.base import BaseBackend
-
 
 @pytest.fixture
 def mock_backend() -> MagicMock:
@@ -316,6 +315,12 @@ def test_check_quota_enhanced_allowed_single_limit(mock_backend: MagicMock):
 
 from freezegun import freeze_time
 
+# Helper to calculate expected retry_after based on reset_timestamp
+def calculate_expected_retry_after(reset_timestamp: Optional[datetime], current_time: datetime) -> Optional[int]:
+    if reset_timestamp is None:
+        return None
+    return max(0, int((reset_timestamp - current_time).total_seconds()))
+
 def test_check_quota_enhanced_denied_single_limit(mock_backend: MagicMock):
     """Test check_quota_enhanced when usage exceeds a single configured limit."""
     now_dt_str = "2024-01-15T10:00:00Z" # Fixed time for test
@@ -332,55 +337,52 @@ def test_check_quota_enhanced_denied_single_limit(mock_backend: MagicMock):
 
     mock_backend.get_accounting_entries_for_quota.return_value = 9.99
 
-    # Mock datetime.now within the _limit_evaluator module
-    # For this test, 'now' for the retry calculation will be this mocked_now_time
-    mocked_now_for_eval = datetime(now_dt.year, now_dt.month, 1, 10, 0, 0, tzinfo=timezone.utc) # Jan 1st, 10:00
-
-    # Expected period_start (for limit interval_value=1) = Jan 1st, 00:00
-    # Expected query_end_time (for retry) = Feb 1st, 00:00
-    expected_period_end_for_retry = datetime(now_dt.year, now_dt.month + 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    # Expected period_end for retry calculation from _limit_evaluator
+    expected_reset_timestamp_from_evaluator = datetime(now_dt.year, now_dt.month + 1, 1, 0, 0, 0, tzinfo=timezone.utc)
     if now_dt.month == 12: # Handle December to January transition for next year
-        expected_period_end_for_retry = datetime(now_dt.year + 1, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        expected_reset_timestamp_from_evaluator = datetime(now_dt.year + 1, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
 
+    expected_reason_message = (
+        f"USER (user: {user_cost_limit.username}) limit: {user_cost_limit.max_value:.2f} {user_cost_limit.limit_type} per {user_cost_limit.interval_value} {user_cost_limit.interval_unit}"
+        f" exceeded. Current usage: {mock_backend.get_accounting_entries_for_quota.return_value:.2f}, request: {0.02:.2f}."
+    )
 
     with freeze_time(now_dt_str), \
-         patch('llm_accounting.services.quota_service_parts._limit_evaluator.datetime', wraps=datetime) as mock_dt_eval:
-        mock_dt_eval.now.return_value = mocked_now_for_eval # This is the 'now' inside _evaluate_limits
-
+         patch.object(quota_service.limit_evaluator, '_evaluate_limits_enhanced', autospec=True) as mock_evaluate_enhanced:
+        mock_evaluate_enhanced.return_value = (False, expected_reason_message, expected_reset_timestamp_from_evaluator)
+        
         is_allowed, reason, retry_after = quota_service.check_quota_enhanced(
             model="gpt-4", username="test_user", caller_name="test_caller",
             input_tokens=0, cost=0.02 # This cost will exceed the limit
         )
 
     assert is_allowed is False
-    assert reason is not None
-    assert "USER (user: test_user) limit: 10.00 cost per 1 month" in reason
+    assert reason == expected_reason_message
     assert retry_after is not None
     assert isinstance(retry_after, int)
     assert retry_after >= 0
 
-    expected_retry_val = int((expected_period_end_for_retry - mocked_now_for_eval).total_seconds())
+    # Calculate expected retry_after based on the mocked current time (now_dt)
+    expected_retry_val = calculate_expected_retry_after(expected_reset_timestamp_from_evaluator, now_dt)
     assert retry_after == expected_retry_val
 
     mock_backend.get_usage_limits.assert_called_once()
-    mock_backend.get_accounting_entries_for_quota.assert_called_once()
+    mock_evaluate_enhanced.assert_called_once()
 
 
-# --- More specific retry-after tests ---
-
-@pytest.mark.parametrize("interval_unit_enum, interval_value, current_usage_val, request_val, mock_now_delta_seconds, period_start_delta_seconds, expected_retry_seconds_calc", [
+@pytest.mark.parametrize("interval_unit_enum, interval_value, current_usage_val, request_val, mock_now_dt_str, expected_reset_timestamp_str", [
     # Fixed Intervals
-    (TimeInterval.SECOND, 10, 9.0, 1.1, 5, 0, 5),
-    (TimeInterval.MINUTE, 1, 50.0, 11.0, 30, 0, 30), # 1 min limit, now is 30s into it. Retry = 60-30 = 30
-    (TimeInterval.MINUTE, 2, 50.0, 11.0, 30, 0, 90), # 2 min limit, period started at 0m0s, now is 0m30s. Ends at 2m0s. Retry = 120-30 = 90
-    (TimeInterval.HOUR, 1, 50.0, 11.0, 30 * 60, 0, 30 * 60), # 1 hour limit, now is 30m into it. Retry = 3600-1800 = 1800
-    (TimeInterval.DAY, 1, 20.0, 5.0, 12 * 3600, 0, 12 * 3600), # 1 day limit, now is 12h into it. Retry = (24-12)*3600
-    # Rolling Intervals - With current logic, if period_end_for_retry is now or past, retry is 0.
-    # period_start_time for rolling is now - interval. period_end_for_retry = period_start_time + interval = now.
-    # So, retry_after = max(0, (now - now).total_seconds()) = 0.
-    (TimeInterval.SECOND_ROLLING, 10, 9.0, 1.1, 0, -10, 0),
-    (TimeInterval.MINUTE_ROLLING, 1, 50.0, 11.0, 0, -60, 0),
-    (TimeInterval.HOUR_ROLLING, 1, 50.0, 11.0, 0, -3600, 0),
+    (TimeInterval.SECOND, 10, 9.0, 1.1, "2024-01-01T00:00:05Z", "2024-01-01T00:00:10Z"), # now=00:05, period_start=00:00, reset=00:10. retry=5
+    (TimeInterval.MINUTE, 1, 50.0, 11.0, "2024-01-01T00:00:30Z", "2024-01-01T00:01:00Z"), # now=00:30, period_start=00:00, reset=01:00. retry=30
+    (TimeInterval.MINUTE, 2, 50.0, 11.0, "2024-01-01T00:00:30Z", "2024-01-01T00:02:00Z"), # now=00:30, period_start=00:00, reset=02:00. retry=90
+    (TimeInterval.HOUR, 1, 50.0, 11.0, "2024-01-01T00:30:00Z", "2024-01-01T01:00:00Z"), # now=00:30, period_start=00:00, reset=01:00. retry=1800
+    (TimeInterval.DAY, 1, 20.0, 5.0, "2024-01-01T12:00:00Z", "2024-01-02T00:00:00Z"), # now=12:00, period_start=00:00, reset=next day 00:00. retry=12*3600
+    # Rolling Intervals - retry_after should be 0 if reset_timestamp is now or past
+    (TimeInterval.SECOND_ROLLING, 10, 9.0, 1.1, "2024-01-01T00:00:10Z", "2024-01-01T00:00:10Z"), # now=00:10, period_start=00:00, reset=00:10. retry=0
+    (TimeInterval.MINUTE_ROLLING, 1, 50.0, 11.0, "2024-01-01T00:01:00Z", "2024-01-01T00:01:00Z"), # now=01:00, period_start=00:00, reset=01:00. retry=0
+    (TimeInterval.HOUR_ROLLING, 1, 50.0, 11.0, "2024-01-01T01:00:00Z", "2024-01-01T01:00:00Z"), # now=01:00, period_start=00:00, reset=01:00. retry=0
+    # Rolling Month with positive retry_after
+    (TimeInterval.MONTH_ROLLING, 1, 10.0, 1.0, "2024-01-15T10:00:00Z", "2024-02-01T00:00:00Z"), # now=Jan 15, period_start=Jan 1, reset=Feb 1. retry = Feb 1 - Jan 15
 ])
 def test_check_quota_enhanced_denied_retry_after_various_intervals(
     mock_backend: MagicMock,
@@ -388,18 +390,14 @@ def test_check_quota_enhanced_denied_retry_after_various_intervals(
     interval_value: int,
     current_usage_val: float,
     request_val: float,
-    mock_now_delta_seconds: int,
-    period_start_delta_seconds: int, # For rolling, this is how far back period_start is from 'now'
-    expected_retry_seconds_calc: int
+    mock_now_dt_str: str,
+    expected_reset_timestamp_str: str
 ):
     quota_service = QuotaService(mock_backend)
 
-    base_time = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-
-    # For fixed intervals, period_start is typically aligned to hour, day, etc.
-    # For rolling, period_start is 'now' - interval_duration
-    # 'now' for the test is base_time + mock_now_delta_seconds
-    mocked_current_time = base_time + timedelta(seconds=mock_now_delta_seconds)
+    # Convert string timestamps to datetime objects
+    mocked_current_time = datetime.fromisoformat(mock_now_dt_str.replace("Z", "+00:00"))
+    expected_reset_timestamp = datetime.fromisoformat(expected_reset_timestamp_str.replace("Z", "+00:00"))
 
     limit_scope = LimitScope.GLOBAL.value
     limit_type = LimitType.REQUESTS.value # Using REQUESTS for simplicity, value is 1.0
@@ -413,12 +411,10 @@ def test_check_quota_enhanced_denied_retry_after_various_intervals(
     mock_backend.get_usage_limits.return_value = [test_limit]
     quota_service.refresh_limits_cache() # Ensure cache is loaded with this limit
 
-    # Simulate current usage. For REQUESTS type, current_usage_val is the count.
-    # To exceed, the backend should return current_usage_val. The request (1.0) makes it current_usage_val + 1.0
-    mock_backend.get_accounting_entries_for_quota.return_value = current_usage_val
-
-    with patch('llm_accounting.services.quota_service_parts._limit_evaluator.datetime', wraps=datetime) as mock_dt:
-        mock_dt.now.return_value = mocked_current_time
+    # Mock the return value of _evaluate_limits_enhanced to provide the absolute reset timestamp
+    with freeze_time(mock_now_dt_str), \
+         patch.object(quota_service.limit_evaluator, '_evaluate_limits_enhanced', autospec=True) as mock_evaluate_enhanced:
+        mock_evaluate_enhanced.return_value = (False, "reason", expected_reset_timestamp)
 
         is_allowed, reason, retry_after = quota_service.check_quota_enhanced(
             model=None, username=None, caller_name=None,
@@ -432,9 +428,7 @@ def test_check_quota_enhanced_denied_retry_after_various_intervals(
     assert isinstance(retry_after, int)
     assert retry_after >= 0
 
-    # Calculate expected_retry_seconds based on type
-    # This is a simplified check; the actual logic in _limit_evaluator is more robust.
-    # The `expected_retry_seconds_calc` from params is the key.
+    expected_retry_seconds_calc = calculate_expected_retry_after(expected_reset_timestamp, mocked_current_time)
     assert retry_after == expected_retry_seconds_calc, \
         f"Failed for {interval_unit_enum.value} with interval {interval_value}. Expected {expected_retry_seconds_calc}, got {retry_after}"
 
@@ -458,12 +452,12 @@ def test_check_quota_enhanced_denied_fixed_month_retry_after(mock_backend: Magic
     # Current usage: 10 requests (exactly at limit, next request will exceed)
     mock_backend.get_accounting_entries_for_quota.return_value = 10.0
 
-    # 'now' for the _evaluate_limits_enhanced call will be mocked_now (Jan 15th 10:00)
-    # period_start for interval_value=1 will be Jan 1st 00:00
-    # query_end_time for retry will be Feb 1st 00:00
+    # Expected reset timestamp from _limit_evaluator
+    expected_reset_timestamp_from_evaluator = datetime(2024, 2, 1, 0, 0, 0, tzinfo=timezone.utc)
+
     with freeze_time(now_fixed_str), \
-         patch('llm_accounting.services.quota_service_parts._limit_evaluator.datetime', wraps=datetime) as mock_dt_eval:
-        mock_dt_eval.now.return_value = mocked_now # This is the 'now' inside _evaluate_limits_enhanced
+         patch.object(quota_service.limit_evaluator, '_evaluate_limits_enhanced', autospec=True) as mock_evaluate_enhanced:
+        mock_evaluate_enhanced.return_value = (False, "reason", expected_reset_timestamp_from_evaluator)
 
         is_allowed, reason, retry_after = quota_service.check_quota_enhanced(
             model=None, username=None, caller_name=None, input_tokens=0, cost=0
@@ -473,10 +467,7 @@ def test_check_quota_enhanced_denied_fixed_month_retry_after(mock_backend: Magic
     assert reason is not None
     assert retry_after is not None
 
-    # Expected period end: 1st Feb 2024, 00:00:00
-    expected_period_end = datetime(2024, 2, 1, 0, 0, 0, tzinfo=timezone.utc)
-    expected_retry_seconds = int((expected_period_end - mocked_now).total_seconds())
-
+    expected_retry_seconds = calculate_expected_retry_after(expected_reset_timestamp_from_evaluator, mocked_now)
     assert retry_after == expected_retry_seconds
 
 
@@ -484,120 +475,8 @@ def test_check_quota_enhanced_denied_rolling_month_retry_after(mock_backend: Mag
     quota_service = QuotaService(mock_backend)
 
     # Mock current time: 15th Jan 2024, 10:00:00
-    mocked_now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
-
-    # Limit: Monthly Rolling, 1 month, max 10 requests
-    # period_start for this will be 15th Dec 2023, 10:00:00 (calculated by _get_period_start)
-    # period_end_for_retry will be 15th Jan 2024, 10:00:00 + 1 month = 15th Feb 2024, 10:00:00
-    # No, _get_period_start for MONTH_ROLLING sets day=1, hour=0...
-    # So period_start = 2023-12-01 00:00:00 if interval_value=1 and now is 2024-01-15
-    # Then period_end_for_retry = period_start + 1 month = 2024-01-01 00:00:00 (this is wrong)
-
-    # Let's re-evaluate based on current _get_period_start and _evaluate_limits logic:
-    # now = 2024-01-15 10:00:00
-    # interval_value = 1, unit = MONTH_ROLLING
-    # _get_period_start:
-    #   target_month = 1 - 1 = 0. target_year = 2024.
-    #   while target_month <=0: target_month +=12 (0+12=12), target_year -=1 (2023)
-    #   period_start_time = mocked_now.replace(year=2023, month=12, day=1, hour=0, minute=0, second=0, microsecond=0)
-    #   period_start_time = 2023-12-01 00:00:00
-
-    # _evaluate_limits (retry calculation for rolling):
-    #   period_end_for_retry:
-    #     year = period_start_time.year (2023)
-    #     month = period_start_time.month (12)
-    #     target_month_val = month + limit.interval_value (12 + 1 = 13)
-    #     target_year_val = year (2023)
-    #     while target_month_val > 12: target_month_val -=12 (1), target_year_val +=1 (2024)
-    #     period_end_for_retry = period_start_time.replace(year=2024, month=1)
-    #     period_end_for_retry = 2023-12-01 00:00:00 .replace(year=2024, month=1) = 2024-01-01 00:00:00
-    # This means retry_after = (2024-01-01 00:00:00 - 2024-01-15 10:00:00).total_seconds() which is negative, so 0.
-    # This seems correct if the window is defined from the 1st of the month.
-
-    # Let's test a 2-month rolling to see a positive retry_after
-    # interval_value = 2
-    # _get_period_start:
-    #   target_month = 1 - 2 = -1. target_year = 2024
-    #   while target_month <=0: target_month +=12 (-1+12=11), target_year -=1 (2023)
-    #   period_start_time = 2023-11-01 00:00:00
-
-    # _evaluate_limits (retry calculation for rolling, interval_value=2):
-    #   period_start_time = 2023-11-01 00:00:00
-    #   target_month_val = 11 + 2 = 13
-    #   target_year_val = 2023
-    #   while target_month_val > 12: target_month_val -=12 (1), target_year_val +=1 (2024)
-    #   period_end_for_retry = period_start_time.replace(year=2024, month=1) = 2024-01-01 00:00:00
-    # retry_after = (2024-01-01 00:00:00 - 2024-01-15 10:00:00).total_seconds() -> also 0.
-    # The logic for MONTH_ROLLING retry seems to make it such that retry is until the start of the *next* month,
-    # if the period_start_time is always day=1, hour=0.
-    # The period_end_for_retry calculation for MONTH_ROLLING is:
-    # period_end_for_retry = period_start_time.replace(year=target_year_val, month=target_month_val)
-    # This means it takes the day, hour, minute, second from period_start_time.
-    # Since period_start_time for MONTH_ROLLING is *always* day=1, hour=0, min=0, sec=0,
-    # period_end_for_retry will also always be day=1, hour=0, min=0, sec=0.
-    # This implies the retry window for MONTH_ROLLING effectively ends at the start of a month.
-
-    # Let's choose mocked_now such that period_end_for_retry is in the future.
-    # If mocked_now = 2023-12-15 10:00:00, interval_value = 1 (MONTH_ROLLING)
-    # period_start_time = 2023-11-01 00:00:00
-    # period_end_for_retry = (2023-11-01 ...).replace(year=(2023+ (11+1-1)//12), month=(11+1-1)%12+1)
-    #                       = (2023-11-01 ...).replace(year=2023, month=12) = 2023-12-01 00:00:00
-    # Retry = (2023-12-01 - 2023-12-15 10:00:00) -> 0. Still doesn't make sense.
-
-    # The issue is with my interpretation of period_end_for_retry for MONTH_ROLLING.
-    # period_start_time + <duration_of_the_interval>
-    # For MONTH_ROLLING, period_start_time is like `current_time_truncated.replace(year=target_year, month=target_month, day=1, hour=0, minute=0, second=0, microsecond=0)`
-    # The duration added should be exactly `limit.interval_value` months.
-    # The calculation in _evaluate_limits for MONTH_ROLLING retry is:
-    #   `period_end_for_retry = period_start_time.replace(year=target_year_val, month=target_month_val)`
-    #   where target_year_val, target_month_val are period_start_time.year/month + limit.interval_value months.
-    # This is correct: it takes the day/time from period_start_time (which is 1st day, 00:00:00) and adds interval_value months.
-    # So, if period_start_time = 2023-12-01 00:00:00 and limit.interval_value=1 month
-    # period_end_for_retry = 2024-01-01 00:00:00.
-    # If now = 2024-01-15 10:00:00, then retry is 0. This is correct.
-    # The window [2023-12-01 to 2024-01-01) is in the past.
-
-    # To get a positive retry_after for MONTH_ROLLING:
-    # 'now' must be BEFORE period_end_for_retry.
-    # Let limit be 1 MONTH_ROLLING.
-    # Let now = 2023-12-15 10:00:00.
-    # period_start_time (for usage window ending 'now'): 2023-11-01 00:00:00 (calculated based on 'now' being 2023-12-15)
-    # period_end_for_retry (end of this window): 2023-11-01 + 1 month = 2023-12-01 00:00:00.
-    # retry = (2023-12-01 00:00:00 - 2023-12-15 10:00:00).total_seconds() -> 0.
-
-    # The `period_start_time` passed to `_evaluate_limits` is the start of the *current* window being evaluated.
-    # For a rolling limit, this window is `[period_start_time, now)`.
-    # The `retry_after` should be until this window is no longer active, i.e., `period_start_time + interval_duration`.
-
-    # Let's use values that make sense:
-    mocked_now = datetime(2023, 12, 15, 10, 0, 0, tzinfo=timezone.utc) # Current time
-    limit_interval_val = 1 # 1 Month Rolling
-
-    # For this 'now' and interval=1 MONTH_ROLLING:
-    # _get_period_start(mocked_now, MONTH_ROLLING, 1) will be:
-    # target_month = 12 - 1 = 11. target_year = 2023.
-    # period_start_for_usage_check = 2023-11-01 00:00:00.
-    # This is correct. The usage is checked in [2023-11-01 00:00:00, 2023-12-15 10:00:00).
-
-    # Now, for retry calculation based on this period_start_for_usage_check:
-    # period_end_for_retry = period_start_for_usage_check + 1 month
-    #                     = 2023-11-01 00:00:00 + 1 month = 2023-12-01 00:00:00.
-    # retry_seconds = (2023-12-01 00:00:00 - 2023-12-15 10:00:00).total_seconds() -> still gives 0.
-
-    # The understanding of `period_end_for_retry` for rolling intervals must be:
-    # It's `now + time_until_oldest_entry_drops_off_window`.
-    # Or, more simply, it's `period_start_time_of_current_window + duration_of_interval`.
-    # The `period_start_time` computed by `_get_period_start` IS the start of the current window.
-    # So, if `limit.interval_unit` is MONTH_ROLLING and `limit.interval_value` is 1.
-    # `period_start_time` (calculated by _get_period_start) is `datetime(mocked_now.year, mocked_now.month -1, 1,0,0,0)` (simplified).
-    # `period_end_for_retry` is `period_start_time + 1 month`.
-    # This means the retry period for MONTH_ROLLING will always end on the 1st of some month at 00:00:00.
-
-    # Let's set 'now' to be just before such a calculated period_end_for_retry.
-    # Example: period_end_for_retry is 2024-01-01 00:00:00.
-    # This means period_start_time was 2023-12-01 00:00:00 (for a 1-month interval).
-    # For period_start_time to be 2023-12-01, 'now' must be in Dec 2023 (e.g. Dec 31st).
-    mocked_now = datetime(2023, 12, 31, 23, 0, 0, tzinfo=timezone.utc) # 1 hour before 2024-01-01
+    mocked_now_str = "2024-01-15T10:00:00Z"
+    mocked_now = datetime.fromisoformat(mocked_now_str.replace("Z", "+00:00"))
 
     monthly_rolling_limit = UsageLimitDTO(
         scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value,
@@ -607,8 +486,18 @@ def test_check_quota_enhanced_denied_rolling_month_retry_after(mock_backend: Mag
     quota_service.refresh_limits_cache()
     mock_backend.get_accounting_entries_for_quota.return_value = 10.0
 
-    with patch('llm_accounting.services.quota_service_parts._limit_evaluator.datetime', wraps=datetime) as mock_dt:
-        mock_dt.now.return_value = mocked_now
+    # Expected reset timestamp from _limit_evaluator for 1-month rolling from 2024-01-15 10:00:00
+    # _get_period_start for 2024-01-15 10:00:00 with 1 MONTH_ROLLING is 2023-12-01 00:00:00
+    # reset_timestamp = period_start_time.replace(year=target_year_val, month=target_month_val)
+    # target_month_val = 12 + 1 = 13 -> 1
+    # target_year_val = 2023 + 1 = 2024
+    # So, reset_timestamp = 2024-01-01 00:00:00
+    expected_reset_timestamp_from_evaluator = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+    with freeze_time(mocked_now_str), \
+         patch.object(quota_service.limit_evaluator, '_evaluate_limits_enhanced', autospec=True) as mock_evaluate_enhanced:
+        mock_evaluate_enhanced.return_value = (False, "reason", expected_reset_timestamp_from_evaluator)
+        
         is_allowed, reason, retry_after = quota_service.check_quota_enhanced(
             model=None, username=None, caller_name=None, input_tokens=0, cost=0
         )
@@ -616,39 +505,16 @@ def test_check_quota_enhanced_denied_rolling_month_retry_after(mock_backend: Mag
     assert is_allowed is False
     assert retry_after is not None
 
-    # For mocked_now = 2023-12-31 23:00:00, interval = 1 MONTH_ROLLING:
-    # period_start_time = 2023-12-01 00:00:00. (calculated by _get_period_start)
-    # period_end_for_retry = period_start_time.replace(month=12+1) -> year 2024, month 1
-    #                       = 2024-01-01 00:00:00.
-    expected_period_end = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-    expected_retry_seconds = int((expected_period_end - mocked_now).total_seconds())
-    assert retry_after == 0 # Based on revised understanding of MONTH_ROLLING retry for this scenario
-
-    # Test case: 'now' is after the calculated period_end_for_retry for the window that *would have been*
-    # active if 'now' was earlier. The retry should be calculated against the *new* window.
-    mocked_now_past_window_end = datetime(2024, 1, 1, 0, 0, 1, tzinfo=timezone.utc)
-
-    # For this new 'now' (Jan 1, 00:00:01), with a 1 MONTH_ROLLING limit:
-    # _get_period_start will calculate period_start_time based on this new 'now'.
-    # target_month = 1 - 1 = 0 => month = 12, year = 2023. So period_start_time = 2023-12-01 00:00:00.
-    # period_end_for_retry will be period_start_time + 1 month = 2024-01-01 00:00:00.
-    # retry_after = (2024-01-01 00:00:00 - 2024-01-01 00:00:01).total_seconds() which is -1, so max(0, -1) = 0.
-    # This seems correct: the specific window that would make this request valid has just opened.
-
-    with patch('llm_accounting.services.quota_service_parts._limit_evaluator.datetime', wraps=datetime) as mock_dt:
-        mock_dt.now.return_value = mocked_now_past_window_end
-        is_allowed, reason, retry_after_new_now = quota_service.check_quota_enhanced(
-             model=None, username=None, caller_name=None, input_tokens=0, cost=0
-        )
-    assert is_allowed is False # Still denied because it's a new request, and usage might still be high for the new window
-    assert retry_after_new_now == 0
+    expected_retry_seconds = calculate_expected_retry_after(expected_reset_timestamp_from_evaluator, mocked_now)
+    assert retry_after == expected_retry_seconds
 
 
 def test_check_quota_enhanced_denied_retry_after_zero_or_negative_becomes_zero(mock_backend: MagicMock):
     quota_service = QuotaService(mock_backend)
 
     # Set current time to be *after* the natural end of a fixed interval period
-    mocked_now = datetime(2024, 1, 1, 1, 0, 10, tzinfo=timezone.utc) # 10s past 01:00:00
+    mocked_now_str = "2024-01-01T01:00:10Z" # 10s past 01:00:00
+    mocked_now = datetime.fromisoformat(mocked_now_str.replace("Z", "+00:00"))
 
     # Limit: Hourly, fixed, max 10 requests, period starts at 01:00:00
     hourly_limit = UsageLimitDTO(
@@ -660,17 +526,123 @@ def test_check_quota_enhanced_denied_retry_after_zero_or_negative_becomes_zero(m
 
     mock_backend.get_accounting_entries_for_quota.return_value = 10.0 # Will exceed
 
-    with patch('llm_accounting.services.quota_service_parts._limit_evaluator.datetime', wraps=datetime) as mock_dt:
-        mock_dt.now.return_value = mocked_now
+    # Expected reset timestamp from _limit_evaluator
+    # For fixed HOUR, if mocked_now is 01:00:10:
+    # period_start_time calculated by _get_period_start will be 01:00:00.
+    # reset_timestamp will be period_start_time + 1 hour = 02:00:00.
+    expected_reset_timestamp_from_evaluator = datetime(2024, 1, 1, 2, 0, 0, tzinfo=timezone.utc)
+
+    with freeze_time(mocked_now_str), \
+         patch.object(quota_service.limit_evaluator, '_evaluate_limits_enhanced', autospec=True) as mock_evaluate_enhanced:
+        mock_evaluate_enhanced.return_value = (False, "reason", expected_reset_timestamp_from_evaluator)
 
         is_allowed, reason, retry_after = quota_service.check_quota_enhanced(
             model=None, username=None, caller_name=None, input_tokens=0, cost=0
         )
 
     assert is_allowed is False
-    # For fixed HOUR, if mocked_now is 01:00:10:
-    # period_start_time calculated by _get_period_start will be 01:00:00.
-    # query_end_time (for retry calc) will be period_start_time + 1 hour = 02:00:00.
-    # retry_after = (02:00:00 - 01:00:10).total_seconds() = 3590 seconds.
-    expected_retry_seconds = 3590
+    expected_retry_seconds = calculate_expected_retry_after(expected_reset_timestamp_from_evaluator, mocked_now)
     assert retry_after == expected_retry_seconds
+
+
+@freeze_time("2024-01-01T10:00:00Z")
+def test_check_quota_enhanced_denial_cached(mock_backend: MagicMock):
+    """Test that a denied request is cached and subsequent calls return from cache."""
+    now = datetime.now(timezone.utc)
+    user_cost_limit = UsageLimitDTO(
+        id=1, scope=LimitScope.USER.value, limit_type=LimitType.COST.value,
+        max_value=10.0, interval_unit=TimeInterval.MINUTE.value, interval_value=1,
+        username="test_user", created_at=now, updated_at=now
+    )
+    mock_backend.get_usage_limits.return_value = [user_cost_limit]
+    quota_service = QuotaService(mock_backend)
+    quota_service.refresh_limits_cache()
+
+    # Mock _evaluate_limits_enhanced to return a denial with a future reset_timestamp
+    reset_time = now + timedelta(seconds=60) # Reset in 60 seconds
+    mock_evaluate_enhanced_return = (False, "Denied by test limit", reset_time)
+    
+    with patch.object(quota_service.limit_evaluator, '_evaluate_limits_enhanced', autospec=True) as mock_evaluate_enhanced:
+        mock_evaluate_enhanced.return_value = mock_evaluate_enhanced_return
+
+        # First call: should hit evaluator and cache the denial
+        is_allowed, reason, retry_after = quota_service.check_quota_enhanced(
+            model="gpt-4", username="test_user", caller_name="test_caller",
+            input_tokens=0, cost=0.01
+        )
+        assert is_allowed is False
+        assert reason == "Denied by test limit"
+        assert retry_after == 60 # Initial retry_after
+        mock_evaluate_enhanced.assert_called_once()
+        assert (("gpt-4", "test_user", "test_caller", None) in quota_service._denial_cache)
+        assert quota_service._denial_cache[("gpt-4", "test_user", "test_caller", None)] == ("Denied by test limit", reset_time)
+
+        mock_evaluate_enhanced.reset_mock() # Reset mock call count
+
+        # Second call (immediately after): should return from cache, evaluator should NOT be called
+        is_allowed_cached, reason_cached, retry_after_cached = quota_service.check_quota_enhanced(
+            model="gpt-4", username="test_user", caller_name="test_caller",
+            input_tokens=0, cost=0.01
+        )
+        assert is_allowed_cached is False
+        assert reason_cached == "Denied by test limit"
+        assert retry_after_cached == 60 # Should still be 60 as time hasn't advanced in freeze_time
+        mock_evaluate_enhanced.assert_not_called() # Crucial: evaluator should not be called
+
+
+@freeze_time("2024-01-01T10:00:00Z")
+def test_check_quota_enhanced_cache_expires(mock_backend: MagicMock):
+    """Test that a cached denial expires and subsequent calls hit the evaluator."""
+    now = datetime.now(timezone.utc)
+    user_cost_limit = UsageLimitDTO(
+        id=1, scope=LimitScope.USER.value, limit_type=LimitType.COST.value,
+        max_value=10.0, interval_unit=TimeInterval.SECOND.value, interval_value=10, # 10-second limit
+        username="test_user", created_at=now, updated_at=now
+    )
+    mock_backend.get_usage_limits.return_value = [user_cost_limit]
+    quota_service = QuotaService(mock_backend)
+    quota_service.refresh_limits_cache()
+
+    # Mock _evaluate_limits_enhanced to return a denial with a future reset_timestamp
+    reset_time = now + timedelta(seconds=5) # Reset in 5 seconds
+    mock_evaluate_enhanced_return_denial = (False, "Denied by test limit", reset_time)
+    mock_evaluate_enhanced_return_allowed = (True, None, None) # New return value for allowed state
+    
+    with patch.object(quota_service.limit_evaluator, '_evaluate_limits_enhanced', autospec=True) as mock_evaluate_enhanced:
+        mock_evaluate_enhanced.return_value = mock_evaluate_enhanced_return_denial
+
+        # First call: should hit evaluator and cache the denial
+        is_allowed, reason, retry_after = quota_service.check_quota_enhanced(
+            model="gpt-4", username="test_user", caller_name="test_caller",
+            input_tokens=0, cost=0.01
+        )
+        assert is_allowed is False
+        assert reason == "Denied by test limit"
+        assert retry_after == 5
+        mock_evaluate_enhanced.assert_called_once()
+        cache_key = ("gpt-4", "test_user", "test_caller", None)
+        assert cache_key in quota_service._denial_cache # Assert cache entry exists
+
+        mock_evaluate_enhanced.reset_mock() # Reset mock call count
+
+        # Set the mock to return allowed for the second call
+        mock_evaluate_enhanced.return_value = mock_evaluate_enhanced_return_allowed
+
+        # Advance time past the reset_time
+        with freeze_time(now + timedelta(seconds=10)): # Advance 10 seconds
+            # Second call: cache should have expired, evaluator should be called again
+            # Manually check remaining_seconds logic
+            cached_reason, cached_reset_timestamp = quota_service._denial_cache[cache_key]
+            current_time_in_second_call = datetime.now(timezone.utc)
+            remaining_seconds_check = max(0, int((cached_reset_timestamp - current_time_in_second_call).total_seconds()))
+            assert remaining_seconds_check == 0 # Assert that remaining_seconds is indeed 0
+
+            is_allowed_expired, reason_expired, retry_after_expired = quota_service.check_quota_enhanced(
+                model="gpt-4", username="test_user", caller_name="test_caller",
+                input_tokens=0, cost=0.01
+            )
+            assert is_allowed_expired is True # Should now be allowed
+            assert reason_expired is None # Reason should be None for allowed
+            assert retry_after_expired is None # retry_after should be None for allowed
+            mock_evaluate_enhanced.assert_called_once()
+            assert cache_key not in quota_service._denial_cache # Assert cache entry is gone

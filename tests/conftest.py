@@ -29,7 +29,9 @@ import llm_accounting.models
 # except Exception as e:
 #     logging.getLogger(__name__).error(f"Error clearing metadata in tests/conftest.py: {e}")
 
-logging.basicConfig(level=logging.INFO) # Ensure logging is configured
+# Configure logging for the llm_accounting module to show DEBUG messages
+logging.basicConfig(level=logging.DEBUG) # Set root logger to DEBUG
+logging.getLogger('llm_accounting').setLevel(logging.DEBUG) # Explicitly set llm_accounting logger to DEBUG
 logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="session", autouse=True)

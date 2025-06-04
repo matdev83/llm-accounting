@@ -43,12 +43,9 @@ def make_call_and_track(
     completion_tokens: int,
     cost: float,
     caller_name: str = "test_caller",
-    timestamp: datetime = None,
 ):
-    if timestamp is None:
-        timestamp = datetime.now(timezone.utc).replace(microsecond=0)
-    else:
-        timestamp = timestamp.replace(microsecond=0)
+    # timestamp is now controlled by freezegun and accessed via datetime.now(timezone.utc)
+    # No need for a timestamp parameter here, as it's implicitly handled by freezegun.
 
     allowed, message = acc_instance.check_quota(
         model=model,
@@ -66,13 +63,14 @@ def make_call_and_track(
             prompt_tokens=input_tokens,
             completion_tokens=completion_tokens,
             cost=cost,
-            timestamp=timestamp,
+            timestamp=datetime.now(timezone.utc), # Use current frozen time
         )
     return allowed, message
 
 
 @freeze_time("2023-01-01 00:00:00", tz_offset=0)
 def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlite_backend_for_accounting: SQLiteBackend):
+    from datetime import timedelta # Ensure timedelta is in scope
     backend = sqlite_backend_for_accounting # alias for convenience
 
     # 1. Define and Insert Limits
@@ -80,11 +78,11 @@ def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlit
         # GL1: Global Daily Requests
         UsageLimitDTO(scope=LimitScope.GLOBAL.value, limit_type=LimitType.REQUESTS.value, max_value=100, interval_unit=TimeInterval.DAY.value, interval_value=1, project_name=None, model=None, username=None, caller_name=None),
         # UM1: Tokens/User-Model/Min
-        UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.OUTPUT_TOKENS.value, max_value=1000, interval_unit=TimeInterval.MINUTE.value, interval_value=1, project_name=None, caller_name=None),
+        UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.OUTPUT_TOKENS.value, max_value=1000, interval_unit=TimeInterval.MINUTE_ROLLING.value, interval_value=1, project_name=None, caller_name=None),
         # UM2: Calls/User-Model/Min (Increased to avoid hitting before token limit in Scenario 2, original value was 5)
-        UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.REQUESTS.value, max_value=1000, interval_unit=TimeInterval.MINUTE.value, interval_value=1, project_name=None, caller_name=None),
+        UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.REQUESTS.value, max_value=1000, interval_unit=TimeInterval.MINUTE_ROLLING.value, interval_value=1, project_name=None, caller_name=None),
         # New limit for Scenario 1: Requests/User-Model/Min for a dedicated test user
-        UsageLimitDTO(scope=LimitScope.USER.value, username="user_requests_test", model="test-model", limit_type=LimitType.REQUESTS.value, max_value=5, interval_unit=TimeInterval.MINUTE.value, interval_value=1, project_name=None, caller_name=None),
+        UsageLimitDTO(scope=LimitScope.USER.value, username="user_requests_test", model="test-model", limit_type=LimitType.REQUESTS.value, max_value=5, interval_unit=TimeInterval.MINUTE_ROLLING.value, interval_value=1, project_name=None, caller_name=None),
         # UM3: Tokens/User-Model/Day
         UsageLimitDTO(scope=LimitScope.USER.value, username="user1", model="gpt-4", limit_type=LimitType.OUTPUT_TOKENS.value, max_value=10000, interval_unit=TimeInterval.DAY.value, interval_value=1, project_name=None, caller_name=None),
         # UM4: Calls/User-Model/Day
@@ -104,42 +102,57 @@ def test_comprehensive_limit_scenarios(accounting_instance: LLMAccounting, sqlit
     accounting_instance.quota_service.refresh_limits_cache()
 
     # --- Scenario 1: User-Model Minute Requests Limit (New dedicated limit) ---
-    with freeze_time("2023-01-01 00:00:00", tz_offset=0): # Initial time
+    with freeze_time("2023-01-01 00:00:00", tz_offset=0) as freezer: # Initial time
         # Test the new 'user_requests_test' limit (max_value=5 requests/min)
         for i in range(5): # 5 calls
+            current_time = datetime(2023, 1, 1, 0, 0, i, tzinfo=timezone.utc) # Advance time by seconds
+            freezer.move_to(current_time) # Move the frozen time
             allowed, message = make_call_and_track(
-                accounting_instance, "test-model", "user_requests_test", input_tokens=1, completion_tokens=1, cost=0.0001,
-                timestamp=datetime.now(timezone.utc) + timedelta(seconds=i) # Ensure distinct timestamps
+                accounting_instance, "test-model", "user_requests_test", input_tokens=1, completion_tokens=1, cost=0.0001
             )
             assert allowed, f"Scenario 1: Call {i+1}/5 for user_requests_test should be allowed. Message: {message}"
 
         # 6th call should violate the new requests limit
+        # Advance time for the 6th call as well
+        current_time = datetime(2023, 1, 1, 0, 0, 5, tzinfo=timezone.utc) # 5 seconds after start
+        freezer.move_to(current_time)
         allowed, message = make_call_and_track(accounting_instance, "test-model", "user_requests_test", 1, 1, 0.0001)
         assert not allowed, "Scenario 1: 6th call for user_requests_test should be denied by its requests/min limit"
-        assert "USER (user: user_requests_test) limit: 5.00 requests per 1 minute exceeded. Current usage: 5.00, request: 1.00." in message, f"Scenario 1 (Requests/Min): Denial message mismatch: {message}"
+        assert "USER (user: user_requests_test) limit: 5.00 requests per 1 minute_rolling exceeded. Current usage: 5.00, request: 1.00." in message, f"Scenario 1 (Requests/Min): Denial message mismatch: {message}"
 
     # --- Scenario 2: User-Model Minute Tokens Limit (UM1) ---
-    with freeze_time("2023-01-01 00:01:00", tz_offset=0): # New minute
+    with freeze_time("2023-01-01 00:01:00", tz_offset=0) as freezer: # New minute
         # Test UM1 (Tokens/Min for user1/gpt-4), max_value=1000
         # Make 4 calls, each 200 tokens (800 tokens total, 4 requests). This is within UM2 (1000 req/min).
         for i in range(4):
-            make_call_and_track(accounting_instance, "gpt-4", "user1", 1, 200, 0.01, timestamp=datetime.now(timezone.utc) + timedelta(microseconds=i+1))
+            # Advance time slightly for each call within the same minute
+            freezer.tick(delta=timedelta(seconds=i*2)) # e.g., 00:01:00, 00:01:02, 00:01:04, 00:01:06
+            allowed_loop, message_loop = make_call_and_track(accounting_instance, "gpt-4", "user1", 1, 200, 0.01)
+            assert allowed_loop, f"Scenario 2, loop call {i+1}/4 for user1/gpt-4 (200 tokens) should be allowed. Message: {message_loop}"
 
         # 5th call, with 201 tokens. Total tokens for this minute: 800 + 201 = 1001. Should violate UM1 (1000 tokens/min).
         # This call is also the 5th request, which is well within UM2 (1000 req/min).
+        # Ensure this call is also within the same minute window
+        freezer.tick(delta=timedelta(seconds=2)) # e.g., 00:01:08
         allowed, message = make_call_and_track(accounting_instance, "gpt-4", "user1", 1, 201, 0.01)
         assert not allowed, "Scenario 2: 5th call (201 tokens) should be denied by UM1 (tokens/min)"
-        assert "USER (user: user1) limit: 1000.00 output_tokens per 1 minute exceeded. Current usage: 800.00, request: 201.00." in message, f"Scenario 2 (UM1): Denial message mismatch: {message}"
+        assert "USER (user: user1) limit: 1000.00 output_tokens per 1 minute_rolling exceeded. Current usage: 800.00, request: 201.00." in message, f"Scenario 2 (UM1): Denial message mismatch: {message}"
 
     # --- Scenario 3: User Cost Hour Limit (UH1) ---
-    with freeze_time("2023-01-01 01:00:00", tz_offset=0): # New hour: 01:00:00
+    with freeze_time("2023-01-01 01:00:00", tz_offset=0) as freezer: # New hour: 01:00:00
         # User1, any model. Cost limit UH1 is $2.00/hr.
         # Call 1: cost $1.00
+        current_time = datetime(2023, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
+        freezer.move_to(current_time)
         make_call_and_track(accounting_instance, "any-model", "user1", 1, 1, 1.00)
         # Call 2: cost $1.00
+        current_time = datetime(2023, 1, 1, 1, 0, 1, tzinfo=timezone.utc)
+        freezer.move_to(current_time)
         make_call_and_track(accounting_instance, "any-model", "user1", 1, 1, 1.00) # Total cost: $2.00
 
         # Call 3: cost $0.01. This would make total $2.01, exceeding $2.00 limit.
+        current_time = datetime(2023, 1, 1, 1, 0, 2, tzinfo=timezone.utc)
+        freezer.move_to(current_time)
         allowed, message = make_call_and_track(accounting_instance, "any-model", "user1", 1, 1, 0.01)
         assert not allowed, "Scenario 3: Call costing $0.01 should be denied by UH1"
         assert "USER (user: user1) limit: 2.00 cost per 1 hour exceeded. Current usage: 2.00, request: 0.01." in message, f"Scenario 3: Denial message mismatch: {message}"

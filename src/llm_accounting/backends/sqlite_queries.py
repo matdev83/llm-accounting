@@ -1,9 +1,12 @@
+import logging
 from datetime import datetime, timezone # Import timezone
 from typing import Dict, List, Optional, Tuple # Optional was missing
 from sqlalchemy import text
 from sqlalchemy.engine import Connection # For type hinting
 
 from llm_accounting.backends.base import UsageEntry, UsageStats
+
+logger = logging.getLogger(__name__)
 
 
 def insert_usage_query(conn: Connection, entry: UsageEntry) -> None:
@@ -14,8 +17,8 @@ def insert_usage_query(conn: Connection, entry: UsageEntry) -> None:
         # Convert to UTC, then make naive, then format
         utc_timestamp = entry.timestamp.astimezone(timezone.utc) # Corrected
         naive_utc_timestamp = utc_timestamp.replace(tzinfo=None)
-        # Using .000000 to match the query format in usage_manager.py
-        formatted_timestamp = naive_utc_timestamp.strftime('%Y-%m-%d %H:%M:%S.000000')
+        # Use full microsecond precision for storage
+        formatted_timestamp = naive_utc_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f')
 
     params = {
         "timestamp": formatted_timestamp,
@@ -34,6 +37,8 @@ def insert_usage_query(conn: Connection, entry: UsageEntry) -> None:
         "reasoning_tokens": entry.reasoning_tokens,
         "project": entry.project,
     }
+    logger.debug(f"Inserting usage with timestamp: {formatted_timestamp}")
+    logger.debug(f"Insert parameters: {params}")
     
     sql = text("""
         INSERT INTO accounting_entries (
@@ -77,9 +82,9 @@ def get_period_stats_query(
     """)
     
     # Ensure start and end times are naive UTC and formatted consistently for querying
-    fmt = '%Y-%m-%d %H:%M:%S.000000'
-    start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
-    end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
+    fmt = '%Y-%m-%d %H:%M:%S.%f' # Use full microsecond precision
+    start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
+    end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
     
     result = conn.execute(sql, {"start_time": start_naive_utc_str, "end_time": end_naive_utc_str})
     row = result.fetchone()
@@ -143,9 +148,9 @@ def get_model_stats_query(
     """)
     
     # Ensure start and end times are naive UTC and formatted consistently for querying
-    fmt = '%Y-%m-%d %H:%M:%S.000000'
-    start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
-    end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
+    fmt = '%Y-%m-%d %H:%M:%S.%f' # Use full microsecond precision
+    start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
+    end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
 
     result = conn.execute(sql, {"start_time": start_naive_utc_str, "end_time": end_naive_utc_str})
     rows = result.fetchall()
@@ -181,9 +186,9 @@ def get_model_rankings_query(
 ) -> Dict[str, List[Tuple[str, float]]]:
     """Get model rankings based on different metrics from the database using named parameters."""
     # Ensure start and end times are naive UTC and formatted consistently for querying
-    fmt = '%Y-%m-%d %H:%M:%S.000000'
-    start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
-    end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt) # Corrected
+    fmt = '%Y-%m-%d %H:%M:%S.%f' # Use full microsecond precision
+    start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
+    end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
     params = {"start_time": start_naive_utc_str, "end_time": end_naive_utc_str}
 
     prompt_tokens_sql = text("""
