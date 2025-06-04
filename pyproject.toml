@@ -43,6 +43,7 @@ test = [
     "pytest-asyncio==0.23.7",
     "pytest-cov==5.0.0",
     "pytest-mock==3.14.0",
+    "virtualenv",
 ]
 
 [project.scripts]
