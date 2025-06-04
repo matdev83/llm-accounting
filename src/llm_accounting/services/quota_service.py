@@ -168,7 +168,15 @@ class QuotaService:
             and limit.username is None # Explicitly for generic caller limits
         ]
         return self.limit_evaluator._evaluate_limits_enhanced(
-            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens, limit_scope_for_message="CALLER (caller: {caller_name})"
+            limits_to_evaluate,
+            model,
+            username,
+            caller_name,
+            project_name,
+            input_tokens,
+            cost,
+            completion_tokens,
+            limit_scope_for_message=f"CALLER (caller: {caller_name})",
         )
 
     def _check_user_caller_limits_enhanced(
