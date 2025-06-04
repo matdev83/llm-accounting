@@ -199,26 +199,49 @@ class TestAccountingEntries:
         backend = csv_backend_fixture
         now = datetime.now(timezone.utc)
         entry = AccountingEntry(id=None, model="gpt-3.5-turbo", prompt_tokens=10, completion_tokens=20, total_tokens=30, cost=0.00015, timestamp=now, username="user1", project="projA")
-        backend.insert_usage(entry) 
+        backend.insert_usage(entry)
         tailed_entries = backend.tail(n=1)
-        assert True 
+        assert len(tailed_entries) == 1
+        retrieved = tailed_entries[0]
+        # tail should return the same object that was inserted
+        assert retrieved is entry
+        assert retrieved.model == entry.model
+        assert retrieved.username == entry.username
+        assert retrieved.project == entry.project
+        assert retrieved.id is not None
 
 class TestUsageLimits:
     def test_insert_get_delete_usage_limit(self, csv_backend_fixture: CSVBackend):
         backend = csv_backend_fixture
         limit1 = UsageLimitDTO(id=None, scope=UsageLimitScope.USER, limit_type=LimitType.COST, model="gpt-4", username="test_user", max_value=10000, interval_unit="month", interval_value=1)
-        assert True 
+        backend.insert_usage_limit(limit1)
+        retrieved = backend.get_usage_limits(username="test_user")
+        assert len(retrieved) == 1
+        stored_limit = retrieved[0]
+        assert stored_limit.username == "test_user"
+        assert stored_limit.max_value == 10000
+        assert stored_limit.id is not None
+
+        backend.delete_usage_limit(stored_limit.id)
+        assert backend.get_usage_limits(username="test_user") == []
 
 class TestAuditLog:
     def test_insert_get_audit_log_entry(self, csv_backend_fixture: CSVBackend):
         backend = csv_backend_fixture
         now = datetime.now(timezone.utc)
         entry1 = AuditLogEntry(
-            id=None, timestamp=now, app_name="App1", user_name="UserA", 
-            model="ModelX", log_type="info", prompt_text="Hello", 
+            id=None, timestamp=now, app_name="App1", user_name="UserA",
+            model="ModelX", log_type="info", prompt_text="Hello",
             response_text="Hi there", remote_completion_id="remote1", project="ProjectAlpha"
         )
-        assert True 
+        backend.log_audit_event(entry1)
+        logs = backend.get_audit_log_entries(app_name="App1")
+        assert len(logs) == 1
+        retrieved = logs[0]
+        assert retrieved.app_name == "App1"
+        assert retrieved.user_name == "UserA"
+        assert retrieved.model == "ModelX"
+        assert retrieved.id is not None
 
 class TestPeriodStats:
     def test_get_period_stats_aggregation(self, csv_backend_fixture: CSVBackend):
