@@ -387,8 +387,7 @@ class QuotaServiceLimitEvaluator:
             new_hour = current_time_truncated.hour - (current_time_truncated.hour % interval_value)
             period_start = current_time_truncated.replace(hour=new_hour, minute=0, second=0, microsecond=0)
         elif interval_unit == TimeInterval.DAY:
-            if interval_value != 1:
-                pass # Original code had a pass here, keeping it for consistency though it does nothing.
+            # The calculation below handles any interval_value, so no special-case logic is required.
             start_of_current_day = current_time_truncated.replace(hour=0, minute=0, second=0, microsecond=0)
             epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
             days_since_epoch = (start_of_current_day - epoch_start).days
