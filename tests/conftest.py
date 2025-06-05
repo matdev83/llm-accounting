@@ -44,6 +44,11 @@ def clear_metadata_globally_once_for_session():
     Ensures metadata is cleared once at the beginning of the test session.
     The actual clearing is done at the module level when this conftest.py is first imported.
     """
+    import os
+    file_path = "file"
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        logger.info(f"Removed file {file_path}")
     pass
 
 @pytest.fixture(scope="class")
@@ -61,8 +66,8 @@ def temp_db_path(request):
         except OSError as e:
             logger.error(f"Error deleting temporary database file {db_path}: {e}")
 
-    request.addfinalizer(cleanup)
-    return db_path
+    yield db_path
+    cleanup()
 
 @pytest.fixture(scope="class")
 def sqlite_backend(temp_db_path):
