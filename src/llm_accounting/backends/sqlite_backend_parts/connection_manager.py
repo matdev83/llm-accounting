@@ -30,6 +30,8 @@ class SQLiteConnectionManager:
             db_connection_str = "sqlite:///:memory:"
         elif str(actual_db_path).startswith("file:"):
             db_connection_str = f"sqlite:///{actual_db_path}"
+            if "uri=true" not in actual_db_path:
+                db_connection_str += ("&" if "?" in actual_db_path else "?") + "uri=true"
         else:
             db_connection_str = f"sqlite:///{actual_db_path}"
 
