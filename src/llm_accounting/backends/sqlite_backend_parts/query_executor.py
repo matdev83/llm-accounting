@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Dict, List, Any
 from sqlalchemy import text
 
@@ -12,8 +13,16 @@ class SQLiteQueryExecutor:
         """
         Execute a raw SQL SELECT query and return results.
         """
-        if not query.strip().upper().startswith("SELECT"):
+        clean_query = query.strip()
+        if ";" in clean_query[:-1]:
+            raise ValueError("Semicolons are not allowed in custom queries.")
+        if clean_query.endswith(";"):
+            clean_query = clean_query[:-1]
+
+        if not clean_query.upper().startswith("SELECT"):
             raise ValueError("Only SELECT queries are allowed.")
+        if re.search(r"\b(PRAGMA|ATTACH|ALTER|CREATE|INSERT|UPDATE|DELETE|DROP|REPLACE|GRANT|REVOKE)\b", clean_query, re.IGNORECASE):
+            raise ValueError("Only read-only SELECT statements are allowed.")
 
         conn = self.connection_manager.get_connection()
         try:

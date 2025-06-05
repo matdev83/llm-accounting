@@ -21,17 +21,12 @@ def run_select(args, accounting: LLMAccounting):
             if args.project.upper() == "NULL":
                 conditions.append("project IS NULL")
             else:
-                # For SQLite, parameters are passed as a tuple to execute.
-                # For Neon (psycopg2), parameters are also passed as a tuple.
-                # The backend's execute_query should handle this.
-                # However, the current BaseBackend.execute_query doesn't take params.
-                # This is a limitation. For now, I will have to format the query string,
-                # which is NOT ideal due to SQL injection risks.
-                # This part of the subtask highlights a need to refactor execute_query.
-                # Given the current tools, I'll proceed with string formatting for project filtering,
-                # and add a note about this limitation.
-                # A better solution would be for execute_query to accept optional parameters.
-                conditions.append(f"project = '{args.project}'") # SQL INJECTION RISK
+                import re
+                if not re.fullmatch(r"[\w-]+", args.project):
+                    console.print("[red]Invalid project name provided.[/red]")
+                    sys.exit(1)
+                safe_project = args.project.replace("'", "''")
+                conditions.append(f"project = '{safe_project}'")
 
         if conditions:
             base_query += " WHERE " + " AND ".join(conditions)

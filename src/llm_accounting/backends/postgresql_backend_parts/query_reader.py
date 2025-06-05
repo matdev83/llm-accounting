@@ -1,6 +1,7 @@
 import logging
+import re
 import psycopg2
-import psycopg2.extras # For RealDictCursor
+import psycopg2.extras  # For RealDictCursor
 from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
 
@@ -295,10 +296,17 @@ class QueryReader:
         self.backend._ensure_connected()
         assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
 
-        # Basic validation to allow only SELECT queries.
-        if not query.lstrip().upper().startswith("SELECT"):
-            logger.error(f"Attempted to execute non-SELECT query: {query}")
+        clean_query = query.strip()
+        if ";" in clean_query[:-1]:
+            raise ValueError("Semicolons are not allowed in custom queries.")
+        if clean_query.endswith(";"):
+            clean_query = clean_query[:-1]
+
+        if not clean_query.upper().startswith("SELECT"):
+            logger.error(f"Attempted to execute non-SELECT query: {clean_query}")
             raise ValueError("Only SELECT queries are allowed for execution via this method.")
+        if re.search(r"\b(ATTACH|ALTER|CREATE|INSERT|UPDATE|DELETE|DROP|REPLACE|GRANT|REVOKE)\b", clean_query, re.IGNORECASE):
+            raise ValueError("Only read-only SELECT statements are allowed.")
 
         results = []
         try:
