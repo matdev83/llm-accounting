@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "llm-accounting"
-version = "0.1.32"
+version = "0.1.33"
 description = "A package for tracking LLM usage and costs"
 readme = "README.md"
 requires-python = ">=3.8"
