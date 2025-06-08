@@ -15,10 +15,10 @@ Here's a breakdown of the main files and directories at the project root:
 - `AGENTS.MD`: This file, detailing project structure and agent guidelines.
 - `LICENSE`: Contains the licensing information for the project.
 - `MANIFEST.in`: Specifies non-Python files to be included in the Python distribution package.
-- `pyproject.toml`: Modern Python project configuration file.
+- `pyproject.toml`: Modern Python project configuration file. All dependencies
+  are managed here; there is no separate `requirements.txt` file.
 - `pytest.ini`: Configuration for `pytest`, the testing framework.
 - `README.md`: The main project README.
-- `requirements.txt`: Lists the project's Python dependencies.
 - `setup.py`: Traditional Python setup script for packaging and distribution.
 - `tox.ini`: Configuration for `tox`, a tool for automating testing in multiple Python environments.
 - `alembic.ini`: Configuration file for Alembic, the database migration tool.
