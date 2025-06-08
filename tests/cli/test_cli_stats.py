@@ -113,11 +113,14 @@ def test_custom_db_file_usage(mock_get_accounting, capsys):
     assert "123" in captured.out
     assert "$1.2300" in captured.out
     mock_get_accounting.assert_called_once_with(
-        db_backend="sqlite", 
-        db_file="custom_test_db.sqlite", 
-        postgresql_connection_string=None, 
-        project_name=None, 
-        app_name=None, 
+        db_backend="sqlite",
+        db_file="custom_test_db.sqlite",
+        postgresql_connection_string=None,
+        audit_db_backend=None,
+        audit_db_file=None,
+        audit_postgresql_connection_string=None,
+        project_name=None,
+        app_name=None,
         user_name=None
     )
     mock_accounting_instance.__exit__.assert_called_once()
@@ -142,11 +145,14 @@ def test_default_db_file_usage(mock_get_accounting, capsys):
     assert "123" in captured.out
     assert "$1.2300" in captured.out
     mock_get_accounting.assert_called_once_with(
-        db_backend="sqlite", 
-        db_file=None, 
-        postgresql_connection_string=None, 
-        project_name=None, 
-        app_name=None, 
+        db_backend="sqlite",
+        db_file=None,
+        postgresql_connection_string=None,
+        audit_db_backend=None,
+        audit_db_file=None,
+        audit_postgresql_connection_string=None,
+        project_name=None,
+        app_name=None,
         user_name=None
     )
     mock_accounting_instance.__exit__.assert_called_once()
@@ -176,3 +182,39 @@ def test_db_file_permission_error(mock_sqlite_backend, capsys):
     assert pytest_wrapped_e.value.code == 1
     captured = capsys.readouterr()
     assert "Error: Access to protected path" in captured.out
+
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_stats_with_audit_backend(mock_get_accounting, capsys):
+    mock_accounting_instance = MagicMock()
+    mock_backend_instance = MagicMock()
+    mock_accounting_instance.backend = mock_backend_instance
+    mock_get_accounting.return_value = mock_accounting_instance
+    mock_accounting_instance.__enter__.return_value = mock_accounting_instance
+    mock_accounting_instance.__exit__.return_value = None
+    mock_backend_instance.get_period_stats.return_value = make_stats(sum_prompt_tokens=50, sum_cost=0.5)
+    mock_backend_instance.get_model_stats.return_value = []
+    mock_backend_instance.get_model_rankings.return_value = {}
+
+    with patch.object(sys, 'argv', [
+        'cli_main',
+        '--db-file', 'usage.sqlite',
+        '--audit-db-file', 'audit.sqlite',
+        '--audit-db-backend', 'sqlite',
+        'stats', '--period', 'daily'
+    ]):
+        cli_main()
+    captured = capsys.readouterr()
+    assert "Daily Stats" in captured.out
+    mock_get_accounting.assert_called_once_with(
+        db_backend='sqlite',
+        db_file='usage.sqlite',
+        postgresql_connection_string=None,
+        audit_db_backend='sqlite',
+        audit_db_file='audit.sqlite',
+        audit_postgresql_connection_string=None,
+        project_name=None,
+        app_name=None,
+        user_name=None
+    )
+    mock_accounting_instance.__exit__.assert_called_once()
+
