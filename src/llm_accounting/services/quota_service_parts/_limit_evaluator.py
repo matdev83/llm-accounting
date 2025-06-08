@@ -347,6 +347,55 @@ class QuotaServiceLimitEvaluator:
                 return False, reason_message, reset_timestamp # Return reset_timestamp
         return True, None, None # Return None for reset_timestamp if allowed
 
+    def calculate_remaining_after_usage(
+        self,
+        limit: UsageLimitDTO,
+        request_model: Optional[str],
+        request_username: Optional[str],
+        request_caller_name: Optional[str],
+        project_name_for_usage_sum: Optional[str],
+    ) -> Optional[float]:
+        """Return remaining quota for ``limit`` considering current usage."""
+        if self._should_skip_limit(
+            limit,
+            request_model,
+            request_username,
+            request_caller_name,
+            project_name_for_usage_sum,
+        ):
+            return None
+
+        if limit.max_value == -1:
+            return float("inf")
+
+        now = datetime.now(timezone.utc)
+        limit_scope_enum = LimitScope(limit.scope)
+        interval_unit_enum = TimeInterval(limit.interval_unit)
+        period_start_time = self._get_period_start(now, interval_unit_enum, limit.interval_value)
+
+        (
+            final_usage_query_model,
+            final_usage_query_username,
+            final_usage_query_caller_name,
+            final_usage_query_project_name,
+            final_usage_query_filter_project_null,
+        ) = self._prepare_usage_query_params(limit, limit_scope_enum)
+
+        current_usage = self.backend.get_accounting_entries_for_quota(
+            start_time=period_start_time,
+            end_time=now,
+            limit_type=LimitType(limit.limit_type),
+            interval_unit=interval_unit_enum,
+            model=final_usage_query_model,
+            username=final_usage_query_username,
+            caller_name=final_usage_query_caller_name,
+            project_name=final_usage_query_project_name,
+            filter_project_null=final_usage_query_filter_project_null,
+        )
+
+        remaining = float(limit.max_value) - current_usage
+        return max(remaining, 0.0)
+
     def _get_period_start(self, current_time: datetime, interval_unit: TimeInterval, interval_value: int) -> datetime:
         # Ensure current_time is UTC-aware for consistent calculations
         if current_time.tzinfo is None:

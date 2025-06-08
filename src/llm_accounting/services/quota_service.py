@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Tuple, Dict # Import Dict
+from typing import Optional, Tuple, Dict, List
 from datetime import datetime, timezone # Import datetime and timezone
 
 from ..backends.base import BaseBackend
@@ -54,6 +54,26 @@ class QuotaService:
             model, username, caller_name, input_tokens, cost, completion_tokens, project_name
         )
         return allowed, reason
+
+    def get_remaining_limits(
+        self,
+        model: Optional[str],
+        username: Optional[str],
+        caller_name: Optional[str],
+        project_name: Optional[str],
+    ) -> List[Tuple[UsageLimitDTO, float]]:
+        """Return remaining quota for all limits applicable to the request."""
+        if self.cache_manager.limits_cache is None:
+            self.cache_manager._load_limits_from_backend()
+
+        remaining_info: List[Tuple[UsageLimitDTO, float]] = []
+        for limit in self.cache_manager.limits_cache:
+            remaining = self.limit_evaluator.calculate_remaining_after_usage(
+                limit, model, username, caller_name, project_name
+            )
+            if remaining is not None:
+                remaining_info.append((limit, remaining))
+        return remaining_info
 
     # --- Enhanced Check Methods ---
 
