@@ -124,8 +124,11 @@ class UsageLimit(Base):
         return delta_map[unit]
 
 # Event listener to create the index with IF NOT EXISTS for SQLite
-event.listen(
-    UsageLimit.__table__,
-    'after_create',
-    DDL("CREATE INDEX IF NOT EXISTS ix_usage_limits_project_name ON usage_limits (project_name)").execute_if(dialect='sqlite')
-)
+for _idx_col in ["project_name", "model", "username", "caller_name"]:
+    event.listen(
+        UsageLimit.__table__,
+        "after_create",
+        DDL(
+            f"CREATE INDEX IF NOT EXISTS ix_usage_limits_{_idx_col} ON usage_limits ({_idx_col})"
+        ).execute_if(dialect="sqlite"),
+    )

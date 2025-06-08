@@ -40,7 +40,10 @@ def main():
     _check_privileged_user()
     package_version = get_version('llm-accounting')
     parser = argparse.ArgumentParser(
-        description="LLM Accounting CLI - Track and analyze LLM usage",
+        description=(
+            "LLM Accounting CLI - Track and analyze LLM usage. "
+            "Limits support '*' wildcards and max values of 0 (deny) or -1 (unlimited)."
+        ),
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument('--version', action='version', version=f'llm-accounting {package_version}')

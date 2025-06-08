@@ -154,7 +154,10 @@ def add_limits_parser(subparsers):
         help="Type of the limit (requests, input_tokens, output_tokens, total_tokens, cost)",
     )
     set_parser.add_argument(
-        "--max-value", type=float, required=True, help="Maximum value for the limit"
+        "--max-value",
+        type=float,
+        required=True,
+        help="Maximum value for the limit. Use 0 to deny usage, -1 for unlimited",
     )
     set_parser.add_argument(
         "--interval-unit",
@@ -170,18 +173,24 @@ def add_limits_parser(subparsers):
         help="Value of the time interval (e.g., 1 for '1 day')",
     )
     set_parser.add_argument(
-        "--model", type=str, help="Model name for MODEL scope limits. Can be combined with PROJECT scope."
+        "--model",
+        type=str,
+        help="Model name for MODEL scope limits (use '*' as wildcard). Can be combined with PROJECT scope.",
     )
     set_parser.add_argument(
-        "--username", type=str, help="Username for USER scope limits. Can be combined with PROJECT scope."
+        "--username",
+        type=str,
+        help="Username for USER scope limits (use '*' as wildcard). Can be combined with PROJECT scope.",
     )
     set_parser.add_argument(
-        "--caller-name", type=str, help="Caller name for CALLER scope limits. Can be combined with PROJECT scope."
+        "--caller-name",
+        type=str,
+        help="Caller name for CALLER scope limits (use '*' as wildcard). Can be combined with PROJECT scope.",
     )
     set_parser.add_argument(
-        "--project-name", # New argument for project-specific limits
-        type=str, 
-        help="The project name for a PROJECT-specific limit. Required if scope is PROJECT."
+        "--project-name",
+        type=str,
+        help="The project name for a PROJECT-specific limit (use '*' as wildcard). Required if scope is PROJECT.",
     )
     set_parser.set_defaults(func=set_limit)
 
