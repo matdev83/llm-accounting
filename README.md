@@ -85,6 +85,7 @@ print(f"Model rankings: {rankings}")
 # If used as a context manager, it will be closed automatically.
 accounting.close()
 ```
+
 *Note: The `LLMAccounting` class and its methods are synchronous. If you are integrating `llm-accounting` into an asynchronous application, you should run its synchronous calls in a separate thread (e.g., using `asyncio.to_thread`) to avoid blocking the event loop.*
 
 ### CLI Usage
@@ -93,13 +94,13 @@ accounting.close()
 
 The following options can be used with any `llm-accounting` command:
 
-*   `--db-file <path>`: Specifies the SQLite database file path. Only applicable when `--db-backend` is `sqlite`.
-*   `--db-backend <backend>`: Selects the database backend (`sqlite`, `postgresql`, or `csv`). Defaults to `sqlite`.
-*   `--csv-data-dir <path>`: Specifies the directory for CSV data files (e.g., `accounting_entries.csv`). Only applicable when `--db-backend` is `csv`. Defaults to `data/`. This option sets the `data_dir` used by `CSVBackend`.
-*   `--postgresql-connection-string <string>`: Connection string for the PostgreSQL database. Required when `--db-backend` is `postgresql`. Can also be provided via `POSTGRESQL_CONNECTION_STRING` environment variable.
-*   `--project-name <name>`: Default project name to associate with usage entries. Can be overridden by command-specific `--project`.
-*   `--app-name <name>`: Default application name to associate with usage entries. Can be overridden by command-specific `--caller-name`.
-*   `--user-name <name>`: Default user name to associate with usage entries. Can be overridden by command-specific `--username`. Defaults to current system user.
+- `--db-file <path>`: Specifies the SQLite database file path. Only applicable when `--db-backend` is `sqlite`.
+- `--db-backend <backend>`: Selects the database backend (`sqlite`, `postgresql`, or `csv`). Defaults to `sqlite`.
+- `--csv-data-dir <path>`: Specifies the directory for CSV data files (e.g., `accounting_entries.csv`). Only applicable when `--db-backend` is `csv`. Defaults to `data/`. This option sets the `data_dir` used by `CSVBackend`.
+- `--postgresql-connection-string <string>`: Connection string for the PostgreSQL database. Required when `--db-backend` is `postgresql`. Can also be provided via `POSTGRESQL_CONNECTION_STRING` environment variable.
+- `--project-name <name>`: Default project name to associate with usage entries. Can be overridden by command-specific `--project`.
+- `--app-name <name>`: Default application name to associate with usage entries. Can be overridden by command-specific `--caller-name`.
+- `--user-name <name>`: Default user name to associate with usage entries. Can be overridden by command-specific `--username`. Defaults to current system user.
 
 ```bash
 # Track a new usage entry (model name is required, timestamp is optional)
@@ -124,15 +125,15 @@ Logs a generic event to the audit log. This is useful for recording custom event
 
 **Arguments:**
 
-*   `--app-name` (string, required): Name of the application.
-*   `--user-name` (string, required): Name of the user.
-*   `--model` (string, required): Name of the LLM model associated with the event.
-*   `--log-type` (string, required): Type of the log entry (e.g., 'info', 'warning', 'error', 'feedback', or a custom type).
-*   `--prompt-text` (string, optional): Text of the prompt, if relevant.
-*   `--response-text` (string, optional): Text of the response, if relevant.
-*   `--remote-completion-id` (string, optional): ID of the remote completion, if relevant.
-*   `--project` (string, optional): Project name to associate with the event.
-*   `--timestamp` (string, optional): Timestamp of the event (YYYY-MM-DD HH:MM:SS or ISO format, e.g., "2023-10-27T14:30:00Z". Defaults to current time).
+- `--app-name` (string, required): Name of the application.
+- `--user-name` (string, required): Name of the user.
+- `--model` (string, required): Name of the LLM model associated with the event.
+- `--log-type` (string, required): Type of the log entry (e.g., 'info', 'warning', 'error', 'feedback', or a custom type).
+- `--prompt-text` (string, optional): Text of the prompt, if relevant.
+- `--response-text` (string, optional): Text of the response, if relevant.
+- `--remote-completion-id` (string, optional): ID of the remote completion, if relevant.
+- `--project` (string, optional): Project name to associate with the event.
+- `--timestamp` (string, optional): Timestamp of the event (YYYY-MM-DD HH:MM:SS or ISO format, e.g., "2023-10-27T14:30:00Z". Defaults to current time).
 
 **Example:**
 
@@ -287,6 +288,7 @@ llm-accounting stats --daily
 The database schema generally includes the following tables and key fields (specifics might vary slightly by backend, but `PostgreSQLBackend` adheres to this structure):
 
 **`accounting_entries` Table:**
+
 - `id`: SERIAL PRIMARY KEY - Unique identifier for the entry.
 - `model_name`: VARCHAR(255) NOT NULL - Name of the LLM model.
 - `prompt_tokens`: INTEGER - Number of tokens in the prompt.
@@ -305,6 +307,7 @@ The database schema generally includes the following tables and key fields (spec
 - `reasoning_tokens`: INTEGER - Number of tokens used for model reasoning/tool use.
 
 **`usage_limits` Table (for defining quotas/limits):**
+
 - `id`: SERIAL PRIMARY KEY
 - `scope`: VARCHAR(50) NOT NULL (e.g., 'USER', 'GLOBAL')
 - `limit_type`: VARCHAR(50) NOT NULL (e.g., 'COST', 'REQUESTS')
@@ -318,6 +321,7 @@ The database schema generally includes the following tables and key fields (spec
 - `updated_at`: TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 
 **`audit_log_entries` Table (for detailed event logging):**
+
 - `id`: SERIAL PRIMARY KEY
 - `timestamp`: TIMESTAMPTZ NOT NULL
 - `app_name`: VARCHAR(255) NOT NULL
@@ -339,21 +343,21 @@ When you make changes to the SQLAlchemy models that require a schema alteration 
 
 ### Generating a New Migration
 
-1.  **Ensure your development database is accessible and reflects the schema *before* your new model changes.** Alembic compares your models against the live database (specifically, the state recorded in its `alembic_version` table) to generate the migration. It's usually best to have your database upgraded to the latest revision before generating a new one.
-2.  **Make your changes to the SQLAlchemy models** in the `src/llm_accounting/models/` directory.
-3.  **Run the following command from the project root:**
+1. **Ensure your development database is accessible and reflects the schema *before* your new model changes.** Alembic compares your models against the live database (specifically, the state recorded in its `alembic_version` table) to generate the migration. It's usually best to have your database upgraded to the latest revision before generating a new one.
+2. **Make your changes to the SQLAlchemy models** in the `src/llm_accounting/models/` directory.
+3. **Run the following command from the project root:**
 
     ```bash
     LLM_ACCOUNTING_DB_URL="your_database_connection_string" alembic revision -m "descriptive_migration_name" --autogenerate
     ```
 
-    *   Replace `"your_database_connection_string"` with the actual connection string for your development database.
-        *   For SQLite (default development): `sqlite:///./data/accounting.sqlite`
-        *   For PostgreSQL: `postgresql://user:pass@host:port/dbname` (use your actual credentials and host)
-    *   Replace `"descriptive_migration_name"` with a short, meaningful description of the changes (e.g., `add_user_email_column`, `create_indexes_for_timestamps`). This becomes part of the migration filename.
+    - Replace `"your_database_connection_string"` with the actual connection string for your development database.
+        - For SQLite (default development): `sqlite:///./data/accounting.sqlite`
+        - For PostgreSQL: `postgresql://user:pass@host:port/dbname` (use your actual credentials and host)
+    - Replace `"descriptive_migration_name"` with a short, meaningful description of the changes (e.g., `add_user_email_column`, `create_indexes_for_timestamps`). This becomes part of the migration filename.
 
-4.  **Review the generated migration script** in the `alembic/versions/` directory. Ensure it accurately reflects the intended changes. You might need to adjust it, especially for complex changes not perfectly detected by autogenerate (e.g., specific index types, constraints, or data migrations).
-5.  Commit the new migration script along with your model changes.
+4. **Review the generated migration script** in the `alembic/versions/` directory. Ensure it accurately reflects the intended changes. You might need to adjust it, especially for complex changes not perfectly detected by autogenerate (e.g., specific index types, constraints, or data migrations).
+5. Commit the new migration script along with your model changes.
 
 ### Applying Migrations
 
@@ -503,16 +507,16 @@ The `CSVBackend` provides a simple, file-based way to store and manage LLM usage
 
 **Characteristics:**
 
-*   **Data Storage**: Stores data in plain CSV files.
-*   **Default Directory**: Uses `data/` in the current working directory by default. You can change this with the `--csv-data-dir` CLI option, which maps to the `data_dir` parameter when instantiating `CSVBackend`.
-*   **Files Created**:
-    *   `accounting_entries.csv`: Stores detailed LLM usage records.
-    *   `usage_limits.csv`: Stores defined usage limits.
-    *   `audit_log_entries.csv`: Stores audit log events.
-*   **Schema/Columns**:
-    *   **`accounting_entries.csv`**: `id, model, prompt_tokens, completion_tokens, total_tokens, local_prompt_tokens, local_completion_tokens, local_total_tokens, cost, execution_time, timestamp, caller_name, username, project, cached_tokens, reasoning_tokens`
-    *   **`usage_limits.csv`**: `id, scope, limit_type, model, username, caller_name, project_name, max_value, interval_unit, interval_value, created_at, updated_at`
-    *   **`audit_log_entries.csv`**: `id, timestamp, app_name, user_name, model, prompt_text, response_text, remote_completion_id, project, log_type`
+- **Data Storage**: Stores data in plain CSV files.
+- **Default Directory**: Uses `data/` in the current working directory by default. You can change this with the `--csv-data-dir` CLI option, which maps to the `data_dir` parameter when instantiating `CSVBackend`.
+- **Files Created**:
+  - `accounting_entries.csv`: Stores detailed LLM usage records.
+  - `usage_limits.csv`: Stores defined usage limits.
+  - `audit_log_entries.csv`: Stores audit log events.
+- **Schema/Columns**:
+  - **`accounting_entries.csv`**: `id, model, prompt_tokens, completion_tokens, total_tokens, local_prompt_tokens, local_completion_tokens, local_total_tokens, cost, execution_time, timestamp, caller_name, username, project, cached_tokens, reasoning_tokens`
+  - **`usage_limits.csv`**: `id, scope, limit_type, model, username, caller_name, project_name, max_value, interval_unit, interval_value, created_at, updated_at`
+  - **`audit_log_entries.csv`**: `id, timestamp, app_name, user_name, model, prompt_text, response_text, remote_completion_id, project, log_type`
 
 **Python Usage Example:**
 
@@ -555,16 +559,16 @@ The `PostgreSQLBackend` provides a reference implementation for using a PostgreS
 
 To use `PostgreSQLBackend`, you'll need access to a PostgreSQL database instance. This can be:
 
-*   **A local PostgreSQL server**: Install PostgreSQL on your machine and create a database.
-*   **A hosted PostgreSQL service**: Use a cloud provider like Neon, AWS RDS, Google Cloud SQL, Azure Database for PostgreSQL, etc.
+- **A local PostgreSQL server**: Install PostgreSQL on your machine and create a database.
+- **A hosted PostgreSQL service**: Use a cloud provider like Neon, AWS RDS, Google Cloud SQL, Azure Database for PostgreSQL, etc.
 
 Once you have a database, obtain its connection string (URI format). It will look something like this:
     ```
-    postgresql://<user>:<password>@<host>:<port>/<dbname>
+postgresql://<user>:<password>@<host>:<port>/<dbname>
     ```
     For cloud services like Neon, `sslmode=require` might be necessary:
     ```
-    postgresql://<user>:<password>@<host>.neon.tech:<port>/<dbname>?sslmode=require
+postgresql://<user>:<password>@<host>.neon.tech:<port>/<dbname>?sslmode=require
     ```
 
 **2. Install Dependencies:**
@@ -641,9 +645,9 @@ accounting_postgresql_direct.close()
 
 **Error Handling/Notes:**
 
-*   The `PostgreSQLBackend` includes error handling for common database connection and operation issues, raising `ConnectionError` or `psycopg2.Error` as appropriate.
-*   Ensure your PostgreSQL database instance is active and accessible from the environment where your application is running.
-*   Refer to your PostgreSQL documentation (or cloud provider's documentation like Neon) for details on managing your database, connection pooling, and security best practices.
+- The `PostgreSQLBackend` includes error handling for common database connection and operation issues, raising `ConnectionError` or `psycopg2.Error` as appropriate.
+- Ensure your PostgreSQL database instance is active and accessible from the environment where your application is running.
+- Refer to your PostgreSQL documentation (or cloud provider's documentation like Neon) for details on managing your database, connection pooling, and security best practices.
 
 ### Custom Backend Implementation
 
@@ -651,7 +655,7 @@ The `llm-accounting` library is designed with a pluggable backend system, allowi
 
 Here's how you can implement your own custom backend, using the `MockBackend` as a simplified example:
 
-1.  **Define your Backend Class**: Create a new class that inherits from `llm_accounting.backends.base.BaseBackend`. You will need to implement all abstract methods defined in `BaseBackend`.
+1. **Define your Backend Class**: Create a new class that inherits from `llm_accounting.backends.base.BaseBackend`. You will need to implement all abstract methods defined in `BaseBackend`.
 
     ```python
     # my_custom_backend.py
@@ -736,7 +740,7 @@ Here's how you can implement your own custom backend, using the `MockBackend` as
             pass
     ```
 
-2.  **Integrate with `LLMAccounting`**: Once your custom backend is implemented, you can pass an instance of it to the `LLMAccounting` constructor:
+2. **Integrate with `LLMAccounting`**: Once your custom backend is implemented, you can pass an instance of it to the `LLMAccounting` constructor:
 
 ```python
 from llm_accounting import LLMAccounting
@@ -767,8 +771,72 @@ We will be adding examples of projects that utilize `llm-accounting` in the near
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome contributions to LLM Accounting! To ensure a smooth and efficient collaboration, please follow the typical fork-based contributing workflow outlined below:
 
+### Fork-based Contributing Workflow
+
+1. **Fork the Repository**:
+    - Go to the [LLM Accounting GitHub repository](https://github.com/matdev83/llm-accounting).
+    - Click the "Fork" button in the top right corner. This will create a copy of the repository under your GitHub account.
+
+2. **Clone Your Fork**:
+    - Once you have forked the repository, clone your fork to your local machine:
+
+        ```bash
+        git clone https://github.com/YOUR_USERNAME/llm-accounting.git
+        cd llm-accounting
+        ```
+
+        Replace `YOUR_USERNAME` with your actual GitHub username.
+
+3. **Add Upstream Remote**:
+    - Add the original repository as an "upstream" remote to your local clone. This allows you to fetch changes from the main project:
+
+        ```bash
+        git remote add upstream https://github.com/matdev83/llm-accounting.git
+        ```
+
+4. **Create a New Branch**:
+    - Before making any changes, create a new branch for your feature or bug fix. Use a descriptive name:
+
+        ```bash
+        git checkout -b feature/your-feature-name
+        # or
+        git checkout -b bugfix/your-bug-fix
+        ```
+
+5. **Make Your Changes**:
+    - Implement your feature or fix the bug. Ensure your code adheres to the project's coding standards and includes relevant tests.
+
+6. **Test Your Changes**:
+    - Run the existing test suite and add new tests for your changes to ensure everything works as expected and no regressions are introduced.
+
+7. **Commit Your Changes**:
+    - Commit your changes with a clear and concise commit message:
+
+        ```bash
+        git add .
+        git commit -m "feat: Add your new feature"
+        # or
+        git commit -m "fix: Resolve bug in X"
+        ```
+
+8. **Push to Your Fork**:
+    - Push your new branch to your forked repository on GitHub:
+
+        ```bash
+        git push origin feature/your-feature-name
+        ```
+
+9. **Create a Pull Request (PR)**:
+    - Go to your forked repository on GitHub.
+    - You should see a "Compare & pull request" button or a prompt to create a new pull request from your recently pushed branch.
+    - Click it, fill out the PR template, describe your changes, and submit the pull request to the `main` branch of the original `llm-accounting` repository.
+
+10. **Address Feedback**:
+    - Project maintainers will review your PR. Be prepared to address any feedback or make further changes if requested.
+
+Thank you for contributing to LLM Accounting!
 
 ## License
 
