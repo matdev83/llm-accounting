@@ -838,6 +838,13 @@ We welcome contributions to LLM Accounting! To ensure a smooth and efficient col
 
 Thank you for contributing to LLM Accounting!
 
+## Git Branch Structure
+
+The project follows a strict Git branch structure to ensure stability and facilitate collaborative development:
+
+- **`main`**: This branch contains stable, 100% test-passing code and is used for releases. Direct pull requests from external contributors to `main` are not allowed. Only project maintainers can merge into `main`.
+- **`dev`**: This is the primary development branch. All contributors, including LLM agents, are expected to base their changes on this branch. To contribute, start by forking the repository, then create a new branch from `dev` for your changes, and submit your pull requests to the `dev` branch.
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
