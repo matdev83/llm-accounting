@@ -30,6 +30,9 @@ def get_accounting(
     db_backend: str,
     db_file: Optional[str] = None,
     postgresql_connection_string: Optional[str] = None,
+    audit_db_backend: Optional[str] = None,
+    audit_db_file: Optional[str] = None,
+    audit_postgresql_connection_string: Optional[str] = None,
     project_name: Optional[str] = None,
     app_name: Optional[str] = None,
     user_name: Optional[str] = None,
@@ -49,6 +52,27 @@ def get_accounting(
         console.print(f"[red]Error: Unknown database backend '{db_backend}'.[/red]")
         raise SystemExit(1)
 
+    # Configure audit backend
+    if not audit_db_backend and not audit_db_file and not audit_postgresql_connection_string:
+        audit_backend = backend
+    else:
+        effective_audit_backend = audit_db_backend or db_backend
+        if effective_audit_backend == "sqlite":
+            audit_path = audit_db_file or db_file
+            if not audit_path:
+                console.print("[red]Error: --audit-db-file is required for sqlite audit backend.[/red]")
+                raise SystemExit(1)
+            audit_backend = SQLiteBackend(db_path=audit_path)
+        elif effective_audit_backend == "postgresql":
+            conn_str = audit_postgresql_connection_string or postgresql_connection_string or os.environ.get("AUDIT_POSTGRESQL_CONNECTION_STRING")
+            if not conn_str:
+                console.print("[red]Error: --audit-postgresql-connection-string is required for postgresql audit backend.[/red]")
+                raise SystemExit(1)
+            audit_backend = PostgreSQLBackend(postgresql_connection_string=conn_str)
+        else:
+            console.print(f"[red]Error: Unknown audit database backend '{effective_audit_backend}'.[/red]")
+            raise SystemExit(1)
+
     # Determine default username if not provided
     if user_name is None:
         if platform.system() == "Windows":
@@ -60,6 +84,7 @@ def get_accounting(
 
     acc = LLMAccounting(
         backend=backend,
+        audit_backend=audit_backend,
         project_name=project_name,
         app_name=app_name,
         user_name=default_user_name,

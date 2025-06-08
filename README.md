@@ -95,6 +95,9 @@ The following options can be used with any `llm-accounting` command:
 - `--db-file <path>`: Specifies the SQLite database file path. Only applicable when `--db-backend` is `sqlite`.
 - `--db-backend <backend>`: Selects the database backend (`sqlite` or `postgresql`). Defaults to `sqlite`.
 - `--postgresql-connection-string <string>`: Connection string for the PostgreSQL database. Required when `--db-backend` is `postgresql`. Can also be provided via `POSTGRESQL_CONNECTION_STRING` environment variable.
+- `--audit-db-backend <backend>`: Backend for audit logs. Defaults to the value of `--db-backend`.
+- `--audit-db-file <path>`: SQLite database file path for audit logs (when audit backend is `sqlite`).
+- `--audit-postgresql-connection-string <string>`: Connection string for the PostgreSQL audit log database. Can also be provided via `AUDIT_POSTGRESQL_CONNECTION_STRING` environment variable.
 - `--project-name <name>`: Default project name to associate with usage entries. Can be overridden by command-specific `--project`.
 - `--app-name <name>`: Default application name to associate with usage entries. Can be overridden by command-specific `--caller-name`.
 - `--user-name <name>`: Default user name to associate with usage entries. Can be overridden by command-specific `--username`. Defaults to current system user.
@@ -239,6 +242,8 @@ llm-accounting limits delete --id 1
 ### Database Backend Selection via CLI
 
 You can specify the database backend directly via the CLI using the `--db-backend` option. This allows you to switch between `sqlite` (default) and `postgresql` without modifying code.
+
+Audit logs can optionally use a different backend by providing the `--audit-db-backend` and related options.
 
 ```bash
 # Use SQLite backend (default behavior, --db-backend can be omitted)

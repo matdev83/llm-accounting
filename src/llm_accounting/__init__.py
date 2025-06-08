@@ -52,26 +52,38 @@ class LLMAccounting:
         project_name: Optional[str] = None,
         app_name: Optional[str] = None,
         user_name: Optional[str] = None,
+        audit_backend: Optional[BaseBackend] = None,
     ):
-        """Initialize with an optional backend. If none provided, uses SQLiteBackend."""
-        
+        """Initialize with optional backends.
+
+        ``backend`` is used for accounting and quota operations. ``audit_backend``
+        controls where audit log entries are stored.  If ``audit_backend`` is not
+        provided, ``backend`` is used for both.
+        """
+
         self.backend = backend or SQLiteBackend()
+        self.audit_backend = audit_backend or self.backend
         self.quota_service = QuotaService(self.backend)
         self.project_name = project_name
         self.app_name = app_name
         self.user_name = user_name
-        self.audit_logger = AuditLogger(self.backend)
+        self.audit_logger = AuditLogger(self.audit_backend)
 
     def __enter__(self):
         """Initialize the backend when entering context"""
         logger.info("Entering LLMAccounting context.")
         self.backend.initialize()
+        if self.audit_backend is not self.backend:
+            self.audit_backend.initialize()
+        self.audit_backend.initialize_audit_log_schema()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Close the backend when exiting context"""
         logger.info("Exiting LLMAccounting context. Closing backend.")
         self.backend.close()
+        if self.audit_backend is not self.backend:
+            self.audit_backend.close()
         if exc_type:
             logger.error(
                 f"LLMAccounting context exited with exception: {exc_type.__name__}: {exc_val}"

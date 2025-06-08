@@ -90,7 +90,8 @@ Components specific to the PostgreSQL backend.
 
 #### `src/llm_accounting/cli/`
 
-This sub-package contains the command-line interface (CLI) implementation.
+This sub-package contains the command-line interface (CLI) implementation. The CLI supports configuring
+separate database backends for accounting data and audit logs via the `--audit-db-*` options.
 
 - `main.py`: The entry point for the CLI application.
 - `parsers.py`: Defines argument parsers for CLI commands.

@@ -42,7 +42,8 @@ def main():
     parser = argparse.ArgumentParser(
         description=(
             "LLM Accounting CLI - Track and analyze LLM usage. "
-            "Limits support '*' wildcards and max values of 0 (deny) or -1 (unlimited)."
+            "Limits support '*' wildcards and max values of 0 (deny) or -1 (unlimited). "
+            "Audit logs can use a separate database via --audit-db-* options."
         ),
         formatter_class=argparse.RawTextHelpFormatter,
     )
@@ -82,6 +83,22 @@ def main():
         type=str,
         help="Default user name to associate with usage entries. Can be overridden by command-specific --username. Defaults to current system user.",
     )
+    parser.add_argument(
+        "--audit-db-backend",
+        type=str,
+        choices=["sqlite", "postgresql"],
+        help="Backend for audit logs. Defaults to the value of --db-backend if not provided.",
+    )
+    parser.add_argument(
+        "--audit-db-file",
+        type=str,
+        help="SQLite database file path for audit logs. Only applicable when the audit DB backend is 'sqlite'.",
+    )
+    parser.add_argument(
+        "--audit-postgresql-connection-string",
+        type=str,
+        help="Connection string for the PostgreSQL audit log database. Required when audit DB backend is 'postgresql'. Can also be provided via AUDIT_POSTGRESQL_CONNECTION_STRING environment variable.",
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -106,6 +123,9 @@ def main():
             db_backend=args.db_backend,
             db_file=args.db_file,
             postgresql_connection_string=args.postgresql_connection_string,
+            audit_db_backend=args.audit_db_backend,
+            audit_db_file=args.audit_db_file,
+            audit_postgresql_connection_string=args.audit_postgresql_connection_string,
             project_name=args.project_name,
             app_name=args.app_name,
             user_name=args.user_name,
