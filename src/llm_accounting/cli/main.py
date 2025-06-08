@@ -57,14 +57,8 @@ def main():
         "--db-backend",
         type=str,
         default="sqlite",
-        choices=["sqlite", "postgresql", "csv"],
+        choices=["sqlite", "postgresql"],
         help="Select the database backend (sqlite, postgresql, or csv). Defaults to 'sqlite'.",
-    )
-    parser.add_argument(
-        "--csv-data-dir",
-        type=str,
-        default="data/", # Default directory for CSVBackend
-        help="Directory path for CSV data files. Only applicable when --db-backend is 'csv'.",
     )
     parser.add_argument(
         "--postgresql-connection-string",
@@ -112,7 +106,6 @@ def main():
             db_backend=args.db_backend,
             db_file=args.db_file,
             postgresql_connection_string=args.postgresql_connection_string,
-            csv_data_dir=args.csv_data_dir, # Pass the new argument
             project_name=args.project_name,
             app_name=args.app_name,
             user_name=args.user_name,

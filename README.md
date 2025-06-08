@@ -11,7 +11,7 @@ A Python package for tracking and analyzing LLM usage across different models an
 - Record token counts (prompt, completion, total)
 - Track costs and execution times
 - Support for local token counting
-- Pluggable backend system (SQLite, PostgreSQL, and CSV file-based backends supported)
+- Pluggable backend system (SQLite and PostgreSQL backends supported)
 - CLI interface for viewing and tracking usage statistics
 - Support for tracking caller application and username
 - Automatic database schema migration (for supported backends)
@@ -33,8 +33,6 @@ pip install llm-accounting[sqlite]
 
 # For PostgreSQL
 pip install llm-accounting[postgresql]
-
-# CSV backend uses standard Python modules and requires no extra dependencies.
 ```
 
 ## Usage
@@ -95,8 +93,7 @@ accounting.close()
 The following options can be used with any `llm-accounting` command:
 
 - `--db-file <path>`: Specifies the SQLite database file path. Only applicable when `--db-backend` is `sqlite`.
-- `--db-backend <backend>`: Selects the database backend (`sqlite`, `postgresql`, or `csv`). Defaults to `sqlite`.
-- `--csv-data-dir <path>`: Specifies the directory for CSV data files (e.g., `accounting_entries.csv`). Only applicable when `--db-backend` is `csv`. Defaults to `data/`. This option sets the `data_dir` used by `CSVBackend`.
+- `--db-backend <backend>`: Selects the database backend (`sqlite` or `postgresql`). Defaults to `sqlite`.
 - `--postgresql-connection-string <string>`: Connection string for the PostgreSQL database. Required when `--db-backend` is `postgresql`. Can also be provided via `POSTGRESQL_CONNECTION_STRING` environment variable.
 - `--project-name <name>`: Default project name to associate with usage entries. Can be overridden by command-specific `--project`.
 - `--app-name <name>`: Default application name to associate with usage entries. Can be overridden by command-specific `--caller-name`.
@@ -258,9 +255,6 @@ llm-accounting --db-backend postgresql \
     --model gpt-4 \
     --prompt-tokens 10 \
     --cost 0.0001
-
-# Example: Get daily stats using CSV backend with a custom data directory
-llm-accounting --db-backend csv --csv-data-dir /path/to/my/csvs stats --daily
 ```
 
 ### Shell Script Integration
@@ -501,56 +495,6 @@ if os.path.exists(custom_audit_db_filename):
     print(f"Removed {custom_audit_db_filename}")
 
 print("\nExample complete.")
-```
-
-### CSV Backend
-
-The `CSVBackend` provides a simple, file-based way to store and manage LLM usage data without requiring a database server. It's suitable for local analysis, smaller projects, or when a quick setup is needed.
-
-**Characteristics:**
-
-- **Data Storage**: Stores data in plain CSV files.
-- **Default Directory**: Uses `data/` in the current working directory by default. You can change this with the `--csv-data-dir` CLI option, which maps to the `data_dir` parameter when instantiating `CSVBackend`.
-- **Files Created**:
-  - `accounting_entries.csv`: Stores detailed LLM usage records.
-  - `usage_limits.csv`: Stores defined usage limits.
-  - `audit_log_entries.csv`: Stores audit log events.
-- **Schema/Columns**:
-  - **`accounting_entries.csv`**: `id, model, prompt_tokens, completion_tokens, total_tokens, local_prompt_tokens, local_completion_tokens, local_total_tokens, cost, execution_time, timestamp, caller_name, username, project, cached_tokens, reasoning_tokens`
-  - **`usage_limits.csv`**: `id, scope, limit_type, model, username, caller_name, project_name, max_value, interval_unit, interval_value, created_at, updated_at`
-  - **`audit_log_entries.csv`**: `id, timestamp, app_name, user_name, model, prompt_text, response_text, remote_completion_id, project, log_type`
-
-**Python Usage Example:**
-
-```python
-from llm_accounting import LLMAccounting
-from llm_accounting.backends.csv_backend import CSVBackend
-from datetime import datetime, timedelta
-
-# Initialize CSVBackend, optionally specify data directory
-csv_backend = CSVBackend(data_dir="my_csv_data")
-accounting = LLMAccounting(backend=csv_backend)
-
-# Use accounting as usual
-accounting.track_usage(model="test-csv-model", prompt_tokens=20, cost=0.002)
-print("Usage tracked with CSV backend.")
-
-end_date = datetime.now()
-start_date = end_date - timedelta(days=1)
-stats = accounting.get_period_stats(start_date, end_date)
-print(f"Stats from CSV backend: Total cost: {stats.sum_cost}, Total tokens: {stats.sum_total_tokens}")
-
-accounting.close() # No-op for CSVBackend but good practice
-```
-
-**CLI Usage Examples:**
-
-```bash
-# Track usage using CSV backend with default data directory (data/)
-llm-accounting --db-backend csv track --model my-csv-model --prompt-tokens 100 --cost 0.01
-
-# Get daily stats using CSV backend with a custom data directory
-llm-accounting --db-backend csv --csv-data-dir ./my_csv_files/ stats --daily
 ```
 
 ### PostgreSQL Backend

@@ -116,7 +116,6 @@ def test_custom_db_file_usage(mock_get_accounting, capsys):
         db_backend="sqlite", 
         db_file="custom_test_db.sqlite", 
         postgresql_connection_string=None, 
-        csv_data_dir='data/',  # Added this line
         project_name=None, 
         app_name=None, 
         user_name=None
@@ -146,7 +145,6 @@ def test_default_db_file_usage(mock_get_accounting, capsys):
         db_backend="sqlite", 
         db_file=None, 
         postgresql_connection_string=None, 
-        csv_data_dir='data/',  # Added this line
         project_name=None, 
         app_name=None, 
         user_name=None
