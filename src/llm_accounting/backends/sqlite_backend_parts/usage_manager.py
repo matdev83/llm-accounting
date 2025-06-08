@@ -1,7 +1,8 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from sqlalchemy import text
+from sqlalchemy.engine import Connection # Import Connection for type hinting
 from ..base import UsageEntry, UsageStats
 from ..sqlite_queries import (get_model_rankings_query, get_model_stats_query,
                              get_period_stats_query, insert_usage_query,
@@ -10,11 +11,7 @@ from llm_accounting.models.limits import LimitType
 
 logger = logging.getLogger(__name__)
 
-class SQLiteUsageManager:
-    def __init__(self, connection_manager):
-        self.connection_manager = connection_manager
-
-from sqlalchemy.engine import Connection # Import Connection for type hinting
+# Removed first definition of SQLiteUsageManager and redundant Connection import
 
 class SQLiteUsageManager:
     def __init__(self, connection_manager):
@@ -67,7 +64,7 @@ class SQLiteUsageManager:
         end_time_operator = "<="
 
         query_base = f"SELECT {select_clause} FROM accounting_entries WHERE timestamp >= :start_time AND timestamp {end_time_operator} :end_time"
-        
+
         params_dict: Dict[str, Any] = {
             "start_time": start_time.replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S.%f'),
             "end_time": end_time.replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -83,7 +80,7 @@ class SQLiteUsageManager:
         if caller_name:
             conditions.append("caller_name = :caller_name")
             params_dict["caller_name"] = caller_name
-        
+
         if project_name is not None:
             conditions.append("project = :project_name")
             params_dict["project_name"] = project_name
@@ -94,15 +91,15 @@ class SQLiteUsageManager:
 
         if conditions:
             query_base += " AND " + " AND ".join(conditions)
-        
+
         logger.debug(f"Executing SQL query: {query_base}")
         logger.debug(f"With parameters: {params_dict}")
-        
+
         result = conn.execute(text(query_base), params_dict)
         scalar_result = result.scalar_one_or_none()
-        
+
         logger.debug(f"Raw scalar result from DB: {scalar_result}")
-        
+
         final_result = float(scalar_result) if scalar_result is not None else 0.0
         logger.debug(f"Returning final_result: {final_result} for limit_type: {limit_type.value}, model: {model}, username: {username}, caller: {caller_name}, project: {project_name}")
         return final_result
@@ -121,7 +118,7 @@ class SQLiteUsageManager:
 
         if conditions:
             query_base += " AND " + " AND ".join(conditions)
-        
+
         result = conn.execute(text(query_base), params_dict)
         scalar_result = result.scalar_one_or_none()
         return float(scalar_result) if scalar_result is not None else 0.0

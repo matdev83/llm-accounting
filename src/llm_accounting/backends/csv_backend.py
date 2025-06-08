@@ -1,4 +1,3 @@
-import os
 import csv
 import logging
 from pathlib import Path
@@ -195,6 +194,17 @@ class CSVBackend(BaseBackend):
         logger.debug(f"CSVBackend: execute_query called with '{query}' (not supported)")
         return [] 
 
+    def _filter_by_attribute_with_null_check(self, current_results: List[UsageLimitDTO],
+                                             attr_name: str, attr_value: Optional[str],
+                                             filter_attr_null: Optional[bool]) -> List[UsageLimitDTO]:
+        if attr_value is not None:
+            return [r for r in current_results if getattr(r, attr_name) == attr_value]
+        elif filter_attr_null is True:
+            return [r for r in current_results if getattr(r, attr_name) is None]
+        elif filter_attr_null is False: # Explicitly check for False, meaning attr should not be null
+            return [r for r in current_results if getattr(r, attr_name) is not None]
+        return current_results # If no value and no null filter, return original list
+
     @override
     def get_usage_limits(
         self,
@@ -211,26 +221,9 @@ class CSVBackend(BaseBackend):
         if model:
             results = [r for r in results if r.model == model]
         
-        if username is not None:
-            results = [r for r in results if r.username == username]
-        elif filter_username_null is True:
-            results = [r for r in results if r.username is None]
-        elif filter_username_null is False: # Explicitly not null
-            results = [r for r in results if r.username is not None]
-            
-        if caller_name is not None:
-            results = [r for r in results if r.caller_name == caller_name]
-        elif filter_caller_name_null is True:
-            results = [r for r in results if r.caller_name is None]
-        elif filter_caller_name_null is False:
-            results = [r for r in results if r.caller_name is not None]
-
-        if project_name is not None:
-            results = [r for r in results if r.project_name == project_name]
-        elif filter_project_null is True:
-            results = [r for r in results if r.project_name is None]
-        elif filter_project_null is False:
-            results = [r for r in results if r.project_name is not None]
+        results = self._filter_by_attribute_with_null_check(results, "username", username, filter_username_null)
+        results = self._filter_by_attribute_with_null_check(results, "caller_name", caller_name, filter_caller_name_null)
+        results = self._filter_by_attribute_with_null_check(results, "project_name", project_name, filter_project_null)
             
         return list(results) # Return a copy
 
@@ -265,7 +258,7 @@ class CSVBackend(BaseBackend):
     def delete_usage_limit(self, limit_id: int) -> None:
         logger.debug(f"CSVBackend: delete_usage_limit called for id {limit_id}.")
         original_len = len(self._mock_limits_entries)
-        self._mock_limits_entries = [l for l in self._mock_limits_entries if l.id != limit_id]
+        self._mock_limits_entries = [limit_entry for limit_entry in self._mock_limits_entries if limit_entry.id != limit_id]
         if len(self._mock_limits_entries) < original_len:
             logger.debug(f"Limit with id {limit_id} removed from mock list.")
         else:
@@ -298,19 +291,28 @@ class CSVBackend(BaseBackend):
     ) -> List[AuditLogEntry]:
         logger.debug(f"CSVBackend: get_audit_log_entries called with filters.")
         
-        results = self._mock_audit_entries
+        active_filters = []
         if start_date:
-            results = [r for r in results if r.timestamp and r.timestamp >= start_date]
+            active_filters.append(lambda r: r.timestamp and r.timestamp >= start_date)
         if end_date:
-            results = [r for r in results if r.timestamp and r.timestamp < end_date]
+            active_filters.append(lambda r: r.timestamp and r.timestamp < end_date)
         if app_name:
-            results = [r for r in results if r.app_name == app_name]
+            active_filters.append(lambda r: r.app_name == app_name)
         if user_name:
-            results = [r for r in results if r.user_name == user_name]
+            active_filters.append(lambda r: r.user_name == user_name)
         if project:
-            results = [r for r in results if r.project == project]
+            active_filters.append(lambda r: r.project == project)
         if log_type:
-            results = [r for r in results if r.log_type == log_type]
+            active_filters.append(lambda r: r.log_type == log_type)
+
+        if not active_filters:
+            results = list(self._mock_audit_entries)
+        else:
+            filtered_results = []
+            for entry in self._mock_audit_entries:
+                if all(f(entry) for f in active_filters):
+                    filtered_results.append(entry)
+            results = filtered_results
         
         # Sort by timestamp descending (newest first) before applying limit
         results.sort(key=lambda r: r.timestamp if r.timestamp else datetime.min, reverse=True)
@@ -318,4 +320,4 @@ class CSVBackend(BaseBackend):
         if limit is not None:
             results = results[:limit]
             
-        return list(results)
+        return list(results) # Return list(results) to ensure it's a list copy if results was an iterator or view.

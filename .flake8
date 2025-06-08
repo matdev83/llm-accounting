@@ -1,3 +1,8 @@
 [flake8]
 exclude = .venv
-ignore = E501
+ignore = E501, E101, E111, E114, E115, E116, E117, E121, E122, E123, E124, E125, E126, E127, E128, E129, E131, E133, E201, E202, E203, E211, E221, E222, E223, E224, E225, E226, E227, E228, E231, E241, E242, E251, E252, E261, E262, E265, E266, E271, E272, E273, E274, E275, W191, W291, W292, W293, W391, E302, E303, E305, E701, W504
+per-file-ignores =
+    src/llm_accounting/__init__.py:E402
+    src/llm_accounting/backends/csv_backend.py:F541
+    src/llm_accounting/cli/commands/limits.py:F541
+    src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:F541

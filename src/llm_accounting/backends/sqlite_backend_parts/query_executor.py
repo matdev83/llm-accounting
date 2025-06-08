@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Dict, List, Any
+from typing import Dict, List
 from sqlalchemy import text
 
 logger = logging.getLogger(__name__)

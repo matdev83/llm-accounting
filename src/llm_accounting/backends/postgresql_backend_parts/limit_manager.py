@@ -147,7 +147,7 @@ class LimitManager:
         try:
             limit_type_enum = LimitType(limit_type_str)
         except ValueError:
-            logger.error(f"Invalid limit_type string: {limit_type_str}. Must be one of {LimitType._member_names_}")
+            logger.error(f"Invalid limit_type string: {limit_type_str}. Must be one of {LimitType._member_names_}") # type: ignore
             raise ValueError(f"Invalid limit_type string: {limit_type_str}")
 
         usage_limit_model = UsageLimit(

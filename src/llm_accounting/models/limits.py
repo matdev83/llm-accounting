@@ -1,11 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Optional
 from dataclasses import dataclass
 
-from sqlalchemy import Column, DateTime, Float, Integer, String, Index, event, DDL
+from sqlalchemy import Column, DateTime, Float, Integer, String, event, DDL
 from sqlalchemy.schema import UniqueConstraint
-from sqlalchemy.orm import attributes # Required for event.listen on ORM attributes if needed, but here using __table__
 
 from llm_accounting.models.base import Base
 

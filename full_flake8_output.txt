@@ -1,0 +1,337 @@
+src/llm_accounting/__init__.py:13:1: E402 module level import not at top of file
+src/llm_accounting/__init__.py:14:1: E402 module level import not at top of file
+src/llm_accounting/__init__.py:15:1: E402 module level import not at top of file
+src/llm_accounting/__init__.py:17:1: E402 module level import not at top of file
+src/llm_accounting/__init__.py:18:1: E402 module level import not at top of file
+src/llm_accounting/__init__.py:19:1: E402 module level import not at top of file
+src/llm_accounting/__init__.py:20:1: E402 module level import not at top of file
+src/llm_accounting/__init__.py:21:1: E402 module level import not at top of file
+src/llm_accounting/__init__.py:22:1: E402 module level import not at top of file
+src/llm_accounting/__init__.py:57:1: W293 blank line contains whitespace
+src/llm_accounting/__init__.py:92:43: E261 at least two spaces before inline comment
+src/llm_accounting/__init__.py:93:40: E261 at least two spaces before inline comment
+src/llm_accounting/__init__.py:111:83: E261 at least two spaces before inline comment
+src/llm_accounting/__init__.py:112:75: E261 at least two spaces before inline comment
+src/llm_accounting/__init__.py:115:75: E261 at least two spaces before inline comment
+src/llm_accounting/audit_log.py:1:34: E261 at least two spaces before inline comment
+src/llm_accounting/audit_log.py:4:54: E261 at least two spaces before inline comment
+src/llm_accounting/backends/base.py:31:17: E261 at least two spaces before inline comment
+src/llm_accounting/backends/base.py:40:29: W291 trailing whitespace
+src/llm_accounting/backends/base.py:54:37: E261 at least two spaces before inline comment
+src/llm_accounting/backends/base.py:55:40: E261 at least two spaces before inline comment
+src/llm_accounting/backends/base.py:60:69: E261 at least two spaces before inline comment
+src/llm_accounting/backends/base.py:65:38: E701 multiple statements on one line (colon)
+src/llm_accounting/backends/base.py:66:42: E701 multiple statements on one line (colon)
+src/llm_accounting/backends/base.py:67:37: E701 multiple statements on one line (colon)
+src/llm_accounting/backends/base.py:68:44: E701 multiple statements on one line (colon)
+src/llm_accounting/backends/base.py:69:48: E701 multiple statements on one line (colon)
+src/llm_accounting/backends/base.py:70:43: E701 multiple statements on one line (colon)
+src/llm_accounting/backends/base.py:71:38: E701 multiple statements on one line (colon)
+src/llm_accounting/backends/base.py:72:41: E701 multiple statements on one line (colon)
+src/llm_accounting/backends/base.py:73:29: E701 multiple statements on one line (colon)
+src/llm_accounting/backends/base.py:74:39: E701 multiple statements on one line (colon)
+src/llm_accounting/backends/base.py:177:28: E261 at least two spaces before inline comment
+src/llm_accounting/backends/csv_backend.py:4:52: W291 trailing whitespace
+src/llm_accounting/backends/csv_backend.py:5:40: E261 at least two spaces before inline comment
+src/llm_accounting/backends/csv_backend.py:6:39: W291 trailing whitespace
+src/llm_accounting/backends/csv_backend.py:13:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/csv_backend.py:14:49: W291 trailing whitespace
+src/llm_accounting/backends/csv_backend.py:35:27: W291 trailing whitespace
+src/llm_accounting/backends/csv_backend.py:36:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:41:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:56:26: W291 trailing whitespace
+src/llm_accounting/backends/csv_backend.py:64:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:98:29: W291 trailing whitespace
+src/llm_accounting/backends/csv_backend.py:106:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:120:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:153:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:169:93: W291 trailing whitespace
+src/llm_accounting/backends/csv_backend.py:172:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:183:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:192:5: E303 too many blank lines (2)
+src/llm_accounting/backends/csv_backend.py:195:18: W291 trailing whitespace
+src/llm_accounting/backends/csv_backend.py:206:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:212:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:217:44: E261 at least two spaces before inline comment
+src/llm_accounting/backends/csv_backend.py:219:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:233:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:234:29: E261 at least two spaces before inline comment
+src/llm_accounting/backends/csv_backend.py:244:19: E261 at least two spaces before inline comment
+src/llm_accounting/backends/csv_backend.py:251:41: E261 at least two spaces before inline comment
+src/llm_accounting/backends/csv_backend.py:252:14: E111 indentation is not a multiple of 4
+src/llm_accounting/backends/csv_backend.py:252:14: E117 over-indented
+src/llm_accounting/backends/csv_backend.py:253:14: E261 at least two spaces before inline comment
+src/llm_accounting/backends/csv_backend.py:267:44: E741 ambiguous variable name 'l'
+src/llm_accounting/backends/csv_backend.py:285:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:298:22: F541 f-string is missing placeholders
+src/llm_accounting/backends/csv_backend.py:299:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:313:1: W293 blank line contains whitespace
+src/llm_accounting/backends/csv_backend.py:319:1: W293 blank line contains whitespace
+src/llm_accounting/backends/mock_backend_parts/connection_manager.py:3:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/mock_backend_parts/query_executor.py:3:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/postgresql.py:8:12: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:9:25: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:17:77: W291 trailing whitespace
+src/llm_accounting/backends/postgresql.py:20:67: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:28:70: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:30:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/postgresql.py:53:60: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:58:50: W291 trailing whitespace
+src/llm_accounting/backends/postgresql.py:83:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql.py:85:45: W291 trailing whitespace
+src/llm_accounting/backends/postgresql.py:89:43: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:102:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql.py:111:54: W291 trailing whitespace
+src/llm_accounting/backends/postgresql.py:116:50: W291 trailing whitespace
+src/llm_accounting/backends/postgresql.py:118:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql.py:130:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql.py:131:14: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:163:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql.py:166:55: W291 trailing whitespace
+src/llm_accounting/backends/postgresql.py:172:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql.py:179:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql.py:183:5: E303 too many blank lines (2)
+src/llm_accounting/backends/postgresql.py:187:40: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:270:49: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:278:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql.py:356:36: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:362:49: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:365:31: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:367:51: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:371:49: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql.py:376:5: E303 too many blank lines (2)
+src/llm_accounting/backends/postgresql_backend_parts/connection_manager.py:6:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/postgresql_backend_parts/connection_manager.py:31:37: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/connection_manager.py:58:22: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/data_deleter.py:6:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/postgresql_backend_parts/data_deleter.py:23:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/data_deleter.py:56:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/data_deleter.py:66:43: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/data_deleter.py:71:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/data_inserter.py:6:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/data_inserter.py:10:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/postgresql_backend_parts/data_inserter.py:27:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/data_inserter.py:76:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/data_inserter.py:92:40: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/data_inserter.py:142:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:3:23: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:12:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:15:52: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:43:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:61:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:93:63: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:113:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:123:50: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:127:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:129:9: E303 too many blank lines (2)
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:131:25: F541 f-string is missing placeholders
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:139:140: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:146:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:162:39: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:177:114: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/limit_manager.py:183:86: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:4:16: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:5:23: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:7:57: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:16:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:44:36: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:45:36: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:46:36: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:47:36: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:48:36: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:106:54: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:113:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:125:61: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:140:18: W291 trailing whitespace
+src/llm_accounting/backends/postgresql_backend_parts/query_executor.py:144:1: W293 blank line contains whitespace
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:12:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:38:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:67:37: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:78:18: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:79:31: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:106:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:140:60: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:174:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:187:52: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:198:58: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:224:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:270:31: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:296:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:315:64: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:347:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/query_reader.py:359:21: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:3:23: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:11:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:16:36: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:17:36: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:18:36: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:19:36: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:20:36: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:46:45: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:52:58: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:54:62: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:56:51: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:63:41: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:84:40: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/quota_reader.py:87:27: E261 at least two spaces before inline comment
+src/llm_accounting/backends/postgresql_backend_parts/schema_manager.py:5:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/sqlite.py:20:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/sqlite.py:27:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite.py:67:60: W291 trailing whitespace
+src/llm_accounting/backends/sqlite.py:110:28: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite.py:115:52: W291 trailing whitespace
+src/llm_accounting/backends/sqlite_backend_parts/audit_log_manager.py:9:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/sqlite_backend_parts/audit_log_manager.py:72:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/audit_log_manager.py:93:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/audit_log_manager.py:116:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/connection_manager.py:14:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/sqlite_backend_parts/connection_manager.py:23:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/connection_manager.py:25:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/connection_manager.py:54:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/connection_manager.py:64:26: E111 indentation is not a multiple of 4
+src/llm_accounting/backends/sqlite_backend_parts/connection_manager.py:64:26: E117 over-indented
+src/llm_accounting/backends/sqlite_backend_parts/connection_manager.py:76:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/connection_manager.py:105:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/connection_manager.py:134:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/limit_manager.py:9:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/sqlite_backend_parts/limit_manager.py:64:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/limit_manager.py:91:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/query_executor.py:8:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:7:30: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:8:30: E128 continuation line under-indented for visual indent
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:13:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:17:1: E305 expected 2 blank lines after class or function definition, found 1
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:17:1: E402 module level import not at top of file
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:17:41: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:19:1: F811 redefinition of unused 'SQLiteUsageManager' from line 13
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:19:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:70:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:86:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:97:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:100:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:103:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:105:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py:124:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_queries.py:2:40: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite_queries.py:3:47: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite_queries.py:5:41: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite_queries.py:18:65: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite_queries.py:42:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_queries.py:83:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_queries.py:85:33: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite_queries.py:88:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_queries.py:92:40: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite_queries.py:149:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_queries.py:151:33: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite_queries.py:160:28: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite_queries.py:189:33: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite_queries.py:228:1: W293 blank line contains whitespace
+src/llm_accounting/backends/sqlite_queries.py:243:61: E261 at least two spaces before inline comment
+src/llm_accounting/backends/sqlite_utils.py:11:33: E261 at least two spaces before inline comment
+src/llm_accounting/cli/commands/limits.py:8:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/cli/commands/limits.py:26:23: F541 f-string is missing placeholders
+src/llm_accounting/cli/commands/limits.py:32:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/cli/commands/limits.py:46:1: W293 blank line contains whitespace
+src/llm_accounting/cli/commands/limits.py:48:1: W293 blank line contains whitespace
+src/llm_accounting/cli/commands/limits.py:64:1: W293 blank line contains whitespace
+src/llm_accounting/cli/commands/limits.py:66:1: W293 blank line contains whitespace
+src/llm_accounting/cli/commands/limits.py:79:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/cli/commands/log_event.py:4:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/cli/commands/log_event.py:14:18: E261 at least two spaces before inline comment
+src/llm_accounting/cli/commands/log_event.py:20:67: E261 at least two spaces before inline comment
+src/llm_accounting/cli/commands/select.py:2:11: E261 at least two spaces before inline comment
+src/llm_accounting/cli/commands/select.py:7:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/cli/commands/select.py:10:5: F841 local variable 'params' is assigned to but never used
+src/llm_accounting/cli/commands/select.py:36:15: E261 at least two spaces before inline comment
+src/llm_accounting/cli/commands/select.py:49:20: E261 at least two spaces before inline comment
+src/llm_accounting/cli/commands/select.py:52:5: E303 too many blank lines (2)
+src/llm_accounting/cli/commands/select.py:58:20: E261 at least two spaces before inline comment
+src/llm_accounting/cli/commands/select.py:64:14: E261 at least two spaces before inline comment
+src/llm_accounting/cli/commands/select.py:70:20: E261 at least two spaces before inline comment
+src/llm_accounting/cli/commands/select.py:74:14: E261 at least two spaces before inline comment
+src/llm_accounting/cli/main.py:39:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/cli/main.py:63:25: E261 at least two spaces before inline comment
+src/llm_accounting/cli/main.py:97:37: E261 at least two spaces before inline comment
+src/llm_accounting/cli/main.py:112:44: E261 at least two spaces before inline comment
+src/llm_accounting/cli/parsers.py:124:21: E261 at least two spaces before inline comment
+src/llm_accounting/cli/parsers.py:137:69: E261 at least two spaces before inline comment
+src/llm_accounting/cli/parsers.py:145:47: E261 at least two spaces before inline comment
+src/llm_accounting/cli/parsers.py:182:26: E261 at least two spaces before inline comment
+src/llm_accounting/cli/parsers.py:183:18: W291 trailing whitespace
+src/llm_accounting/cli/utils.py:34:40: E261 at least two spaces before inline comment
+src/llm_accounting/db_migrations.py:5:40: E261 at least two spaces before inline comment
+src/llm_accounting/db_migrations.py:16:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/db_migrations.py:56:31: E701 multiple statements on one line (colon)
+src/llm_accounting/db_migrations.py:57:21: E701 multiple statements on one line (colon)
+src/llm_accounting/db_migrations.py:57:27: W291 trailing whitespace
+src/llm_accounting/db_migrations.py:59:1: W293 blank line contains whitespace
+src/llm_accounting/db_migrations.py:73:1: W293 blank line contains whitespace
+src/llm_accounting/db_migrations.py:87:22: E261 at least two spaces before inline comment
+src/llm_accounting/db_migrations.py:94:32: E261 at least two spaces before inline comment
+src/llm_accounting/db_migrations.py:99:39: W291 trailing whitespace
+src/llm_accounting/db_migrations.py:101:39: E261 at least two spaces before inline comment
+src/llm_accounting/db_migrations.py:105:1: W293 blank line contains whitespace
+src/llm_accounting/db_migrations.py:110:14: W291 trailing whitespace
+src/llm_accounting/db_migrations.py:112:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/db_migrations.py:125:34: W291 trailing whitespace
+src/llm_accounting/db_migrations.py:142:98: W291 trailing whitespace
+src/llm_accounting/db_migrations.py:145:35: E261 at least two spaces before inline comment
+src/llm_accounting/db_migrations.py:147:32: E261 at least two spaces before inline comment
+src/llm_accounting/db_migrations.py:159:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/db_migrations.py:163:50: W291 trailing whitespace
+src/llm_accounting/db_migrations.py:189:42: W291 trailing whitespace
+src/llm_accounting/db_migrations.py:190:35: E701 multiple statements on one line (colon)
+src/llm_accounting/db_migrations.py:191:25: E701 multiple statements on one line (colon)
+src/llm_accounting/db_migrations.py:191:31: W291 trailing whitespace
+src/llm_accounting/db_migrations.py:193:1: W293 blank line contains whitespace
+src/llm_accounting/db_migrations.py:207:38: E261 at least two spaces before inline comment
+src/llm_accounting/db_migrations.py:214:24: E261 at least two spaces before inline comment
+src/llm_accounting/db_migrations.py:215:1: W293 blank line contains whitespace
+src/llm_accounting/models/limits.py:119:1: W293 blank line contains whitespace
+src/llm_accounting/models/limits.py:122:1: W293 blank line contains whitespace
+src/llm_accounting/models/limits.py:126:1: E305 expected 2 blank lines after class or function definition, found 1
+src/llm_accounting/services/quota_service.py:2:41: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service.py:3:40: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service.py:23:32: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service.py:75:1: W293 blank line contains whitespace
+src/llm_accounting/services/quota_service.py:78:1: W293 blank line contains whitespace
+src/llm_accounting/services/quota_service.py:175:14: E111 indentation is not a multiple of 4
+src/llm_accounting/services/quota_service.py:175:14: E117 over-indented
+src/llm_accounting/services/quota_service.py:188:33: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service.py:201:58: W504 line break after binary operator
+src/llm_accounting/services/quota_service.py:202:46: W504 line break after binary operator
+src/llm_accounting/services/quota_service.py:203:35: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service.py:233:58: W504 line break after binary operator
+src/llm_accounting/services/quota_service.py:233:61: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service.py:234:40: W504 line break after binary operator
+src/llm_accounting/services/quota_service_parts/_cache_manager.py:5:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:7:1: E302 expected 2 blank lines, found 1
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:23:41: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:49:67: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:62:58: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:75:22: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:122:65: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:177:45: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:178:26: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:191:57: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:192:41: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:218:67: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:250:18: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:263:22: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:275:1: W293 blank line contains whitespace
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:315:65: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:368:62: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:369:32: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:401:77: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:410:1: W293 blank line contains whitespace
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:412:61: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:413:1: W293 blank line contains whitespace
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:416:1: W293 blank line contains whitespace
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:419:64: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:420:1: W293 blank line contains whitespace
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:422:41: E261 at least two spaces before inline comment
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:423:14: E114 indentation is not a multiple of 4 (comment)
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:423:14: E117 over-indented (comment)
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:441:18: E111 indentation is not a multiple of 4
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:441:18: E117 over-indented
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py:442:18: E261 at least two spaces before inline comment
