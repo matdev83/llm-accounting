@@ -281,6 +281,11 @@ This directory is used for storing application logs generated during runtime. Th
 
 All software development agents contributing to this project **MUST** strictly adhere to the following principles to ensure code quality, maintainability, and scalability.
 
+### 8.0. Dependency Management
+
+Dependency management must be solely managed by the `pyproject.toml` file.
+Do not use `requirements.txt` or other files for dependency management.
+
 ### 8.1. Layered, Modular Architecture
 
 Agents should strive to maintain and enhance the existing layered and modular architecture. This means:
