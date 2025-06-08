@@ -1,7 +1,4 @@
-import sqlite3
 from pathlib import Path
-
-from .base import AuditLogEntry
 
 
 def validate_db_filename(filename: str):

@@ -40,27 +40,35 @@ class MockLimitManager:
         """Mocks retrieving usage limits."""
         logging.debug(f"MockBackend: Getting usage limits with filters: scope={scope}, model={model}, username={username}, caller_name={caller_name}, project_name={project_name}, filter_project_null={filter_project_null}, filter_username_null={filter_username_null}, filter_caller_name_null={filter_caller_name_null}")
 
-        filtered_limits = self.parent_backend.limits
-
+        active_filters = []
         if scope:
-            filtered_limits = [limit for limit in filtered_limits if limit.scope == scope.value]
+            active_filters.append(lambda limit: limit.scope == scope.value)
         if model:
-            filtered_limits = [limit for limit in filtered_limits if limit.model == model]
+            active_filters.append(lambda limit: limit.model == model)
+
         if username:
-            filtered_limits = [limit for limit in filtered_limits if limit.username == username]
+            active_filters.append(lambda limit: limit.username == username)
+        elif filter_username_null is True:
+            active_filters.append(lambda limit: limit.username is None)
+
         if caller_name:
-            filtered_limits = [limit for limit in filtered_limits if limit.caller_name == caller_name]
+            active_filters.append(lambda limit: limit.caller_name == caller_name)
+        elif filter_caller_name_null is True:
+            active_filters.append(lambda limit: limit.caller_name is None)
+
         if project_name:
-            filtered_limits = [limit for limit in filtered_limits if limit.project_name == project_name]
+            active_filters.append(lambda limit: limit.project_name == project_name)
+        elif filter_project_null is True:
+            active_filters.append(lambda limit: limit.project_name is None)
 
-        if filter_project_null:
-            filtered_limits = [limit for limit in filtered_limits if limit.project_name is None]
-        if filter_username_null:
-            filtered_limits = [limit for limit in filtered_limits if limit.username is None]
-        if filter_caller_name_null:
-            filtered_limits = [limit for limit in filtered_limits if limit.caller_name is None]
+        if not active_filters:
+            return list(self.parent_backend.limits)
 
-        return filtered_limits
+        results = []
+        for limit_entry in self.parent_backend.limits:
+            if all(f(limit_entry) for f in active_filters):
+                results.append(limit_entry)
+        return results
 
     def get_accounting_entries_for_quota(
         self,

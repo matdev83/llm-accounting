@@ -1,0 +1,394 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.17, pytest-8.3.5, pluggy-1.5.0 -- /usr/local/bin/python
+cachedir: .pytest_cache
+metadata: {'Python': '3.10.17', 'Platform': 'Linux-6.8.0-x86_64-with-glibc2.39', 'Packages': {'pytest': '8.3.5', 'pluggy': '1.5.0'}, 'Plugins': {'cov': '5.0.0', 'mock': '3.14.0', 'asyncio': '0.23.7', 'Faker': '25.0.0', 'anyio': '4.9.0', 'json-report': '1.5.0', 'metadata': '3.1.1'}}
+rootdir: /app
+configfile: pytest.ini
+testpaths: tests
+plugins: cov-5.0.0, mock-3.14.0, asyncio-0.23.7, Faker-25.0.0, anyio-4.9.0, json-report-1.5.0, metadata-3.1.1
+asyncio: mode=strict
+collecting ... collected 226 items / 1 deselected / 225 selected
+
+tests/accounting/rolling_limits_tests/test_day_rolling_limits.py::TestDayRollingLimits::test_day_rolling_limit_output_tokens
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  0%]
+tests/accounting/rolling_limits_tests/test_hour_rolling_limits.py::TestHourRollingLimits::test_hour_rolling_boundary_just_inside
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  0%]
+tests/accounting/rolling_limits_tests/test_hour_rolling_limits.py::TestHourRollingLimits::test_hour_rolling_boundary_just_outside
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  1%]
+tests/accounting/rolling_limits_tests/test_hour_rolling_limits.py::TestHourRollingLimits::test_no_usage_rolling_limit
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  1%]
+tests/accounting/rolling_limits_tests/test_minute_rolling_limits.py::TestMinuteRollingLimits::test_minute_rolling_limit_input_tokens
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  2%]
+tests/accounting/rolling_limits_tests/test_mixed_rolling_limits.py::TestMixedRollingLimits::test_mixed_fixed_and_rolling_limits_rolling_exceeded
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  2%]
+tests/accounting/rolling_limits_tests/test_mixed_rolling_limits.py::TestMixedRollingLimits::test_multiple_rolling_limits_one_exceeded
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  3%]
+tests/accounting/rolling_limits_tests/test_month_rolling_limits.py::TestMonthRollingLimits::test_month_rolling_limit_requests
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  3%]
+tests/accounting/rolling_limits_tests/test_second_rolling_limits.py::TestSecondRollingLimits::test_basic_second_rolling_limit_exceed_limit
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  4%]
+tests/accounting/rolling_limits_tests/test_second_rolling_limits.py::TestSecondRollingLimits::test_basic_second_rolling_limit_within_limit
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  4%]
+tests/accounting/rolling_limits_tests/test_second_rolling_limits.py::TestSecondRollingLimits::test_second_rolling_limit_usage_outside_window
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  4%]
+tests/accounting/rolling_limits_tests/test_week_rolling_limits.py::TestWeekRollingLimits::test_week_rolling_limit_cost
+-------------------------------- live log call ---------------------------------
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:134)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:///file:memdb_test_rolling_limits?mode=memory&cache=shared&uri=true (connection_manager.py:139)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing IN-MEMORY SQLite database (file:memdb_test_rolling_limits?mode=memory&cache=shared): creating schema using Base.metadata.create_all(). (connection_manager.py:34)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: In-memory database (file:memdb_test_rolling_limits?mode=memory&cache=shared) schema created. (connection_manager.py:37)
+2023-01-01 00:00:00 [    INFO] llm_accounting.services.quota_service: QuotaService initialized. _denial_cache is empty: True (quota_service.py:24)
+2023-01-01 00:00:00 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Closing SQLAlchemy connection for file:memdb_test_rolling_limits?mode=memory&cache=shared (connection_manager.py:164)
+PASSED                                                                   [  5%]
+tests/accounting/test_account_model_limits.py::test_account_model_requests_per_minute
+-------------------------------- live log setup --------------------------------
+2025-06-08 18:36:13 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing SQLite backend for db: /tmp/pytest-of-swebot/pytest-33/test_account_model_requests_pe0/test_accounting.sqlite (connection_manager.py:134)
+2025-06-08 18:36:13 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Creating SQLAlchemy engine for sqlite:////tmp/pytest-of-swebot/pytest-33/test_account_model_requests_pe0/test_accounting.sqlite (connection_manager.py:139)
+2025-06-08 18:36:13 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: Initializing ON-DISK SQLite database (/tmp/pytest-of-swebot/pytest-33/test_account_model_requests_pe0/test_accounting.sqlite): using Alembic migrations. (connection_manager.py:117)
+2025-06-08 18:36:13 [    INFO] llm_accounting.backends.sqlite_backend_parts.connection_manager: On-disk database /tmp/pytest-of-swebot/pytest-33/test_account_model_requests_pe0/test_accounting.sqlite is new. Running migrations and stamping with head revision. (connection_manager.py:64)
+2025-06-08 18:36:13 [    INFO] llm_accounting.db_migrations.migrations: Attempting database migrations for URL: sqlite:////tmp/pytest-of-swebot/pytest-33/test_account_model_requests_pe0/test_accounting.sqlite (db_migrations.py:60)
+PASSED                                                                   [  5%]
+tests/accounting/test_account_model_limits.py::test_account_model_requests_per_day PASSED [  6%]
+tests/accounting/test_account_model_limits.py::test_account_model_completion_tokens_per_minute PASSED [  6%]
+tests/accounting/test_account_model_limits.py::test_account_model_completion_tokens_per_day PASSED [  7%]
+tests/accounting/test_account_model_limits.py::test_account_total_requests_per_minute PASSED [  7%]
+tests/accounting/test_comprehensive_limits.py::test_comprehensive_limit_scenarios PASSED [  8%]
+tests/accounting/test_global_limits.py::test_global_limit PASSED         [  8%]
+tests/accounting/test_model_limits.py::test_model_limit_priority PASSED  [  8%]
+tests/accounting/test_multi_dimensional_quota.py::test_global_limit_overrides_user_limit PASSED [  9%]
+tests/accounting/test_multi_dimensional_quota.py::test_user_limit_triggered_before_global PASSED [  9%]
+tests/accounting/test_multi_dimensional_quota.py::test_model_and_project_limits_first_triggered PASSED [ 10%]
+tests/accounting/test_multi_dimensional_quota.py::test_denial_cache_ttl_behavior PASSED [ 10%]
+tests/accounting/test_multiple_limit_types.py::test_multiple_limit_types PASSED [ 11%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_float_comparison_sanity_check PASSED [ 11%]
+tests/accounting/test_rolling_limits.py::TestRollingLimits::test_placeholder PASSED [ 12%]
+tests/accounting/test_user_caller_limits.py::test_user_caller_combination PASSED [ 12%]
+tests/api_compatibility/test_audit_logger_api.py::TestAuditLoggerAPI::test_audit_logger_api_methods_exist PASSED [ 12%]
+tests/api_compatibility/test_audit_logger_api.py::TestAuditLoggerAPI::test_get_entries_delegates_to_backend PASSED [ 13%]
+tests/api_compatibility/test_audit_logger_api.py::TestAuditLoggerAPI::test_log_event_delegates_to_backend PASSED [ 13%]
+tests/api_compatibility/test_audit_logger_api.py::TestAuditLoggerAPI::test_log_prompt_delegates_to_backend PASSED [ 14%]
+tests/api_compatibility/test_audit_logger_api.py::TestAuditLoggerAPI::test_log_response_delegates_to_backend PASSED [ 14%]
+tests/api_compatibility/test_llm_accounting_api.py::TestLLMAccountingAPI::test_delete_usage_limit_calls_backend PASSED [ 15%]
+tests/api_compatibility/test_llm_accounting_api.py::TestLLMAccountingAPI::test_get_usage_limits_returns_list_of_usage_limit_data_from_backend PASSED [ 15%]
+tests/api_compatibility/test_llm_accounting_api.py::TestLLMAccountingAPI::test_llm_accounting_api_methods_and_properties_exist PASSED [ 16%]
+tests/api_compatibility/test_llm_accounting_api.py::TestLLMAccountingAPI::test_set_usage_limit_passes_usage_limit_data_to_backend PASSED [ 16%]
+tests/backends/postgresql_backend_tests/test_postgresql_audit_log.py::TestPostgreSQLAuditLog::test_get_audit_log_entries_delegates_to_query_executor SKIPPED [ 16%]
+tests/backends/postgresql_backend_tests/test_postgresql_audit_log.py::TestPostgreSQLAuditLog::test_initialize_audit_log_schema_method_ensures_connection SKIPPED [ 17%]
+tests/backends/postgresql_backend_tests/test_postgresql_audit_log.py::TestPostgreSQLAuditLog::test_initialize_creates_audit_log_table SKIPPED [ 17%]
+tests/backends/postgresql_backend_tests/test_postgresql_audit_log.py::TestPostgreSQLAuditLog::test_log_audit_event_delegates_and_manages_transaction SKIPPED [ 18%]
+tests/backends/postgresql_backend_tests/test_postgresql_init_and_connection.py::TestPostgreSQLInitAndConnection::test_close_connection SKIPPED [ 18%]
+tests/backends/postgresql_backend_tests/test_postgresql_init_and_connection.py::TestPostgreSQLInitAndConnection::test_init_success SKIPPED [ 19%]
+tests/backends/postgresql_backend_tests/test_postgresql_init_and_connection.py::TestPostgreSQLInitAndConnection::test_initialize_connection_error SKIPPED [ 19%]
+tests/backends/postgresql_backend_tests/test_postgresql_init_and_connection.py::TestPostgreSQLInitAndConnection::test_initialize_success SKIPPED [ 20%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_existing_db_cache_for_different_connection_string PASSED [ 20%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_existing_db_cache_missing_runs_migrations PASSED [ 20%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_existing_db_cache_outdated_runs_migrations PASSED [ 21%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_existing_db_cache_up_to_date_skips_migrations PASSED [ 21%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_existing_db_migrated_but_model_table_missing_runs_create_all PASSED [ 22%]
+tests/backends/postgresql_backend_tests/test_postgresql_migrations_cache.py::TestPostgreSQLMigrationsCache::test_new_database_creates_schema_stamps_and_caches PASSED [ 22%]
+tests/backends/postgresql_backend_tests/test_postgresql_query_delegation.py::TestPostgreSQLQueryDelegation::test_get_model_stats_delegates_to_query_executor SKIPPED [ 23%]
+tests/backends/postgresql_backend_tests/test_postgresql_query_delegation.py::TestPostgreSQLQueryDelegation::test_get_period_stats_delegates_to_query_executor SKIPPED [ 23%]
+tests/backends/postgresql_backend_tests/test_postgresql_query_execution.py::TestPostgreSQLQueryExecution::test_execute_query_non_select_error SKIPPED [ 24%]
+tests/backends/postgresql_backend_tests/test_postgresql_query_execution.py::TestPostgreSQLQueryExecution::test_execute_query_success SKIPPED [ 24%]
+tests/backends/postgresql_backend_tests/test_postgresql_quota_accounting.py::TestPostgreSQLQuotaAccounting::test_get_accounting_entries_for_quota_db_error SKIPPED [ 24%]
+tests/backends/postgresql_backend_tests/test_postgresql_quota_accounting.py::TestPostgreSQLQuotaAccounting::test_get_accounting_entries_for_quota_invalid_type SKIPPED [ 25%]
+tests/backends/postgresql_backend_tests/test_postgresql_quota_accounting.py::TestPostgreSQLQuotaAccounting::test_get_accounting_entries_for_quota_no_data SKIPPED [ 25%]
+tests/backends/postgresql_backend_tests/test_postgresql_quota_accounting.py::TestPostgreSQLQuotaAccounting::test_get_accounting_entries_for_quota_success SKIPPED [ 26%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_insertion.py::TestPostgreSQLUsageInsertion::test_insert_usage_success SKIPPED [ 26%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_limits.py::TestPostgreSQLUsageLimits::test_delete_usage_limit_success SKIPPED [ 27%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_limits.py::TestPostgreSQLUsageLimits::test_get_usage_limits_uses_limit_manager_and_returns_usage_limit_data SKIPPED [ 27%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_limits.py::TestPostgreSQLUsageLimits::test_insert_usage_limit_uses_limit_manager_with_usage_limit_data SKIPPED [ 28%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_limits.py::TestPostgreSQLUsageLimits::test_postgresql_specific_get_usage_limit_delegates_to_limit_manager SKIPPED [ 28%]
+tests/backends/postgresql_backend_tests/test_postgresql_usage_limits.py::TestPostgreSQLUsageLimits::test_postgresql_specific_set_usage_limit_delegates_to_query_executor SKIPPED [ 28%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_audit_log_table_creation PASSED [ 29%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_log_single_audit_event PASSED [ 29%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_log_audit_event_minimal_fields PASSED [ 30%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_all_audit_logs PASSED [ 30%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_date_filters PASSED [ 31%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_app_name_filter PASSED [ 31%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_user_name_filter PASSED [ 32%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_project_filter PASSED [ 32%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_log_type_filter PASSED [ 32%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_limit PASSED [ 33%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_with_combined_filters PASSED [ 33%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_empty_result PASSED [ 34%]
+tests/backends/sqlite_backend_tests/test_sqlite_audit_log.py::TestSQLiteAuditLog::test_get_audit_logs_order_by_timestamp PASSED [ 34%]
+tests/backends/sqlite_backend_tests/test_sqlite_init_and_usage.py::test_initialize PASSED [ 35%]
+tests/backends/sqlite_backend_tests/test_sqlite_init_and_usage.py::test_insert_usage PASSED [ 35%]
+tests/backends/sqlite_backend_tests/test_sqlite_init_and_usage.py::test_insert_usage_with_project PASSED [ 36%]
+tests/backends/sqlite_backend_tests/test_sqlite_init_and_usage.py::test_tail_retrieves_project PASSED [ 36%]
+tests/backends/sqlite_backend_tests/test_sqlite_init_and_usage.py::test_execute_query_filter_by_project PASSED [ 36%]
+tests/backends/sqlite_backend_tests/test_sqlite_migrations_cache.py::TestSQLiteMigrationCache::test_existing_db_cache_missing PASSED [ 37%]
+tests/backends/sqlite_backend_tests/test_sqlite_migrations_cache.py::TestSQLiteMigrationCache::test_existing_db_cache_outdated PASSED [ 37%]
+tests/backends/sqlite_backend_tests/test_sqlite_migrations_cache.py::TestSQLiteMigrationCache::test_existing_db_cache_up_to_date PASSED [ 38%]
+tests/backends/sqlite_backend_tests/test_sqlite_migrations_cache.py::TestSQLiteMigrationCache::test_in_memory_database PASSED [ 38%]
+tests/backends/sqlite_backend_tests/test_sqlite_migrations_cache.py::TestSQLiteMigrationCache::test_new_database_creates_schema_stamps_and_caches PASSED [ 39%]
+tests/backends/sqlite_backend_tests/test_sqlite_stats_and_purge.py::test_get_period_stats PASSED [ 39%]
+tests/backends/sqlite_backend_tests/test_sqlite_stats_and_purge.py::test_get_model_stats PASSED [ 40%]
+tests/backends/sqlite_backend_tests/test_sqlite_stats_and_purge.py::test_get_model_rankings PASSED [ 40%]
+tests/backends/sqlite_backend_tests/test_sqlite_stats_and_purge.py::test_purge PASSED [ 40%]
+tests/backends/sqlite_backend_tests/test_sqlite_stats_and_purge.py::test_purge_empty_database PASSED [ 41%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_insert_project_scope_limit PASSED [ 41%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_get_usage_limits_filter_by_project_scope PASSED [ 42%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_get_accounting_entries_for_quota_with_project_filter PASSED [ 42%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_insert_and_get_usage_limits PASSED [ 43%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_get_usage_limits_with_filters PASSED [ 43%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_delete_usage_limit PASSED [ 44%]
+tests/backends/sqlite_backend_tests/test_sqlite_usage_limits.py::test_datetime_precision_and_timezone_handling PASSED [ 44%]
+tests/backends/test_base.py::test_backend_interface PASSED               [ 44%]
+tests/backends/test_base.py::test_backend_abstract_methods PASSED        [ 45%]
+tests/backends/test_csv_backend.py::TestCSVBackendInitialization::test_initialization_default_dir PASSED [ 45%]
+tests/backends/test_csv_backend.py::TestCSVBackendInitialization::test_initialization_custom_dir PASSED [ 46%]
+tests/backends/test_csv_backend.py::TestCSVBackendInitialization::test_data_dir_creation PASSED [ 46%]
+tests/backends/test_csv_backend.py::TestCSVBackendInitialization::test_initialization_existing_files PASSED [ 47%]
+tests/backends/test_csv_backend.py::TestCSVPurge::test_purge_clears_data_keeps_headers PASSED [ 47%]
+tests/backends/test_csv_backend.py::TestAccountingEntries::test_insert_and_tail_single_entry PASSED [ 48%]
+tests/backends/test_csv_backend.py::TestUsageLimits::test_insert_get_delete_usage_limit PASSED [ 48%]
+tests/backends/test_csv_backend.py::TestAuditLog::test_insert_get_audit_log_entry PASSED [ 48%]
+tests/backends/test_csv_backend.py::TestPeriodStats::test_get_period_stats_aggregation PASSED [ 49%]
+tests/backends/test_csv_backend.py::TestFileHandlingAndEdgeCases::test_missing_files_recreated_on_operation PASSED [ 49%]
+tests/backends/test_csv_backend.py::test_handling_io_error_on_init_standalone PASSED [ 50%]
+tests/backends/test_usage_models.py::test_usage_entry_creation PASSED    [ 50%]
+tests/backends/test_usage_models.py::test_usage_stats_creation PASSED    [ 51%]
+tests/cli/test_cli_limits_project.py::test_cli_limits_set_project_scope_success PASSED [ 51%]
+tests/cli/test_cli_limits_project.py::test_cli_limits_set_project_scope_missing_project_name PASSED [ 52%]
+tests/cli/test_cli_limits_project.py::test_cli_limits_list_with_project_filters PASSED [ 52%]
+tests/cli/test_cli_limits_project.py::test_cli_limits_delete_project_limit PASSED [ 52%]
+tests/cli/test_cli_log_event.py::test_log_event_basic PASSED             [ 53%]
+tests/cli/test_cli_log_event.py::test_log_event_persists_data PASSED     [ 53%]
+tests/cli/test_cli_log_event.py::test_log_event_with_timestamp PASSED    [ 54%]
+tests/cli/test_cli_log_event.py::test_log_event_with_iso_timestamp_and_tz PASSED [ 54%]
+tests/cli/test_cli_log_event.py::test_log_event_timestamp_parse_error PASSED [ 55%]
+tests/cli/test_cli_purge.py::test_purge_with_confirmation PASSED         [ 55%]
+tests/cli/test_cli_purge.py::test_purge_without_confirmation PASSED      [ 56%]
+tests/cli/test_cli_purge.py::test_purge_with_yes_flag PASSED             [ 56%]
+tests/cli/test_cli_purge.py::test_purge_with_yes_flag_long PASSED        [ 56%]
+tests/cli/test_cli_stats.py::test_stats_no_period PASSED                 [ 57%]
+tests/cli/test_cli_stats.py::test_stats_periods[period_args0-Daily Stats] PASSED [ 57%]
+tests/cli/test_cli_stats.py::test_stats_periods[period_args1-Weekly Stats] PASSED [ 58%]
+tests/cli/test_cli_stats.py::test_stats_periods[period_args2-Monthly Stats] PASSED [ 58%]
+tests/cli/test_cli_stats.py::test_stats_periods[period_args3-Yearly Stats] PASSED [ 59%]
+tests/cli/test_cli_stats.py::test_stats_custom_period PASSED             [ 59%]
+tests/cli/test_cli_stats.py::test_custom_db_file_usage PASSED            [ 60%]
+tests/cli/test_cli_stats.py::test_default_db_file_usage PASSED           [ 60%]
+tests/cli/test_cli_stats.py::test_db_file_validation_error PASSED        [ 60%]
+tests/cli/test_cli_stats.py::test_db_file_permission_error PASSED        [ 61%]
+tests/cli/test_cli_tail.py::test_tail_default PASSED                     [ 61%]
+tests/cli/test_cli_tail.py::test_tail_custom_number PASSED               [ 62%]
+tests/cli/test_cli_tail.py::test_tail_empty PASSED                       [ 62%]
+tests/cli/test_cli_track.py::test_track_usage PASSED                     [ 63%]
+tests/cli/test_cli_track.py::test_track_usage_with_project PASSED        [ 63%]
+tests/cli/test_cli_track.py::test_track_usage_with_timestamp PASSED      [ 64%]
+tests/cli/test_cli_track.py::test_track_usage_with_caller_name PASSED    [ 64%]
+tests/cli/test_cli_track.py::test_track_usage_with_username PASSED       [ 64%]
+tests/cli/test_cli_track.py::test_track_usage_with_cached_tokens PASSED  [ 65%]
+tests/cli/test_cli_track.py::test_track_usage_with_reasoning_tokens PASSED [ 65%]
+tests/cli/test_cli_version.py::test_cli_version PASSED                   [ 66%]
+tests/cli/test_select/select/test_aggregation.py::test_select_aggregation PASSED [ 66%]
+tests/cli/test_select/select/test_basic_query.py::test_select_basic_query PASSED [ 67%]
+tests/cli/test_select/select/test_no_results.py::test_select_no_results PASSED [ 67%]
+tests/cli/test_select/select/test_non_select_query.py::test_select_non_select_query PASSED [ 68%]
+tests/cli/test_select/select/test_output_formatting.py::test_select_output_formatting PASSED [ 68%]
+tests/cli/test_select/select/test_syntax_error.py::test_select_syntax_error PASSED [ 68%]
+tests/cli/test_select_project.py::test_select_no_project_filter_displays_project_column PASSED [ 69%]
+tests/cli/test_select_project.py::test_select_filter_by_project_name PASSED [ 69%]
+tests/cli/test_select_project.py::test_select_filter_by_project_null PASSED [ 70%]
+tests/core/test_accounting_purge.py::test_purge PASSED                   [ 70%]
+tests/core/test_accounting_stats.py::test_get_period_stats PASSED        [ 71%]
+tests/core/test_accounting_stats.py::test_get_model_stats PASSED         [ 71%]
+tests/core/test_accounting_stats.py::test_get_model_rankings PASSED      [ 72%]
+tests/core/test_accounting_tracking.py::test_track_usage PASSED          [ 72%]
+tests/core/test_accounting_tracking.py::test_tail PASSED                 [ 72%]
+tests/core/test_accounting_tracking.py::test_tail_empty PASSED           [ 73%]
+tests/core/test_accounting_tracking.py::test_tail_default_limit PASSED   [ 73%]
+tests/core/test_accounting_tracking.py::test_track_usage_with_caller_and_user PASSED [ 74%]
+tests/core/test_accounting_tracking.py::test_tail_with_caller_and_user PASSED [ 74%]
+tests/core/test_accounting_validation.py::test_track_usage_empty_model PASSED [ 75%]
+tests/core/test_accounting_validation.py::test_track_usage_none_model PASSED [ 75%]
+tests/core/test_accounting_validation.py::test_usage_entry_empty_model PASSED [ 76%]
+tests/core/test_accounting_validation.py::test_usage_entry_none_model PASSED [ 76%]
+tests/core/test_accounting_validation.py::test_track_usage_without_timestamp PASSED [ 76%]
+tests/core/test_accounting_validation.py::test_track_usage_with_timestamp PASSED [ 77%]
+tests/core/test_accounting_validation.py::test_track_usage_with_token_details PASSED [ 77%]
+tests/core/test_accounting_validation.py::test_track_usage_default_token_details PASSED [ 78%]
+tests/core/test_output_silence.py::TestOutputSilence::test_audit_logger_silence PASSED [ 78%]
+tests/core/test_output_silence.py::TestOutputSilence::test_llm_accounting_context_manager_silence PASSED [ 79%]
+tests/core/test_output_silence.py::TestOutputSilence::test_mock_backend_operations_debug_silence PASSED [ 79%]
+tests/core/test_output_silence.py::TestOutputSilence::test_quota_service_silence PASSED [ 80%]
+tests/core/test_project_quota_service.py::test_project_limit_cost PASSED [ 80%]
+tests/core/test_project_quota_service.py::test_project_limit_requests PASSED [ 80%]
+tests/core/test_project_quota_service.py::test_project_limit_with_global_limit_cost PASSED [ 81%]
+tests/core/test_project_quota_service.py::test_project_limit_with_model_limit PASSED [ 81%]
+tests/core/test_project_quota_service.py::test_project_limit_with_no_specific_project_in_request PASSED [ 82%]
+tests/core/test_project_quota_service.py::test_limit_message_for_project_scope PASSED [ 82%]
+tests/core/test_quota_service.py::test_check_quota_no_limits PASSED      [ 83%]
+tests/core/test_quota_service.py::test_check_quota_allowed_single_limit PASSED [ 83%]
+tests/core/test_quota_service.py::test_check_quota_denied_single_limit PASSED [ 84%]
+tests/core/test_quota_service.py::test_check_quota_multiple_limits_one_exceeded PASSED [ 84%]
+tests/core/test_quota_service.py::test_check_quota_different_scopes_in_cache PASSED [ 84%]
+tests/core/test_quota_service.py::test_check_quota_token_limits PASSED   [ 85%]
+tests/core/test_quota_service.py::test_get_period_start_monthly PASSED   [ 85%]
+tests/core/test_quota_service.py::test_get_period_start_daily PASSED     [ 86%]
+tests/core/test_quota_service.py::test_get_period_start_hourly PASSED    [ 86%]
+tests/core/test_quota_service.py::test_get_period_start_minute PASSED    [ 87%]
+tests/core/test_quota_service.py::test_get_period_start_second PASSED    [ 87%]
+tests/core/test_quota_service.py::test_get_period_start_weekly PASSED    [ 88%]
+tests/core/test_quota_service.py::test_get_period_start_unsupported_interval PASSED [ 88%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_no_limits PASSED [ 88%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_allowed_single_limit PASSED [ 89%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_single_limit PASSED [ 89%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_retry_after_various_intervals[TimeInterval.SECOND-10-9.0-1.1-2024-01-01T00:00:05Z-2024-01-01T00:00:10Z] PASSED [ 90%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_retry_after_various_intervals[TimeInterval.MINUTE-1-50.0-11.0-2024-01-01T00:00:30Z-2024-01-01T00:01:00Z] PASSED [ 90%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_retry_after_various_intervals[TimeInterval.MINUTE-2-50.0-11.0-2024-01-01T00:00:30Z-2024-01-01T00:02:00Z] PASSED [ 91%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_retry_after_various_intervals[TimeInterval.HOUR-1-50.0-11.0-2024-01-01T00:30:00Z-2024-01-01T01:00:00Z] PASSED [ 91%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_retry_after_various_intervals[TimeInterval.DAY-1-20.0-5.0-2024-01-01T12:00:00Z-2024-01-02T00:00:00Z] PASSED [ 92%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_retry_after_various_intervals[TimeInterval.SECOND_ROLLING-10-9.0-1.1-2024-01-01T00:00:10Z-2024-01-01T00:00:10Z] PASSED [ 92%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_retry_after_various_intervals[TimeInterval.MINUTE_ROLLING-1-50.0-11.0-2024-01-01T00:01:00Z-2024-01-01T00:01:00Z] PASSED [ 92%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_retry_after_various_intervals[TimeInterval.HOUR_ROLLING-1-50.0-11.0-2024-01-01T01:00:00Z-2024-01-01T01:00:00Z] PASSED [ 93%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_retry_after_various_intervals[TimeInterval.MONTH_ROLLING-1-10.0-1.0-2024-01-15T10:00:00Z-2024-02-01T00:00:00Z] PASSED [ 93%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_fixed_month_retry_after PASSED [ 94%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_rolling_month_retry_after PASSED [ 94%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denied_retry_after_zero_or_negative_becomes_zero PASSED [ 95%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_denial_cached PASSED [ 95%]
+tests/core/test_quota_service.py::test_check_quota_enhanced_cache_expires PASSED [ 96%]
+tests/test_audit_log.py::test_log_prompt PASSED                          [ 96%]
+tests/test_audit_log.py::test_log_response PASSED                        [ 96%]
+tests/test_audit_log.py::test_log_event_method PASSED                    [ 97%]
+tests/test_audit_log.py::test_nullable_fields PASSED                     [ 97%]
+tests/test_audit_log.py::test_get_entries PASSED                         [ 98%]
+tests/test_migrations.py::test_sqlite_initial_migration_creates_schema PASSED [ 98%]
+tests/test_migrations.py::test_sqlite_applies_new_migration_and_preserves_data PASSED [ 99%]
+tests/test_migrations.py::test_postgresql_initial_migration_creates_schema SKIPPED [ 99%]
+tests/test_migrations.py::test_postgresql_applies_new_migration_and_preserves_data SKIPPED [100%]
+
+=============================== warnings summary ===============================
+../usr/local/lib/python3.10/dist-packages/_pytest/config/__init__.py:1441
+  /usr/local/lib/python3.10/dist-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform linux, python 3.10.17-final-0 ----------
+Name                                                                     Stmts   Miss  Cover   Missing
+------------------------------------------------------------------------------------------------------
+src/llm_accounting/__init__.py                                              66      3    95%   223-225
+src/llm_accounting/audit_log.py                                             20      0   100%
+src/llm_accounting/backends/__init__.py                                      4      1    75%   6
+src/llm_accounting/backends/base.py                                        126     19    85%   31, 110, 115, 120, 127, 134, 139, 144, 149, 154, 169, 189, 194, 199, 208, 213, 218, 223, 237
+src/llm_accounting/backends/csv_backend.py                                 207     45    78%   59, 71-73, 77-78, 82, 86, 115-123, 137-139, 143-144, 165-166, 176, 178, 180, 182, 194-195, 203, 205, 220, 222, 237-238, 246, 265, 269-270, 282-283, 296, 298, 302, 304, 306, 309, 321
+src/llm_accounting/backends/mock_backend.py                                 61     31    49%   25-35, 38, 41, 44, 47, 52, 57, 60, 63, 66, 69, 72, 75, 88, 103, 109, 113-114, 118-119, 132-134
+src/llm_accounting/backends/mock_backend_parts/connection_manager.py        12      6    50%   5, 9, 13-14, 18-19
+src/llm_accounting/backends/mock_backend_parts/limit_manager.py             55     45    18%   10, 14-18, 22-27, 41-71, 86-96
+src/llm_accounting/backends/mock_backend_parts/query_executor.py             9      5    44%   5, 9-15
+src/llm_accounting/backends/mock_backend_parts/stats_manager.py             19      9    53%   9, 13-14, 31-32, 41-42, 49-50
+src/llm_accounting/backends/mock_backend_parts/usage_manager.py             19     10    47%   10, 14-15, 19-21, 25-47
+src/llm_accounting/backends/postgresql.py                                  294    294     0%   1-413
+src/llm_accounting/backends/sqlite.py                                       75      3    96%   132, 154-155
+src/llm_accounting/backends/sqlite_backend_parts/audit_log_manager.py       64      8    88%   14, 39-41, 79, 113-115
+src/llm_accounting/backends/sqlite_backend_parts/connection_manager.py     131     19    85%   42-48, 53-54, 60-61, 71, 84-86, 96-97, 112, 155
+src/llm_accounting/backends/sqlite_backend_parts/limit_manager.py           60      6    90%   69, 71, 77, 79, 85, 87
+src/llm_accounting/backends/sqlite_backend_parts/query_executor.py          25      5    80%   18, 23, 25, 32-33
+src/llm_accounting/backends/sqlite_backend_parts/usage_manager.py           77     16    79%   62, 90, 108-124
+src/llm_accounting/backends/sqlite_queries.py                               53      1    98%   93
+src/llm_accounting/backends/sqlite_utils.py                                 24      6    75%   22, 43-44, 51-55
+src/llm_accounting/cli/commands/limits.py                                   56     17    70%   27-30, 39, 41, 43, 50-51, 59, 61, 74-77, 84-85
+src/llm_accounting/cli/commands/log_event.py                                23      3    87%   20, 38-39
+src/llm_accounting/cli/commands/purge.py                                    10      0   100%
+src/llm_accounting/cli/commands/select.py                                   57      5    91%   15, 28-29, 66-67
+src/llm_accounting/cli/commands/stats.py                                    97      5    95%   38-40, 107, 119
+src/llm_accounting/cli/commands/tail.py                                     22      0   100%
+src/llm_accounting/cli/commands/track.py                                    14      3    79%   15-19
+src/llm_accounting/cli/main.py                                              57     14    75%   24-37, 102-103, 128
+src/llm_accounting/cli/parsers.py                                           82      0   100%
+src/llm_accounting/cli/utils.py                                             51     27    47%   42-43, 45-56, 60-63, 77-90
+src/llm_accounting/db_migrations.py                                        165     99    40%   29-33, 41-47, 49, 51, 57-59, 73-74, 84-92, 106, 110-112, 126-132, 134-135, 137-138, 151, 155-159, 162-222
+src/llm_accounting/models/__init__.py                                        5      0   100%
+src/llm_accounting/models/accounting.py                                     24      1    96%   30
+src/llm_accounting/models/audit.py                                          17      1    94%   22
+src/llm_accounting/models/base.py                                            2      0   100%
+src/llm_accounting/models/limits.py                                         74      9    88%   100, 106-123
+src/llm_accounting/services/quota_service.py                                69     24    65%   89, 104, 118-122, 136-143, 155-162, 174-181, 195-205, 227-237
+src/llm_accounting/services/quota_service_parts/_cache_manager.py           13      0   100%
+src/llm_accounting/services/quota_service_parts/_limit_evaluator.py        236     55    77%   39, 41, 57, 65, 79, 112-113, 141, 164, 182-277, 328-329, 350, 419-421
+------------------------------------------------------------------------------------------------------
+TOTAL                                                                     2475    795    68%
+
+=========== 201 passed, 24 skipped, 1 deselected, 1 warning in 8.12s ===========

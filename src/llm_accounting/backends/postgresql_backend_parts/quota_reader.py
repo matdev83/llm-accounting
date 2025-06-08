@@ -1,11 +1,10 @@
 import logging
 import psycopg2
 import psycopg2.extras # For RealDictCursor
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, List, Any
 from datetime import datetime
 
-from ..base import UsageEntry, UsageStats
-from ...models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
+from ...models.limits import LimitType
 
 logger = logging.getLogger(__name__)
 

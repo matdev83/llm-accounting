@@ -5,7 +5,7 @@ import psycopg2 # For error handling
 import psycopg2.extras # For RealDictCursor
 
 from ..base import UsageEntry, UsageStats, AuditLogEntry # Added AuditLogEntry
-from ...models.limits import UsageLimit, UsageLimitDTO, LimitScope, LimitType, TimeInterval
+from ...models.limits import UsageLimitDTO, LimitScope, LimitType
 
 from .query_reader import QueryReader
 from .limit_manager import LimitManager

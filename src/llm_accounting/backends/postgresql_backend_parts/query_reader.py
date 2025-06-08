@@ -6,7 +6,6 @@ from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
 
 from ..base import UsageEntry, UsageStats
-from ...models.limits import UsageLimit, LimitScope, LimitType, TimeInterval
 
 logger = logging.getLogger(__name__)
 

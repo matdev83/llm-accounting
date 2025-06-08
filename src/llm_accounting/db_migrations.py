@@ -1,18 +1,15 @@
 import logging
-import os
 from alembic.config import Config as AlembicConfig
 from alembic import command as alembic_command
 from sqlalchemy.engine.url import make_url
 from sqlalchemy import text, Connection # Added Connection
 from pathlib import Path
-import sys
 from typing import Optional
 
 from alembic.script import ScriptDirectory
 # EnvironmentContext might still be used by other parts of Alembic or if some logic path needs it,
 # but for run_migrations and stamp_db_head post-action revision check, we are changing the method.
 # Keep it for now if other alembic internals might rely on it being available.
-from alembic.runtime.environment import EnvironmentContext 
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +53,10 @@ def run_migrations(db_url: str, connection: Optional[Connection] = None) -> Opti
     log_db_url = db_url
     try:
         parsed_url = make_url(db_url)
-        if parsed_url.password: log_db_url = str(parsed_url._replace(password="****"))
-    except Exception: pass 
+        if parsed_url.password:
+            log_db_url = str(parsed_url._replace(password="****"))
+    except Exception:
+        pass
     migration_logger.info(f"Attempting database migrations for URL: {log_db_url}")
     
     alembic_logger = logging.getLogger("alembic")
@@ -190,8 +189,10 @@ def stamp_db_head(db_url: str) -> Optional[str]:
     if db_url:
         try:
             parsed_url = make_url(db_url) 
-            if parsed_url.password: log_db_url_str = str(parsed_url._replace(password="****"))
-        except Exception: pass 
+            if parsed_url.password:
+                log_db_url_str = str(parsed_url._replace(password="****"))
+        except Exception:
+            pass
     migration_logger.info(f"Attempting to stamp database for URL context: {log_db_url_str}")
     
     try:

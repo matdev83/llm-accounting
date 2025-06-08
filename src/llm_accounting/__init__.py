@@ -3,25 +3,44 @@
 This package provides core functionality for tracking and managing API usage quotas
 and rate limits across multiple services.
 """
+# Note: The duplicated docstring below was present in the original file.
 """Main package initialization for LLM Accounting system.
 
 This package provides core functionality for tracking and managing API usage quotas
 and rate limits across multiple services.
 """
-import logging
 
-# Configure a NullHandler for the library's root logger to prevent logs from propagating to the console by default.\n# Applications using this library should configure their own logging if they wish to see library logs.\nlogging.getLogger('llm_accounting').addHandler(logging.NullHandler())
+import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
+from .audit_log import AuditLogger
 from .backends.base import BaseBackend, UsageEntry, UsageStats
 from .backends.mock_backend import MockBackend
 from .backends.sqlite import SQLiteBackend
 from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimitDTO
 from .services.quota_service import QuotaService
-from .audit_log import AuditLogger
 
+# Configure a NullHandler for the library's root logger to prevent logs from propagating to the console by default.
+# Applications using this library should configure their own logging if they wish to see library logs.
+logging.getLogger('llm_accounting').addHandler(logging.NullHandler())
+
+# Initialize logger for the current module after all imports and configurations.
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "LLMAccounting",
+    "BaseBackend",
+    "UsageEntry",
+    "UsageStats",
+    "SQLiteBackend",
+    "MockBackend",
+    "AuditLogger",
+    "LimitScope",
+    "LimitType",
+    "TimeInterval",
+    "UsageLimitDTO",
+]
 
 
 class LLMAccounting:
@@ -204,19 +223,3 @@ class LLMAccounting:
         if isinstance(self.backend, SQLiteBackend):
             return self.backend.db_path
         return None
-
-
-# Export commonly used classes
-__all__ = [
-    "LLMAccounting",
-    "BaseBackend",
-    "UsageEntry",
-    "UsageStats",
-    "SQLiteBackend",
-    "MockBackend",
-    "AuditLogger",
-    "LimitScope",
-    "LimitType",
-    "TimeInterval",
-    "UsageLimitDTO",
-]

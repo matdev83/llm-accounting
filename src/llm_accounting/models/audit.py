@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from sqlalchemy import Column, DateTime, Integer, String
 
 from llm_accounting.models.base import Base

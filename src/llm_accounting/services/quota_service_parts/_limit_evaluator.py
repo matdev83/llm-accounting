@@ -1,4 +1,4 @@
-import sys
+import logging # Added logging import
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, List
 
@@ -8,6 +8,164 @@ from ...models.limits import LimitType, TimeInterval, UsageLimitDTO, LimitScope
 class QuotaServiceLimitEvaluator:
     def __init__(self, backend: BaseBackend):
         self.backend = backend
+
+    def _prepare_usage_query_params(self, limit: UsageLimitDTO, limit_scope_enum: LimitScope) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[bool]]:
+        final_usage_query_model: Optional[str] = None
+        final_usage_query_username: Optional[str] = None
+        final_usage_query_caller_name: Optional[str] = None
+        final_usage_query_project_name: Optional[str] = None
+        final_usage_query_filter_project_null: Optional[bool] = None
+
+        if limit_scope_enum == LimitScope.GLOBAL:
+            pass  # No specific filters for global limits
+        else:
+            # Apply model filter if specified on the limit
+            if limit.model is not None:
+                final_usage_query_model = limit.model
+
+            # Apply username filter if specified on the limit
+            if limit.username is not None:
+                final_usage_query_username = limit.username
+
+            # Apply caller_name filter if specified on the limit
+            if limit.caller_name is not None:
+                final_usage_query_caller_name = limit.caller_name
+
+            # Apply project_name filter or filter_project_null based on limit scope and project_name presence
+            if limit_scope_enum == LimitScope.PROJECT:
+                if limit.project_name is not None:
+                    final_usage_query_project_name = limit.project_name
+                else: # limit.project_name is None for a PROJECT scope limit
+                    final_usage_query_filter_project_null = True
+            elif limit.project_name is not None:
+                final_usage_query_project_name = limit.project_name
+
+        return (final_usage_query_model, final_usage_query_username, final_usage_query_caller_name,
+                final_usage_query_project_name, final_usage_query_filter_project_null)
+
+    def _calculate_request_value(self, limit_type_enum: LimitType, request_input_tokens: int,
+                                 request_completion_tokens: int, request_cost: float) -> Optional[float]:
+        if limit_type_enum == LimitType.REQUESTS:
+            return 1.0
+        elif limit_type_enum == LimitType.INPUT_TOKENS:
+            return float(request_input_tokens)
+        elif limit_type_enum == LimitType.OUTPUT_TOKENS:
+            return float(request_completion_tokens)
+        elif limit_type_enum == LimitType.COST:
+            return request_cost
+        else:
+            return None
+
+    def _format_exceeded_reason_message(self, limit: UsageLimitDTO,
+                                        limit_scope_for_message: Optional[str],
+                                        current_usage: float, request_value: float) -> str:
+        scope_msg_str: str
+
+        if limit_scope_for_message:
+            scope_msg_str = limit_scope_for_message
+        elif limit.scope == LimitScope.USER.value and limit.username:
+            scope_msg_str = f"USER (user: {limit.username})"
+        elif limit.scope == LimitScope.MODEL.value and limit.model:
+            scope_msg_str = f"MODEL (model: {limit.model})"
+        elif limit.scope == LimitScope.CALLER.value and limit.caller_name:
+            if limit.username:
+                scope_msg_str = f"CALLER (user: {limit.username}, caller: {limit.caller_name})"
+            else:
+                scope_msg_str = f"CALLER (caller: {limit.caller_name})"
+        elif limit.scope == LimitScope.PROJECT.value:
+            if limit.project_name:
+                scope_msg_str = f"PROJECT (project: {limit.project_name})"
+            else: # This case might not be hit if project_name is mandatory for PROJECT scope DTOs
+                scope_msg_str = "PROJECT (no project)"
+        # For GLOBAL or any other unhandled specific scope string from DTO,
+        # or if specific fields like username/model/caller_name/project_name are missing for the above.
+        else:
+            scope_msg_str = limit.scope # Defaults to the raw string like "GLOBAL", "USER", etc.
+
+        reason_message = (
+            f"{scope_msg_str} limit: {limit.max_value:.2f} {limit.limit_type} per {limit.interval_value} {limit.interval_unit}"
+            f" exceeded. Current usage: {current_usage:.2f}, request: {request_value:.2f}."
+        )
+        return reason_message
+
+    def _should_skip_limit(self, limit: UsageLimitDTO, request_model: Optional[str],
+                           request_username: Optional[str], request_caller_name: Optional[str],
+                           project_name_for_usage_sum: Optional[str]) -> bool:
+        limit_scope_enum = LimitScope(limit.scope)
+        if limit_scope_enum != LimitScope.GLOBAL:
+            # If a limit specifies a model, it should only apply if the request is for that model.
+            if limit.model and limit.model != request_model:
+                return True # Skip
+            # If a limit specifies a username, it should only apply if the request is for that username.
+            if limit.username and limit.username != request_username:
+                return True # Skip
+            # If a limit specifies a caller_name, it should only apply if the request is for that caller.
+            if limit.caller_name and limit.caller_name != request_caller_name:
+                return True # Skip
+
+            # If a limit specifies a project_name (and is not a generic PROJECT scope for NULL projects):
+            if limit.project_name:
+                if limit.project_name != project_name_for_usage_sum:
+                    return True # Skip
+            # If a limit is PROJECT scope and for NULL projects (limit.project_name is None):
+            elif limit_scope_enum == LimitScope.PROJECT and limit.project_name is None:
+                if project_name_for_usage_sum is not None:
+                    return True # Skip
+        return False # Do not skip
+
+    def _calculate_reset_timestamp(self, period_start_time: datetime,
+                                   limit: UsageLimitDTO, interval_unit_enum: TimeInterval) -> datetime:
+        _reset_timestamp: datetime
+        if interval_unit_enum.is_rolling():
+            period_end_for_retry: datetime
+            if interval_unit_enum == TimeInterval.MONTH_ROLLING:
+                year = period_start_time.year
+                month = period_start_time.month
+                target_month_val = month + limit.interval_value
+                target_year_val = year
+                while target_month_val > 12:
+                    target_month_val -= 12
+                    target_year_val += 1
+                period_end_for_retry = period_start_time.replace(year=target_year_val, month=target_month_val)
+            elif interval_unit_enum == TimeInterval.WEEK_ROLLING:
+                period_end_for_retry = period_start_time + timedelta(weeks=limit.interval_value)
+            elif interval_unit_enum == TimeInterval.DAY_ROLLING:
+                period_end_for_retry = period_start_time + timedelta(days=limit.interval_value)
+            elif interval_unit_enum == TimeInterval.HOUR_ROLLING:
+                period_end_for_retry = period_start_time + timedelta(hours=limit.interval_value)
+            elif interval_unit_enum == TimeInterval.MINUTE_ROLLING:
+                period_end_for_retry = period_start_time + timedelta(minutes=limit.interval_value)
+            elif interval_unit_enum == TimeInterval.SECOND_ROLLING:
+                period_end_for_retry = period_start_time + timedelta(seconds=limit.interval_value)
+            else:
+                raise ValueError(f"Unsupported rolling time interval unit for retry calculation: {interval_unit_enum.value}")
+            _reset_timestamp = period_end_for_retry
+        else: # Non-rolling (fixed) intervals
+            duration: timedelta
+            if interval_unit_enum == TimeInterval.MONTH:
+                start_year = period_start_time.year
+                start_month = period_start_time.month
+                next_period_raw_month = start_month + limit.interval_value
+                next_period_year = start_year + (next_period_raw_month - 1) // 12
+                next_period_month = (next_period_raw_month - 1) % 12 + 1
+                _reset_timestamp = datetime(next_period_year, next_period_month, 1, 0, 0, 0, tzinfo=period_start_time.tzinfo)
+            elif interval_unit_enum == TimeInterval.WEEK:
+                duration = timedelta(weeks=limit.interval_value)
+                _reset_timestamp = period_start_time + duration
+            else: # SECOND, MINUTE, HOUR, DAY
+                simple_interval_map = {
+                    TimeInterval.SECOND.value: timedelta(seconds=1),
+                    TimeInterval.MINUTE.value: timedelta(minutes=1),
+                    TimeInterval.HOUR.value: timedelta(hours=1),
+                    TimeInterval.DAY.value: timedelta(days=1),
+                }
+                base_delta = simple_interval_map.get(interval_unit_enum.value)
+                if not base_delta:
+                    raise ValueError(f"Unsupported fixed time interval unit for duration: {interval_unit_enum.value}")
+                duration = base_delta * limit.interval_value
+                _reset_timestamp = period_start_time + duration
+
+        return _reset_timestamp.replace(microsecond=0)
 
     def _evaluate_limits(
         self,
@@ -23,30 +181,12 @@ class QuotaServiceLimitEvaluator:
     ) -> Tuple[bool, Optional[str]]:
         now = datetime.now(timezone.utc) # Keep timezone-aware
         for limit in limits:
+            # Call _should_skip_limit helper
+            if self._should_skip_limit(limit, request_model, request_username, request_caller_name, project_name_for_usage_sum):
+                continue
+
+            # Define enums needed for subsequent logic/helpers
             limit_scope_enum = LimitScope(limit.scope)
-
-            # --- Start: Logic to check if limit applies to the current request ---
-            if limit_scope_enum != LimitScope.GLOBAL:
-                # If a limit specifies a model, it should only apply if the request is for that model.
-                if limit.model and limit.model != request_model:
-                    continue
-                # If a limit specifies a username, it should only apply if the request is for that username.
-                if limit.username and limit.username != request_username:
-                    continue
-                # If a limit specifies a caller_name, it should only apply if the request is for that caller.
-                if limit.caller_name and limit.caller_name != request_caller_name:
-                    continue
-
-                # If a limit specifies a project_name (and is not a generic PROJECT scope for NULL projects):
-                if limit.project_name:
-                    if limit.project_name != project_name_for_usage_sum:
-                        continue
-                # If a limit is PROJECT scope and for NULL projects (limit.project_name is None):
-                elif limit_scope_enum == LimitScope.PROJECT and limit.project_name is None:
-                    if project_name_for_usage_sum is not None:
-                        continue
-            # --- End: Logic to check if limit applies to the current request ---
-
             interval_unit_enum = TimeInterval(limit.interval_unit) # Get enum member
             period_start_time = self._get_period_start(now, interval_unit_enum, limit.interval_value)
 
@@ -90,31 +230,10 @@ class QuotaServiceLimitEvaluator:
             # precision to avoid excluding entries recorded within the same
             # second.  Do not truncate microseconds.
 
-            final_usage_query_model: Optional[str] = None
-            final_usage_query_username: Optional[str] = None
-            final_usage_query_caller_name: Optional[str] = None
-            final_usage_query_project_name: Optional[str] = None
-            final_usage_query_filter_project_null: Optional[bool] = None
-
-            if limit_scope_enum == LimitScope.GLOBAL:
-                pass
-            else:
-                if limit.model is not None:
-                    final_usage_query_model = limit.model
-
-                if limit.username is not None:
-                    final_usage_query_username = limit.username
-
-                if limit.caller_name is not None:
-                    final_usage_query_caller_name = limit.caller_name
-
-                if limit_scope_enum == LimitScope.PROJECT:
-                    if limit.project_name is not None:
-                        final_usage_query_project_name = limit.project_name
-                    else:
-                        final_usage_query_filter_project_null = True
-                elif limit.project_name is not None:
-                    final_usage_query_project_name = limit.project_name
+            # Call _prepare_usage_query_params helper
+            (final_usage_query_model, final_usage_query_username, final_usage_query_caller_name,
+             final_usage_query_project_name, final_usage_query_filter_project_null) = \
+                self._prepare_usage_query_params(limit, limit_scope_enum)
 
             current_usage = self.backend.get_accounting_entries_for_quota(
                 start_time=period_start_time,
@@ -129,17 +248,12 @@ class QuotaServiceLimitEvaluator:
             )
 
             limit_type_enum = LimitType(limit.limit_type)
-            request_value: float
-            if limit_type_enum == LimitType.REQUESTS:
-                request_value = 1.0
-            elif limit_type_enum == LimitType.INPUT_TOKENS:
-                request_value = float(request_input_tokens)
-            elif limit_type_enum == LimitType.OUTPUT_TOKENS:
-                request_value = float(request_completion_tokens)
-            elif limit_type_enum == LimitType.COST:
-                request_value = request_cost
-            else:
+            # Call _calculate_request_value helper
+            request_value_optional = self._calculate_request_value(limit_type_enum, request_input_tokens, request_completion_tokens, request_cost)
+            if request_value_optional is None:
+                logger.warning(f"Unknown or non-applicable limit type {limit_type_enum} for limit ID {limit.id if limit.id else 'N/A'} in _evaluate_limits. Skipping.")
                 continue
+            request_value = request_value_optional
 
             potential_usage = current_usage + request_value
 
@@ -155,26 +269,10 @@ class QuotaServiceLimitEvaluator:
             comparison_result = potential_usage_float > limit_max_value_float
 
             if comparison_result:
-                scope_msg = limit_scope_for_message if limit_scope_for_message else limit.scope
-                if limit.scope == LimitScope.USER.value and limit.username:
-                    scope_msg = f"USER (user: {limit.username})"
-                elif limit.scope == LimitScope.MODEL.value and limit.model:
-                    scope_msg = f"MODEL (model: {limit.model})"
-                elif limit.scope == LimitScope.CALLER.value and limit.caller_name:
-                    if limit.username:
-                        scope_msg = f"CALLER (user: {limit.username}, caller: {limit.caller_name})"
-                    else:
-                        scope_msg = f"CALLER (caller: {limit.caller_name})"
-                elif limit.scope == LimitScope.PROJECT.value:
-                    if limit.project_name:
-                        scope_msg = f"PROJECT (project: {limit.project_name})"
-                    else:
-                        scope_msg = "PROJECT (no project)"
-
-                reason_message = (
-                    f"{scope_msg} limit: {limit.max_value:.2f} {limit.limit_type} per {limit.interval_value} {limit.interval_unit}"
-                    f" exceeded. Current usage: {current_usage:.2f}, request: {request_value:.2f}."
-                )
+                # Call _format_exceeded_reason_message helper
+                # Note: _format_exceeded_reason_message expects limit_scope_for_message as its second arg for the message content.
+                # limit_scope_enum is not directly used by the version of _format_exceeded_reason_message that was finalized.
+                reason_message = self._format_exceeded_reason_message(limit, limit_scope_for_message, current_usage, request_value)
                 return False, reason_message # Original return for exceeded limit
         return True, None # Original return for no limit exceeded
 
@@ -192,119 +290,21 @@ class QuotaServiceLimitEvaluator:
     ) -> Tuple[bool, Optional[str], Optional[datetime]]: # Changed return type
         now = datetime.now(timezone.utc) # Keep timezone-aware
         for limit in limits:
-            limit_scope_enum = LimitScope(limit.scope)
+            if self._should_skip_limit(limit, request_model, request_username, request_caller_name, project_name_for_usage_sum):
+                continue
 
-            # --- Start: Logic to check if limit applies to the current request ---
-            if limit_scope_enum != LimitScope.GLOBAL:
-                # If a limit specifies a model, it should only apply if the request is for that model.
-                if limit.model and limit.model != request_model:
-                    continue
-                # If a limit specifies a username, it should only apply if the request is for that username.
-                if limit.username and limit.username != request_username:
-                    continue
-                # If a limit specifies a caller_name, it should only apply if the request is for that caller.
-                if limit.caller_name and limit.caller_name != request_caller_name:
-                    continue
-
-                # If a limit specifies a project_name (and is not a generic PROJECT scope for NULL projects):
-                if limit.project_name:
-                    if limit.project_name != project_name_for_usage_sum:
-                        continue
-                # If a limit is PROJECT scope and for NULL projects (limit.project_name is None):
-                elif limit_scope_enum == LimitScope.PROJECT and limit.project_name is None:
-                    if project_name_for_usage_sum is not None:
-                        continue
-            # --- End: Logic to check if limit applies to the current request ---
-
+            limit_scope_enum = LimitScope(limit.scope) # Define limit_scope_enum here
             interval_unit_enum = TimeInterval(limit.interval_unit) # Get enum member
             period_start_time = self._get_period_start(now, interval_unit_enum, limit.interval_value)
 
-            # Calculate query_end_time (which will be the reset_timestamp for fixed intervals)
-            if interval_unit_enum.is_rolling():
-                # For rolling, the reset time is when the oldest entry in the window expires.
-                # This is period_start_time + interval_duration.
-                # The period_start_time is already calculated relative to 'now'.
-                # So, period_end_for_retry is the absolute time when the current window "rolls over".
-                period_end_for_retry: datetime
-                if interval_unit_enum == TimeInterval.MONTH_ROLLING:
-                    year = period_start_time.year
-                    month = period_start_time.month
-                    target_month_val = month + limit.interval_value
-                    target_year_val = year
-                    while target_month_val > 12:
-                        target_month_val -= 12
-                        target_year_val += 1
-                    period_end_for_retry = period_start_time.replace(year=target_year_val, month=target_month_val)
-                elif interval_unit_enum == TimeInterval.WEEK_ROLLING:
-                    period_end_for_retry = period_start_time + timedelta(weeks=limit.interval_value)
-                elif interval_unit_enum == TimeInterval.DAY_ROLLING:
-                    period_end_for_retry = period_start_time + timedelta(days=limit.interval_value)
-                elif interval_unit_enum == TimeInterval.HOUR_ROLLING:
-                    period_end_for_retry = period_start_time + timedelta(hours=limit.interval_value)
-                elif interval_unit_enum == TimeInterval.MINUTE_ROLLING:
-                    period_end_for_retry = period_start_time + timedelta(minutes=limit.interval_value)
-                elif interval_unit_enum == TimeInterval.SECOND_ROLLING:
-                    period_end_for_retry = period_start_time + timedelta(seconds=limit.interval_value)
-                else:
-                    raise ValueError(f"Unsupported rolling time interval unit for retry calculation: {interval_unit_enum.value}")
-                reset_timestamp = period_end_for_retry
-            else: # Non-rolling (fixed) intervals
-                # For fixed intervals, the reset time is the end of the current fixed period.
-                duration: timedelta
-                if interval_unit_enum == TimeInterval.MONTH:
-                    start_year = period_start_time.year
-                    start_month = period_start_time.month
-                    next_period_raw_month = start_month + limit.interval_value
-                    next_period_year = start_year + (next_period_raw_month - 1) // 12
-                    next_period_month = (next_period_raw_month - 1) % 12 + 1
-                    reset_timestamp = datetime(next_period_year, next_period_month, 1, 0, 0, 0, tzinfo=period_start_time.tzinfo)
-                elif interval_unit_enum == TimeInterval.WEEK:
-                    duration = timedelta(weeks=limit.interval_value)
-                    reset_timestamp = period_start_time + duration
-                else: # SECOND, MINUTE, HOUR, DAY
-                    simple_interval_map = {
-                        TimeInterval.SECOND.value: timedelta(seconds=1),
-                        TimeInterval.MINUTE.value: timedelta(minutes=1),
-                        TimeInterval.HOUR.value: timedelta(hours=1),
-                        TimeInterval.DAY.value: timedelta(days=1),
-                    }
-                    base_delta = simple_interval_map.get(interval_unit_enum.value)
-                    if not base_delta:
-                        raise ValueError(f"Unsupported fixed time interval unit for duration: {interval_unit_enum.value}")
-                    duration = base_delta * limit.interval_value
-                    reset_timestamp = period_start_time + duration
-            
-            # Ensure reset_timestamp is truncated for consistency
-            reset_timestamp = reset_timestamp.replace(microsecond=0)
+            reset_timestamp = self._calculate_reset_timestamp(period_start_time, limit, interval_unit_enum)
 
-            final_usage_query_model: Optional[str] = None
-            final_usage_query_username: Optional[str] = None
-            final_usage_query_caller_name: Optional[str] = None
-            final_usage_query_project_name: Optional[str] = None
-            final_usage_query_filter_project_null: Optional[bool] = None
-
-            if limit_scope_enum == LimitScope.GLOBAL:
-                pass
-            else:
-                if limit.model is not None:
-                    final_usage_query_model = limit.model
-
-                if limit.username is not None:
-                    final_usage_query_username = limit.username
-
-                if limit.caller_name is not None:
-                    final_usage_query_caller_name = limit.caller_name
-
-                if limit_scope_enum == LimitScope.PROJECT:
-                    if limit.project_name is not None:
-                        final_usage_query_project_name = limit.project_name
-                    else:
-                        final_usage_query_filter_project_null = True
-                elif limit.project_name is not None:
-                    final_usage_query_project_name = limit.project_name
+            (final_usage_query_model, final_usage_query_username, final_usage_query_caller_name,
+             final_usage_query_project_name, final_usage_query_filter_project_null) = \
+                self._prepare_usage_query_params(limit, limit_scope_enum)
 
             # Add logging here
-            import logging
+            # import logging # Moved to top-level
             logger = logging.getLogger(__name__)
             logger.debug(f"Evaluating limit: {limit.limit_type} for {limit.scope} (model: {limit.model}, user: {limit.username}, project: {limit.project_name})")
             logger.debug(f"Period start: {period_start_time}, Query end (now): {now}")
@@ -323,17 +323,11 @@ class QuotaServiceLimitEvaluator:
             logger.debug(f"Current usage calculated: {current_usage}")
 
             limit_type_enum = LimitType(limit.limit_type)
-            request_value: float
-            if limit_type_enum == LimitType.REQUESTS:
-                request_value = 1.0
-            elif limit_type_enum == LimitType.INPUT_TOKENS:
-                request_value = float(request_input_tokens)
-            elif limit_type_enum == LimitType.OUTPUT_TOKENS:
-                request_value = float(request_completion_tokens)
-            elif limit_type_enum == LimitType.COST:
-                request_value = request_cost
-            else:
+            request_value_optional = self._calculate_request_value(limit_type_enum, request_input_tokens, request_completion_tokens, request_cost)
+            if request_value_optional is None:
+                logger.warning(f"Unknown or non-applicable limit type {limit_type_enum} for limit ID {limit.id if limit.id else 'N/A'}. Skipping.")
                 continue
+            request_value = request_value_optional
 
             potential_usage = current_usage + request_value
 
@@ -346,26 +340,7 @@ class QuotaServiceLimitEvaluator:
             comparison_result = potential_usage_float > limit_max_value_float
 
             if comparison_result:
-                scope_msg = limit_scope_for_message if limit_scope_for_message else limit.scope
-                if limit.scope == LimitScope.USER.value and limit.username:
-                    scope_msg = f"USER (user: {limit.username})"
-                elif limit.scope == LimitScope.MODEL.value and limit.model:
-                    scope_msg = f"MODEL (model: {limit.model})"
-                elif limit.scope == LimitScope.CALLER.value and limit.caller_name:
-                    if limit.username:
-                        scope_msg = f"CALLER (user: {limit.username}, caller: {limit.caller_name})"
-                    else:
-                        scope_msg = f"CALLER (caller: {limit.caller_name})"
-                elif limit.scope == LimitScope.PROJECT.value:
-                    if limit.project_name:
-                        scope_msg = f"PROJECT (project: {limit.project_name})"
-                    else:
-                        scope_msg = "PROJECT (no project)"
-
-                reason_message = (
-                    f"{scope_msg} limit: {limit.max_value:.2f} {limit.limit_type} per {limit.interval_value} {limit.interval_unit}"
-                    f" exceeded. Current usage: {current_usage:.2f}, request: {request_value:.2f}."
-                )
+                reason_message = self._format_exceeded_reason_message(limit, limit_scope_for_message, current_usage, request_value)
                 return False, reason_message, reset_timestamp # Return reset_timestamp
         return True, None, None # Return None for reset_timestamp if allowed
 

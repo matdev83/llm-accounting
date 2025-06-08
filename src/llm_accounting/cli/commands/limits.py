@@ -23,7 +23,7 @@ def set_limit(args: argparse.Namespace, accounting: LLMAccounting):
             caller_name=args.caller_name,
             project_name=args.project_name
         )
-        console.print(f"[green]Usage limit set successfully.[/green]")
+        console.print("[green]Usage limit set successfully.[/green]")
     except ValueError as ve:
         console.print(f"[red]Error setting limit: {ve}[/red]")
     except Exception as e:

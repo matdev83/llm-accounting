@@ -1,10 +1,9 @@
 import logging
-import sys # Import sys for direct print to stderr
-from typing import Optional, Tuple, List, Any, Dict # Import Dict
+from typing import Optional, Tuple, Dict # Import Dict
 from datetime import datetime, timezone # Import datetime and timezone
 
 from ..backends.base import BaseBackend
-from ..models.limits import LimitScope, UsageLimitDTO
+from ..models.limits import LimitScope
 
 from .quota_service_parts._cache_manager import QuotaServiceCacheManager
 from .quota_service_parts._limit_evaluator import QuotaServiceLimitEvaluator
@@ -102,7 +101,7 @@ class QuotaService:
                 self._denial_cache[cache_key] = (reason, reset_timestamp)
                 retry_after_seconds = max(0, int((reset_timestamp - now).total_seconds()))
             else:
-                retry_after_seconds = 0 
+                retry_after_seconds = 0
             return False, reason, retry_after_seconds
         return True, None, None
 
@@ -117,8 +116,8 @@ class QuotaService:
         project_name: Optional[str],
     ) -> Tuple[bool, Optional[str], Optional[int]]:
         limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.GLOBAL
+            limit for limit in self.cache_manager.limits_cache if
+            LimitScope(limit.scope) == LimitScope.GLOBAL
         ]
         return self.limit_evaluator._evaluate_limits_enhanced(
             limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
@@ -138,8 +137,8 @@ class QuotaService:
             return True, None, None
 
         limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.MODEL and limit.model == model
+            limit for limit in self.cache_manager.limits_cache if
+            LimitScope(limit.scope) == LimitScope.MODEL and limit.model == model
         ]
         return self.limit_evaluator._evaluate_limits_enhanced(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
 
@@ -157,8 +156,8 @@ class QuotaService:
             return True, None, None
 
         limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.PROJECT and limit.project_name == project_name
+            limit for limit in self.cache_manager.limits_cache if
+            LimitScope(limit.scope) == LimitScope.PROJECT and limit.project_name == project_name
         ]
         return self.limit_evaluator._evaluate_limits_enhanced(limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens)
 
@@ -176,8 +175,8 @@ class QuotaService:
              return True, None, None
 
         limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.USER and limit.username == username
+            limit for limit in self.cache_manager.limits_cache if
+            LimitScope(limit.scope) == LimitScope.USER and limit.username == username
         ]
         return self.limit_evaluator._evaluate_limits_enhanced(
             limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
@@ -198,10 +197,10 @@ class QuotaService:
 
         # For CALLER scope limits that are *not* specific to a user (i.e., limit.username is None)
         limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.CALLER
-            and limit.caller_name == caller_name
-            and limit.username is None # Explicitly for generic caller limits
+            limit for limit in self.cache_manager.limits_cache if
+            LimitScope(limit.scope) == LimitScope.CALLER and
+            limit.caller_name == caller_name and
+            limit.username is None # Explicitly for generic caller limits
         ]
         return self.limit_evaluator._evaluate_limits_enhanced(
             limits_to_evaluate,
@@ -230,10 +229,10 @@ class QuotaService:
 
         # For CALLER scope limits that *are* specific to a user (limit.username is not None)
         limits_to_evaluate = [
-            limit for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.CALLER # Scope is still CALLER
-            and limit.username == username
-            and limit.caller_name == caller_name
+            limit for limit in self.cache_manager.limits_cache if
+            LimitScope(limit.scope) == LimitScope.CALLER and # Scope is still CALLER
+            limit.username == username and
+            limit.caller_name == caller_name
         ]
         return self.limit_evaluator._evaluate_limits_enhanced(
             limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
