@@ -56,6 +56,8 @@ class SQLiteUsageManager:
             select_clause = "SUM(prompt_tokens)"
         elif limit_type == LimitType.OUTPUT_TOKENS:
             select_clause = "SUM(completion_tokens)"
+        elif limit_type == LimitType.TOTAL_TOKENS:
+            select_clause = "SUM(total_tokens)"
         elif limit_type == LimitType.COST:
             select_clause = "SUM(cost)"
         else:

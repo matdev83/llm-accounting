@@ -21,6 +21,7 @@ class LimitType(Enum):
     REQUESTS = "requests"
     INPUT_TOKENS = "input_tokens"
     OUTPUT_TOKENS = "output_tokens"
+    TOTAL_TOKENS = "total_tokens"
     COST = "cost"
 
 

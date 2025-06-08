@@ -89,6 +89,8 @@ class MockLimitManager:
             mock_value = 10.0
         elif limit_type == LimitType.COST:
             mock_value = 5.0
+        elif limit_type == LimitType.TOTAL_TOKENS:
+            mock_value = 80.0
 
         if model == "specific_model_for_quota_test":
             mock_value /= 2

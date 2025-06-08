@@ -197,6 +197,56 @@ def test_check_quota_token_limits(mock_backend: MagicMock):
     assert mock_backend.get_accounting_entries_for_quota.call_count == 1
 
 
+def test_check_quota_total_token_limits(mock_backend: MagicMock):
+    """Test check_quota for total token limits."""
+    now = datetime.now(timezone.utc)
+    total_token_limit = UsageLimitDTO(
+        id=1,
+        scope=LimitScope.USER.value,
+        limit_type=LimitType.TOTAL_TOKENS.value,
+        max_value=500.0,
+        interval_unit=TimeInterval.DAY.value,
+        interval_value=1,
+        username="user_total",
+        created_at=now,
+        updated_at=now,
+    )
+    mock_backend.get_usage_limits.return_value = [total_token_limit]
+    quota_service = QuotaService(mock_backend)
+
+    mock_backend.get_accounting_entries_for_quota.return_value = 480.0
+
+    is_allowed, reason = quota_service.check_quota(
+        model="model-a",
+        username="user_total",
+        caller_name="caller",
+        input_tokens=10,
+        cost=0.0,
+        completion_tokens=5,
+    )
+    assert is_allowed is True
+    assert reason is None
+
+    mock_backend.get_accounting_entries_for_quota.reset_mock()
+    mock_backend.get_accounting_entries_for_quota.return_value = 490.0
+
+    is_allowed, reason = quota_service.check_quota(
+        model="model-a",
+        username="user_total",
+        caller_name="caller",
+        input_tokens=15,
+        cost=0.0,
+        completion_tokens=10,
+    )
+    assert not is_allowed
+    assert reason is not None
+    assert "USER (user: user_total) limit: 500.00 total_tokens per 1 day" in reason
+    assert "exceeded. Current usage: 490.00, request: 25.00." in reason
+
+    mock_backend.get_usage_limits.assert_called()
+    assert mock_backend.get_accounting_entries_for_quota.call_count == 1
+
+
 def test_get_period_start_monthly(mock_backend: MagicMock):
     quota_service = QuotaService(mock_backend)
     current_time = datetime(2024, 3, 15, 10, 30, 0, tzinfo=timezone.utc)

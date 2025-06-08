@@ -52,6 +52,8 @@ class QuotaReader:
             agg_field = "COALESCE(SUM(prompt_tokens), 0)" # Sum of prompt tokens, 0 if none.
         elif limit_type == LimitType.OUTPUT_TOKENS:
             agg_field = "COALESCE(SUM(completion_tokens), 0)" # Sum of completion tokens, 0 if none.
+        elif limit_type == LimitType.TOTAL_TOKENS:
+            agg_field = "COALESCE(SUM(total_tokens), 0)"
         elif limit_type == LimitType.COST:
             agg_field = "COALESCE(SUM(cost), 0.0)" # Sum of costs, 0.0 if none.
         else:
