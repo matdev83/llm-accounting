@@ -12,7 +12,7 @@ Here's a breakdown of the main files and directories at the project root:
 
 - `.flake8`: Configuration file for `flake8`, a Python code linter, ensuring code quality and style consistency.
 - `.gitignore`: Specifies intentionally untracked files to be ignored by Git.
-- `AGENTS.md`: This file, detailing project structure and agent guidelines.
+- `AGENTS.MD`: This file, detailing project structure and agent guidelines.
 - `LICENSE`: Contains the licensing information for the project.
 - `MANIFEST.in`: Specifies non-Python files to be included in the Python distribution package.
 - `pyproject.toml`: Modern Python project configuration file.
@@ -24,7 +24,7 @@ Here's a breakdown of the main files and directories at the project root:
 - `alembic.ini`: Configuration file for Alembic, the database migration tool.
 - `alembic/`: Contains Alembic environment and migration scripts for database schema management.
 - `data/`: Directory for storing application data (e.g., SQLite databases).
-- `docs/`: Contains project documentation (excluding `AGENTS.md`).
+- `docs/`: Contains project documentation (excluding `AGENTS.MD`).
 - `llm_accounting/`: Top-level package for the LLM accounting system (editable install).
 - `release_orchestrator.py`: Script for orchestrating releases.
 - `src/`: Contains the main source code of the `llm-accounting` library.
@@ -54,7 +54,6 @@ This sub-package defines the various database backends supported by the system.
 - `sqlite_queries.py`: Contains SQL query definitions specific to the SQLite backend.
 - `sqlite_utils.py`: Utility functions for the SQLite backend, such as path validation.
 - `sqlite.py`: Implements the SQLite backend.
-- `csv_backend.py`: Implements the CSV backend, storing accounting data in CSV files.
 
 ##### `src/llm_accounting/backends/mock_backend_parts/`
 
@@ -182,7 +181,6 @@ Tests for the various backend implementations.
 - `test_base.py`: Tests for the base backend interfaces.
 - `test_postgresql.py`: Tests for the PostgreSQL backend.
 - `test_sqlite.py`: Tests for the SQLite backend.
-- `test_csv_backend.py`: Contains unit tests for the `CSVBackend`.
 - `test_usage_models.py`: Tests for usage-related data models.
 
 #### `tests/backends/postgresql_backend_tests/`
@@ -339,7 +337,8 @@ SOLID is an acronym for five design principles intended to make software designs
   - **How to follow**: Ensure that derived classes can truly replace their base classes. Avoid breaking contracts (preconditions, postconditions, invariants) defined by the base class.
 
 - **I - Interface Segregation Principle (ISP)**: Clients should not be forced to depend on interfaces they do not use. Rather than one large interface, many smaller, client-specific interfaces are better.
-  - **How to follow**: Break down large interfaces into smaller, more specific ones. Clients should only implement or depend on the methods they actually need.
+  - **How to follow**: Break down large interfaces into smaller, more specific ones. Clients should only implement or
+depend on the methods they actually need.
 
 - **D - Dependency Inversion Principle (DIP)**:
     1. High-level modules should not depend on low-level modules. Both should depend on abstractions.
