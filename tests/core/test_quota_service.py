@@ -147,10 +147,9 @@ def test_check_quota_different_scopes_in_cache(mock_backend: MagicMock):
     assert "GLOBAL limit: 5.00 requests per 1 minute" in reason
 
     mock_backend.get_usage_limits.assert_called_once()
-    mock_backend.get_accounting_entries_for_quota.assert_called_once()
-    assert mock_backend.get_accounting_entries_for_quota.call_args.kwargs['limit_type'] == LimitType.REQUESTS
-    assert mock_backend.get_accounting_entries_for_quota.call_args.kwargs['model'] is None
-    assert mock_backend.get_accounting_entries_for_quota.call_args.kwargs['username'] is None
+    assert mock_backend.get_accounting_entries_for_quota.call_count == 3
+    call_kwargs_list = [call.kwargs for call in mock_backend.get_accounting_entries_for_quota.call_args_list]
+    assert any(kw['limit_type'] == LimitType.REQUESTS and kw['model'] is None and kw['username'] is None for kw in call_kwargs_list)
 
 
 def test_check_quota_token_limits(mock_backend: MagicMock):
