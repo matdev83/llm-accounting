@@ -151,3 +151,17 @@ def mock_backend():
     mock_backend_instance.initialize.return_value = None
     mock_backend_instance.close.return_value = None
     yield mock_backend_instance
+
+@pytest.fixture
+def memory_sqlite_backend():
+    """Create a SQLite backend instance that runs in-memory."""
+    backend = SQLiteBackend(db_path=":memory:")
+    # Use LLMAccounting to ensure tables are created via its context manager
+    # This also ensures that migrations are run if db_path is :memory:
+    # as LLMAccounting.__enter__ handles initialization.
+    with LLMAccounting(backend=backend) as acc:
+        logger.info("Initialized in-memory SQLite database and ran migrations via LLMAccounting context for memory_sqlite_backend.")
+        yield backend
+    # No explicit close needed for :memory: backend as it's ephemeral.
+    # The LLMAccounting context manager will handle backend.close() if implemented.
+    logger.info("memory_sqlite_backend session finished.")
