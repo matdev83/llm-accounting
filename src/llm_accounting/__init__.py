@@ -128,6 +128,50 @@ class LLMAccounting:
         )
         self.backend.insert_usage(entry)
 
+    def track_usage_with_remaining_limits(
+        self,
+        model: str,
+        prompt_tokens: Optional[int] = None,
+        completion_tokens: Optional[int] = None,
+        total_tokens: Optional[int] = None,
+        local_prompt_tokens: Optional[int] = None,
+        local_completion_tokens: Optional[int] = None,
+        local_total_tokens: Optional[int] = None,
+        cost: float = 0.0,
+        execution_time: float = 0.0,
+        timestamp: Optional[datetime] = None,
+        caller_name: Optional[str] = None,
+        username: Optional[str] = None,
+        cached_tokens: int = 0,
+        reasoning_tokens: int = 0,
+        project: Optional[str] = None,
+    ) -> List[Tuple[UsageLimitDTO, float]]:
+        """Track usage and return remaining quota for all applicable limits."""
+        self.track_usage(
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            local_prompt_tokens=local_prompt_tokens,
+            local_completion_tokens=local_completion_tokens,
+            local_total_tokens=local_total_tokens,
+            cost=cost,
+            execution_time=execution_time,
+            timestamp=timestamp,
+            caller_name=caller_name,
+            username=username,
+            cached_tokens=cached_tokens,
+            reasoning_tokens=reasoning_tokens,
+            project=project,
+        )
+
+        return self.quota_service.get_remaining_limits(
+            model=model,
+            username=username if username is not None else self.user_name,
+            caller_name=caller_name if caller_name is not None else self.app_name,
+            project_name=project if project is not None else self.project_name,
+        )
+
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """Get aggregated statistics for a time period"""
         self.backend._ensure_connected()

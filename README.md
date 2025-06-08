@@ -18,6 +18,7 @@ A Python package for tracking and analyzing LLM usage across different models an
 - Strict model name validation
 - Automatic timestamp handling
 - Comprehensive audit logging for all LLM interactions
+- Retrieve remaining quota information after logging usage
 
 ## Installation
 
@@ -67,6 +68,17 @@ accounting.track_usage(
     project="my_project",  # Optional: name of the project (overrides default project_name)
     timestamp=None         # Optional: if None, current time will be used
 )
+
+# Track usage and get remaining limits
+remaining = accounting.track_usage_with_remaining_limits(
+    model="gpt-4",
+    prompt_tokens=100,
+    completion_tokens=50,
+    total_tokens=150,
+    cost=0.002,
+)
+for limit, left in remaining:
+    print(f"{limit.scope} {limit.limit_type}: {left} remaining")
 
 # Get statistics
 end_date = datetime.now()
