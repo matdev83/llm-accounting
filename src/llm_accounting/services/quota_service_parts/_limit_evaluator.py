@@ -51,6 +51,8 @@ class QuotaServiceLimitEvaluator:
             return float(request_input_tokens)
         elif limit_type_enum == LimitType.OUTPUT_TOKENS:
             return float(request_completion_tokens)
+        elif limit_type_enum == LimitType.TOTAL_TOKENS:
+            return float(request_input_tokens + request_completion_tokens)
         elif limit_type_enum == LimitType.COST:
             return request_cost
         else:

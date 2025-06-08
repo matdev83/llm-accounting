@@ -151,7 +151,7 @@ def add_limits_parser(subparsers):
         type=str,
         choices=[e.value for e in LimitType],
         required=True,
-        help="Type of the limit (requests, input_tokens, output_tokens, cost)",
+        help="Type of the limit (requests, input_tokens, output_tokens, total_tokens, cost)",
     )
     set_parser.add_argument(
         "--max-value", type=float, required=True, help="Maximum value for the limit"
