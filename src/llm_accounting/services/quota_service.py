@@ -3,7 +3,7 @@ from typing import Optional, Tuple, Dict # Import Dict
 from datetime import datetime, timezone # Import datetime and timezone
 
 from ..backends.base import BaseBackend
-from ..models.limits import LimitScope
+from ..models.limits import LimitScope, UsageLimitDTO
 
 from .quota_service_parts._cache_manager import QuotaServiceCacheManager
 from .quota_service_parts._limit_evaluator import QuotaServiceLimitEvaluator
@@ -24,8 +24,20 @@ class QuotaService:
         logger.info(f"QuotaService initialized. _denial_cache is empty: {not bool(self._denial_cache)}")
 
     def refresh_limits_cache(self) -> None:
-        """Refreshes the limits cache from the backend."""
+        """Refreshes the limits cache from the backend and clears the denial cache."""
         self.cache_manager.refresh_limits_cache()
+        self._denial_cache.clear() # Clear the denial cache
+        logger.info("Denial cache cleared due to limits cache refresh.")
+
+    def insert_limit(self, limit: UsageLimitDTO) -> None:
+        """Inserts a new usage limit and refreshes the cache."""
+        self.backend.insert_usage_limit(limit)
+        self.refresh_limits_cache() # Use the existing refresh_limits_cache method
+
+    def delete_limit(self, limit_id: int) -> None:
+        """Deletes a usage limit and refreshes the cache."""
+        self.backend.delete_usage_limit(limit_id)
+        self.refresh_limits_cache() # Use the existing refresh_limits_cache method
 
     def check_quota(
         self,

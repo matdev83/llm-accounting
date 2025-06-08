@@ -202,7 +202,7 @@ class LLMAccounting:
             caller_name=caller_name,
             project_name=project_name,
         )
-        self.backend.insert_usage_limit(limit)
+        self.quota_service.insert_limit(limit)
 
     def get_usage_limits(
         self,
@@ -225,7 +225,7 @@ class LLMAccounting:
     def delete_usage_limit(self, limit_id: int) -> None:
         """Deletes a usage limit by its ID."""
         self.backend._ensure_connected()
-        self.backend.delete_usage_limit(limit_id)
+        self.quota_service.delete_limit(limit_id)
 
     def get_db_path(self) -> Optional[str]:
         """
