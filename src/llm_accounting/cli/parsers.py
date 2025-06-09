@@ -6,6 +6,12 @@ from llm_accounting.cli.commands.track import run_track
 from llm_accounting.cli.commands.limits import set_limit, list_limits, delete_limit
 from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval
 from llm_accounting.cli.commands.log_event import run_log_event
+from llm_accounting.cli.commands.projects import (
+    run_project_add,
+    run_project_list,
+    run_project_update,
+    run_project_delete,
+)
 
 
 def add_stats_parser(subparsers):
@@ -154,7 +160,10 @@ def add_limits_parser(subparsers):
         help="Type of the limit (requests, input_tokens, output_tokens, total_tokens, cost)",
     )
     set_parser.add_argument(
-        "--max-value", type=float, required=True, help="Maximum value for the limit"
+        "--max-value",
+        type=float,
+        required=True,
+        help="Maximum value for the limit. Use 0 to deny usage, -1 for unlimited",
     )
     set_parser.add_argument(
         "--interval-unit",
@@ -170,18 +179,24 @@ def add_limits_parser(subparsers):
         help="Value of the time interval (e.g., 1 for '1 day')",
     )
     set_parser.add_argument(
-        "--model", type=str, help="Model name for MODEL scope limits. Can be combined with PROJECT scope."
+        "--model",
+        type=str,
+        help="Model name for MODEL scope limits (use '*' as wildcard). Can be combined with PROJECT scope.",
     )
     set_parser.add_argument(
-        "--username", type=str, help="Username for USER scope limits. Can be combined with PROJECT scope."
+        "--username",
+        type=str,
+        help="Username for USER scope limits (use '*' as wildcard). Can be combined with PROJECT scope.",
     )
     set_parser.add_argument(
-        "--caller-name", type=str, help="Caller name for CALLER scope limits. Can be combined with PROJECT scope."
+        "--caller-name",
+        type=str,
+        help="Caller name for CALLER scope limits (use '*' as wildcard). Can be combined with PROJECT scope.",
     )
     set_parser.add_argument(
-        "--project-name", # New argument for project-specific limits
-        type=str, 
-        help="The project name for a PROJECT-specific limit. Required if scope is PROJECT."
+        "--project-name",
+        type=str,
+        help="The project name for a PROJECT-specific limit (use '*' as wildcard). Required if scope is PROJECT.",
     )
     set_parser.set_defaults(func=set_limit)
 
@@ -226,3 +241,24 @@ def add_log_event_parser(subparsers):
     parser.add_argument("--project", type=str, help="Project associated with the event")
     parser.add_argument("--timestamp", type=str, help="Timestamp of the event (YYYY-MM-DD HH:MM:SS or ISO format, default: current time)")
     parser.set_defaults(func=run_log_event)
+
+
+def add_projects_parser(subparsers):
+    parser = subparsers.add_parser("projects", help="Manage allowed projects")
+    proj_sub = parser.add_subparsers(dest="projects_command", required=True)
+
+    add_p = proj_sub.add_parser("add", help="Add a new project")
+    add_p.add_argument("name", type=str)
+    add_p.set_defaults(func=run_project_add)
+
+    list_p = proj_sub.add_parser("list", help="List projects")
+    list_p.set_defaults(func=run_project_list)
+
+    upd_p = proj_sub.add_parser("update", help="Rename a project")
+    upd_p.add_argument("name", type=str)
+    upd_p.add_argument("new_name", type=str)
+    upd_p.set_defaults(func=run_project_update)
+
+    del_p = proj_sub.add_parser("delete", help="Delete a project")
+    del_p.add_argument("name", type=str)
+    del_p.set_defaults(func=run_project_delete)

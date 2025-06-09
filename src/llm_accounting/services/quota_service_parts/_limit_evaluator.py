@@ -19,25 +19,25 @@ class QuotaServiceLimitEvaluator:
         if limit_scope_enum == LimitScope.GLOBAL:
             pass  # No specific filters for global limits
         else:
-            # Apply model filter if specified on the limit
-            if limit.model is not None:
+            # Apply model filter if specified on the limit and not a wildcard
+            if limit.model is not None and limit.model != "*":
                 final_usage_query_model = limit.model
 
-            # Apply username filter if specified on the limit
-            if limit.username is not None:
+            # Apply username filter if specified on the limit and not a wildcard
+            if limit.username is not None and limit.username != "*":
                 final_usage_query_username = limit.username
 
-            # Apply caller_name filter if specified on the limit
-            if limit.caller_name is not None:
+            # Apply caller_name filter if specified on the limit and not a wildcard
+            if limit.caller_name is not None and limit.caller_name != "*":
                 final_usage_query_caller_name = limit.caller_name
 
             # Apply project_name filter or filter_project_null based on limit scope and project_name presence
             if limit_scope_enum == LimitScope.PROJECT:
-                if limit.project_name is not None:
+                if limit.project_name is not None and limit.project_name != "*":
                     final_usage_query_project_name = limit.project_name
-                else: # limit.project_name is None for a PROJECT scope limit
+                elif limit.project_name is None:
                     final_usage_query_filter_project_null = True
-            elif limit.project_name is not None:
+            elif limit.project_name is not None and limit.project_name != "*":
                 final_usage_query_project_name = limit.project_name
 
         return (final_usage_query_model, final_usage_query_username, final_usage_query_caller_name,
@@ -95,24 +95,19 @@ class QuotaServiceLimitEvaluator:
                            project_name_for_usage_sum: Optional[str]) -> bool:
         limit_scope_enum = LimitScope(limit.scope)
         if limit_scope_enum != LimitScope.GLOBAL:
-            # If a limit specifies a model, it should only apply if the request is for that model.
-            if limit.model and limit.model != request_model:
-                return True # Skip
-            # If a limit specifies a username, it should only apply if the request is for that username.
-            if limit.username and limit.username != request_username:
-                return True # Skip
-            # If a limit specifies a caller_name, it should only apply if the request is for that caller.
-            if limit.caller_name and limit.caller_name != request_caller_name:
-                return True # Skip
+            if limit.model and limit.model != "*" and limit.model != request_model:
+                return True
+            if limit.username and limit.username != "*" and limit.username != request_username:
+                return True
+            if limit.caller_name and limit.caller_name != "*" and limit.caller_name != request_caller_name:
+                return True
 
-            # If a limit specifies a project_name (and is not a generic PROJECT scope for NULL projects):
             if limit.project_name:
-                if limit.project_name != project_name_for_usage_sum:
-                    return True # Skip
-            # If a limit is PROJECT scope and for NULL projects (limit.project_name is None):
+                if limit.project_name != "*" and limit.project_name != project_name_for_usage_sum:
+                    return True
             elif limit_scope_enum == LimitScope.PROJECT and limit.project_name is None:
                 if project_name_for_usage_sum is not None:
-                    return True # Skip
+                    return True
         return False # Do not skip
 
     def _calculate_reset_timestamp(self, period_start_time: datetime,
@@ -186,6 +181,9 @@ class QuotaServiceLimitEvaluator:
             # Call _should_skip_limit helper
             if self._should_skip_limit(limit, request_model, request_username, request_caller_name, project_name_for_usage_sum):
                 continue
+
+            if limit.max_value == -1:
+                return True, None
 
             # Define enums needed for subsequent logic/helpers
             limit_scope_enum = LimitScope(limit.scope)
@@ -295,6 +293,9 @@ class QuotaServiceLimitEvaluator:
             if self._should_skip_limit(limit, request_model, request_username, request_caller_name, project_name_for_usage_sum):
                 continue
 
+            if limit.max_value == -1:
+                return True, None, None
+
             limit_scope_enum = LimitScope(limit.scope) # Define limit_scope_enum here
             interval_unit_enum = TimeInterval(limit.interval_unit) # Get enum member
             period_start_time = self._get_period_start(now, interval_unit_enum, limit.interval_value)
@@ -345,6 +346,55 @@ class QuotaServiceLimitEvaluator:
                 reason_message = self._format_exceeded_reason_message(limit, limit_scope_for_message, current_usage, request_value)
                 return False, reason_message, reset_timestamp # Return reset_timestamp
         return True, None, None # Return None for reset_timestamp if allowed
+
+    def calculate_remaining_after_usage(
+        self,
+        limit: UsageLimitDTO,
+        request_model: Optional[str],
+        request_username: Optional[str],
+        request_caller_name: Optional[str],
+        project_name_for_usage_sum: Optional[str],
+    ) -> Optional[float]:
+        """Return remaining quota for ``limit`` considering current usage."""
+        if self._should_skip_limit(
+            limit,
+            request_model,
+            request_username,
+            request_caller_name,
+            project_name_for_usage_sum,
+        ):
+            return None
+
+        if limit.max_value == -1:
+            return float("inf")
+
+        now = datetime.now(timezone.utc)
+        limit_scope_enum = LimitScope(limit.scope)
+        interval_unit_enum = TimeInterval(limit.interval_unit)
+        period_start_time = self._get_period_start(now, interval_unit_enum, limit.interval_value)
+
+        (
+            final_usage_query_model,
+            final_usage_query_username,
+            final_usage_query_caller_name,
+            final_usage_query_project_name,
+            final_usage_query_filter_project_null,
+        ) = self._prepare_usage_query_params(limit, limit_scope_enum)
+
+        current_usage = self.backend.get_accounting_entries_for_quota(
+            start_time=period_start_time,
+            end_time=now,
+            limit_type=LimitType(limit.limit_type),
+            interval_unit=interval_unit_enum,
+            model=final_usage_query_model,
+            username=final_usage_query_username,
+            caller_name=final_usage_query_caller_name,
+            project_name=final_usage_query_project_name,
+            filter_project_null=final_usage_query_filter_project_null,
+        )
+
+        remaining = float(limit.max_value) - current_usage
+        return max(remaining, 0.0)
 
     def _get_period_start(self, current_time: datetime, interval_unit: TimeInterval, interval_value: int) -> datetime:
         # Ensure current_time is UTC-aware for consistent calculations

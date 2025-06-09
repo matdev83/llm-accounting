@@ -21,6 +21,7 @@ from .postgresql_backend_parts.data_inserter import DataInserter
 from .postgresql_backend_parts.data_deleter import DataDeleter
 from .postgresql_backend_parts.query_executor import QueryExecutor
 from .postgresql_backend_parts.limit_manager import LimitManager
+from .postgresql_backend_parts.project_manager import ProjectManager
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +48,12 @@ class PostgreSQLBackend(BaseBackend):
         logger.info("PostgreSQLBackend initialized with connection string.")
 
         self.connection_manager = ConnectionManager(self)
-        self.schema_manager = SchemaManager(self) 
+        self.schema_manager = SchemaManager(self)
         self.data_inserter = DataInserter(self)
         self.data_deleter = DataDeleter(self)
         self.query_executor = QueryExecutor(self)
         self.limit_manager = LimitManager(self, self.data_inserter)
+        self.project_manager = ProjectManager(self)
 
     def _read_postgres_migration_cache(self, migration_cache_file: Path, current_conn_hash: int) -> Optional[str]:
         if migration_cache_file.exists():
@@ -411,3 +413,17 @@ class PostgreSQLBackend(BaseBackend):
             logger.error(f"Unexpected error retrieving audit log entries: {e}")
             active_conn.rollback()
             raise RuntimeError(f"Unexpected error occurred while retrieving audit log entries: {e}") from e
+
+    # --- Project management ---
+
+    def create_project(self, name: str) -> None:
+        self.project_manager.create_project(name)
+
+    def list_projects(self) -> List[str]:
+        return self.project_manager.list_projects()
+
+    def update_project(self, name: str, new_name: str) -> None:
+        self.project_manager.update_project(name, new_name)
+
+    def delete_project(self, name: str) -> None:
+        self.project_manager.delete_project(name)

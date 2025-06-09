@@ -52,26 +52,47 @@ class LLMAccounting:
         project_name: Optional[str] = None,
         app_name: Optional[str] = None,
         user_name: Optional[str] = None,
+        audit_backend: Optional[BaseBackend] = None,
+        enforce_project_names: bool = False,
     ):
-        """Initialize with an optional backend. If none provided, uses SQLiteBackend."""
-        
+        """Initialize with optional backends.
+
+        ``backend`` is used for accounting and quota operations. ``audit_backend``
+        controls where audit log entries are stored.  If ``audit_backend`` is not
+        provided, ``backend`` is used for both.
+        """
+
         self.backend = backend or SQLiteBackend()
+        self.audit_backend = audit_backend or self.backend
         self.quota_service = QuotaService(self.backend)
         self.project_name = project_name
         self.app_name = app_name
         self.user_name = user_name
-        self.audit_logger = AuditLogger(self.backend)
+        self.audit_logger = AuditLogger(self.audit_backend)
+        self.enforce_project_names = enforce_project_names
+
+    def _ensure_valid_project(self, project: Optional[str]) -> None:
+        if not self.enforce_project_names or project is None:
+            return
+        valid_projects = set(self.quota_service.list_projects())
+        if project not in valid_projects:
+            raise ValueError(f"Project name '{project}' is not in allowed projects")
 
     def __enter__(self):
         """Initialize the backend when entering context"""
         logger.info("Entering LLMAccounting context.")
         self.backend.initialize()
+        if self.audit_backend is not self.backend:
+            self.audit_backend.initialize()
+        self.audit_backend.initialize_audit_log_schema()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Close the backend when exiting context"""
         logger.info("Exiting LLMAccounting context. Closing backend.")
         self.backend.close()
+        if self.audit_backend is not self.backend:
+            self.audit_backend.close()
         if exc_type:
             logger.error(
                 f"LLMAccounting context exited with exception: {exc_type.__name__}: {exc_val}"
@@ -96,6 +117,7 @@ class LLMAccounting:
         project: Optional[str] = None,
     ) -> None:
         """Track a new LLM usage entry"""
+        self._ensure_valid_project(project if project is not None else self.project_name)
         self.backend._ensure_connected()
         entry = UsageEntry(
             model=model,
@@ -115,6 +137,51 @@ class LLMAccounting:
             project=project if project is not None else self.project_name, # Use instance default
         )
         self.backend.insert_usage(entry)
+
+    def track_usage_with_remaining_limits(
+        self,
+        model: str,
+        prompt_tokens: Optional[int] = None,
+        completion_tokens: Optional[int] = None,
+        total_tokens: Optional[int] = None,
+        local_prompt_tokens: Optional[int] = None,
+        local_completion_tokens: Optional[int] = None,
+        local_total_tokens: Optional[int] = None,
+        cost: float = 0.0,
+        execution_time: float = 0.0,
+        timestamp: Optional[datetime] = None,
+        caller_name: Optional[str] = None,
+        username: Optional[str] = None,
+        cached_tokens: int = 0,
+        reasoning_tokens: int = 0,
+        project: Optional[str] = None,
+    ) -> List[Tuple[UsageLimitDTO, float]]:
+        """Track usage and return remaining quota for all applicable limits."""
+        self._ensure_valid_project(project if project is not None else self.project_name)
+        self.track_usage(
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            local_prompt_tokens=local_prompt_tokens,
+            local_completion_tokens=local_completion_tokens,
+            local_total_tokens=local_total_tokens,
+            cost=cost,
+            execution_time=execution_time,
+            timestamp=timestamp,
+            caller_name=caller_name,
+            username=username,
+            cached_tokens=cached_tokens,
+            reasoning_tokens=reasoning_tokens,
+            project=project,
+        )
+
+        return self.quota_service.get_remaining_limits(
+            model=model,
+            username=username if username is not None else self.user_name,
+            caller_name=caller_name if caller_name is not None else self.app_name,
+            project_name=project if project is not None else self.project_name,
+        )
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """Get aggregated statistics for a time period"""
@@ -154,6 +221,7 @@ class LLMAccounting:
         completion_tokens: int = 0,
     ) -> Tuple[bool, Optional[str]]:
         """Check if the current request exceeds any defined quotas."""
+        self._ensure_valid_project(project_name)
         self.backend._ensure_connected()
         return self.quota_service.check_quota(
             model=model,
@@ -178,6 +246,7 @@ class LLMAccounting:
         project_name: Optional[str] = None,
     ) -> None:
         """Sets a new usage limit."""
+        self._ensure_valid_project(project_name)
         self.backend._ensure_connected()
         limit = UsageLimitDTO(
             scope=scope.value if isinstance(scope, LimitScope) else scope,
@@ -190,7 +259,7 @@ class LLMAccounting:
             caller_name=caller_name,
             project_name=project_name,
         )
-        self.backend.insert_usage_limit(limit)
+        self.quota_service.insert_limit(limit)
 
     def get_usage_limits(
         self,
@@ -213,7 +282,7 @@ class LLMAccounting:
     def delete_usage_limit(self, limit_id: int) -> None:
         """Deletes a usage limit by its ID."""
         self.backend._ensure_connected()
-        self.backend.delete_usage_limit(limit_id)
+        self.quota_service.delete_limit(limit_id)
 
     def get_db_path(self) -> Optional[str]:
         """

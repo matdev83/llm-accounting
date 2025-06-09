@@ -12,19 +12,19 @@ Here's a breakdown of the main files and directories at the project root:
 
 - `.flake8`: Configuration file for `flake8`, a Python code linter, ensuring code quality and style consistency.
 - `.gitignore`: Specifies intentionally untracked files to be ignored by Git.
-- `AGENTS.md`: This file, detailing project structure and agent guidelines.
+- `AGENTS.MD`: This file, detailing project structure and agent guidelines.
 - `LICENSE`: Contains the licensing information for the project.
 - `MANIFEST.in`: Specifies non-Python files to be included in the Python distribution package.
-- `pyproject.toml`: Modern Python project configuration file.
+- `pyproject.toml`: Modern Python project configuration file. All dependencies
+  are managed here; there is no separate `requirements.txt` file.
 - `pytest.ini`: Configuration for `pytest`, the testing framework.
 - `README.md`: The main project README.
-- `requirements.txt`: Lists the project's Python dependencies.
 - `setup.py`: Traditional Python setup script for packaging and distribution.
 - `tox.ini`: Configuration for `tox`, a tool for automating testing in multiple Python environments.
 - `alembic.ini`: Configuration file for Alembic, the database migration tool.
 - `alembic/`: Contains Alembic environment and migration scripts for database schema management.
 - `data/`: Directory for storing application data (e.g., SQLite databases).
-- `docs/`: Contains project documentation (excluding `AGENTS.md`).
+- `docs/`: Contains project documentation (excluding `AGENTS.MD`).
 - `llm_accounting/`: Top-level package for the LLM accounting system (editable install).
 - `release_orchestrator.py`: Script for orchestrating releases.
 - `src/`: Contains the main source code of the `llm-accounting` library.
@@ -40,7 +40,7 @@ The `src/` directory holds the core logic of the `llm-accounting` library.
 This is the main package for the LLM accounting system.
 
 - `__init__.py`: Initializes the `llm_accounting` package.
-- `audit_log.py`: Manages the auditing of LLM usage, recording events and interactions.
+- `audit_log.py`: Manages the auditing of LLM usage, recording events and interactions. Each audit entry includes a `log_type` field categorizing the entry (e.g., `prompt`, `response`, or custom event names).
 - `db_migrations.py`: Contains functions related to database migrations.
 
 #### `src/llm_accounting/backends/`
@@ -51,10 +51,10 @@ This sub-package defines the various database backends supported by the system.
 - `base.py`: Defines the abstract base classes and interfaces for all backend implementations.
 - `mock_backend.py`: A mock implementation of the backend for testing and development.
 - `postgresql.py`: Implements the PostgreSQL backend.
+- `csv.py`: Implements the CSV backend.
 - `sqlite_queries.py`: Contains SQL query definitions specific to the SQLite backend.
 - `sqlite_utils.py`: Utility functions for the SQLite backend, such as path validation.
 - `sqlite.py`: Implements the SQLite backend.
-- `csv_backend.py`: Implements the CSV backend, storing accounting data in CSV files.
 
 ##### `src/llm_accounting/backends/mock_backend_parts/`
 
@@ -91,7 +91,8 @@ Components specific to the PostgreSQL backend.
 
 #### `src/llm_accounting/cli/`
 
-This sub-package contains the command-line interface (CLI) implementation.
+This sub-package contains the command-line interface (CLI) implementation. The CLI supports configuring
+separate database backends for accounting data and audit logs via the `--audit-db-*` options.
 
 - `main.py`: The entry point for the CLI application.
 - `parsers.py`: Defines argument parsers for CLI commands.
@@ -182,7 +183,6 @@ Tests for the various backend implementations.
 - `test_base.py`: Tests for the base backend interfaces.
 - `test_postgresql.py`: Tests for the PostgreSQL backend.
 - `test_sqlite.py`: Tests for the SQLite backend.
-- `test_csv_backend.py`: Contains unit tests for the `CSVBackend`.
 - `test_usage_models.py`: Tests for usage-related data models.
 
 #### `tests/backends/postgresql_backend_tests/`
@@ -282,6 +282,11 @@ This directory is used for storing application logs generated during runtime. Th
 
 All software development agents contributing to this project **MUST** strictly adhere to the following principles to ensure code quality, maintainability, and scalability.
 
+### 8.0. Dependency Management
+
+Dependency management must be solely managed by the `pyproject.toml` file.
+Do not use `requirements.txt` or other files for dependency management.
+
 ### 8.1. Layered, Modular Architecture
 
 Agents should strive to maintain and enhance the existing layered and modular architecture. This means:
@@ -339,7 +344,8 @@ SOLID is an acronym for five design principles intended to make software designs
   - **How to follow**: Ensure that derived classes can truly replace their base classes. Avoid breaking contracts (preconditions, postconditions, invariants) defined by the base class.
 
 - **I - Interface Segregation Principle (ISP)**: Clients should not be forced to depend on interfaces they do not use. Rather than one large interface, many smaller, client-specific interfaces are better.
-  - **How to follow**: Break down large interfaces into smaller, more specific ones. Clients should only implement or depend on the methods they actually need.
+  - **How to follow**: Break down large interfaces into smaller, more specific ones. Clients should only implement or
+depend on the methods they actually need.
 
 - **D - Dependency Inversion Principle (DIP)**:
     1. High-level modules should not depend on low-level modules. Both should depend on abstractions.
@@ -362,5 +368,5 @@ Avoid duplicating code or knowledge within the system.
 
 Agents **MUST** adhere to the project's Git branch structure to ensure stability and facilitate collaborative development:
 
-- **`main`**: This branch contains stable, 100% test-passing code and is used for releases. Direct pull requests from external contributors to `main` are not allowed. Only project maintainers can merge into `main`.
-- **`dev`**: This is the primary development branch. All contributors, including LLM agents, are expected to base their changes on this branch. To contribute, start by forking the repository, then create a new branch from `dev` for your changes, and submit your pull requests to the `dev` branch.
+- **`main`**: This branch should only contain production-ready, 100% test passing code, merged by project maintainer. Contributors should not issue PRs or push changes directly into main.
+- **`dev`**: Contributors, agents and developers are requested to use the latest dev branch and to publish their PRs based on the dev branch only.

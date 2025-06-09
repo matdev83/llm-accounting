@@ -71,3 +71,16 @@ class ConcreteTestBackend(BaseBackend):
         limit: Optional[int] = None,
     ) -> List[AuditLogEntry]:
         return []
+
+    # project management
+    def create_project(self, name: str) -> None:
+        pass
+
+    def list_projects(self) -> List[str]:
+        return []
+
+    def update_project(self, name: str, new_name: str) -> None:
+        pass
+
+    def delete_project(self, name: str) -> None:
+        pass

@@ -30,11 +30,7 @@ sqlite = ["aiosqlite>=0.17.0"]
 mysql = ["aiomysql>=0.1.1"]
 postgresql = ["asyncpg>=0.25.0"]
 neon = [] # psycopg2-binary is now a core dependency
-test = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-cov>=4.1.0",
-    "toml>=0.10.2",
+dev = [
     "coverage==7.5.4",
     "Faker==25.0.0",
     "freezegun==1.5.1",
@@ -42,8 +38,9 @@ test = [
     "pytest-asyncio==0.23.7",
     "pytest-cov==5.0.0",
     "pytest-mock==3.14.0",
+    "toml>=0.10.2",
     "virtualenv",
-    "twine", # Added for publishing
+    "twine",
 ]
 
 [project.scripts]

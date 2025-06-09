@@ -11,13 +11,15 @@ A Python package for tracking and analyzing LLM usage across different models an
 - Record token counts (prompt, completion, total)
 - Track costs and execution times
 - Support for local token counting
-- Pluggable backend system (SQLite, PostgreSQL, and CSV file-based backends supported)
+- Pluggable backend system (SQLite, CSV, and PostgreSQL backends supported)
 - CLI interface for viewing and tracking usage statistics
 - Support for tracking caller application and username
 - Automatic database schema migration (for supported backends)
 - Strict model name validation
 - Automatic timestamp handling
 - Comprehensive audit logging for all LLM interactions
+- Retrieve remaining quota information after logging usage
+- Optional enforcement of allowed project names with `projects` management commands
 
 ## Installation
 
@@ -33,8 +35,6 @@ pip install llm-accounting[sqlite]
 
 # For PostgreSQL
 pip install llm-accounting[postgresql]
-
-# CSV backend uses standard Python modules and requires no extra dependencies.
 ```
 
 ## Usage
@@ -70,6 +70,17 @@ accounting.track_usage(
     timestamp=None         # Optional: if None, current time will be used
 )
 
+# Track usage and get remaining limits
+remaining = accounting.track_usage_with_remaining_limits(
+    model="gpt-4",
+    prompt_tokens=100,
+    completion_tokens=50,
+    total_tokens=150,
+    cost=0.002,
+)
+for limit, left in remaining:
+    print(f"{limit.scope} {limit.limit_type}: {left} remaining")
+
 # Get statistics
 end_date = datetime.now()
 start_date = end_date - timedelta(days=7) # Last 7 days
@@ -95,12 +106,15 @@ accounting.close()
 The following options can be used with any `llm-accounting` command:
 
 - `--db-file <path>`: Specifies the SQLite database file path. Only applicable when `--db-backend` is `sqlite`.
-- `--db-backend <backend>`: Selects the database backend (`sqlite`, `postgresql`, or `csv`). Defaults to `sqlite`.
-- `--csv-data-dir <path>`: Specifies the directory for CSV data files (e.g., `accounting_entries.csv`). Only applicable when `--db-backend` is `csv`. Defaults to `data/`. This option sets the `data_dir` used by `CSVBackend`.
+- `--db-backend <backend>`: Selects the database backend (`sqlite` or `postgresql`). Defaults to `sqlite`.
 - `--postgresql-connection-string <string>`: Connection string for the PostgreSQL database. Required when `--db-backend` is `postgresql`. Can also be provided via `POSTGRESQL_CONNECTION_STRING` environment variable.
+- `--audit-db-backend <backend>`: Backend for audit logs. Defaults to the value of `--db-backend`.
+- `--audit-db-file <path>`: SQLite database file path for audit logs (when audit backend is `sqlite`).
+- `--audit-postgresql-connection-string <string>`: Connection string for the PostgreSQL audit log database. Can also be provided via `AUDIT_POSTGRESQL_CONNECTION_STRING` environment variable.
 - `--project-name <name>`: Default project name to associate with usage entries. Can be overridden by command-specific `--project`.
 - `--app-name <name>`: Default application name to associate with usage entries. Can be overridden by command-specific `--caller-name`.
 - `--user-name <name>`: Default user name to associate with usage entries. Can be overridden by command-specific `--username`. Defaults to current system user.
+- `--enforce-project-names`: When set, project names supplied to commands must exist in the project dictionary.
 
 ```bash
 # Track a new usage entry (model name is required, timestamp is optional)
@@ -128,7 +142,7 @@ Logs a generic event to the audit log. This is useful for recording custom event
 - `--app-name` (string, required): Name of the application.
 - `--user-name` (string, required): Name of the user.
 - `--model` (string, required): Name of the LLM model associated with the event.
-- `--log-type` (string, required): Type of the log entry (e.g., 'info', 'warning', 'error', 'feedback', or a custom type).
+- `--log-type` (string, required): Type of the log entry (e.g., 'prompt', 'response', 'event', or any custom type).
 - `--prompt-text` (string, optional): Text of the prompt, if relevant.
 - `--response-text` (string, optional): Text of the response, if relevant.
 - `--remote-completion-id` (string, optional): ID of the remote completion, if relevant.
@@ -142,7 +156,7 @@ llm-accounting log-event \
     --app-name my-app \
     --user-name testuser \
     --model gpt-4 \
-    --log-type info \
+    --log-type event \
     --prompt-text "User reported positive feedback." \
     --project "Alpha" \
     --timestamp "2024-01-15T10:30:00"
@@ -171,6 +185,9 @@ llm-accounting select --query "SELECT model, COUNT(*) as count FROM accounting_e
 ### Usage Limits
 
 The `llm-accounting limits` command allows you to manage usage limits for your LLM interactions. It now supports advanced multi-dimensional limiting and rolling time windows. You can set, list, and delete limits based on various scopes (global, model, user, caller, project) and types (requests, input tokens, output tokens, total tokens, cost) over specified time intervals.
+
+Wildcards can be specified using `*` for any of the model, username, caller name, or project name fields. A `max-value` of `0` denies all matching usage, while `-1` allows unlimited usage.
+For example, you can deny all models for a user with `--model "*" --max-value 0` and then add specific limits with `--max-value -1` to allow certain models or projects.
 
 #### Set a Usage Limit
 
@@ -241,6 +258,19 @@ llm-accounting limits delete --id 1
 
 You can specify the database backend directly via the CLI using the `--db-backend` option. This allows you to switch between `sqlite` (default) and `postgresql` without modifying code.
 
+Audit logs can optionally use a different backend by providing the `--audit-db-backend` and related options.
+
+### Project Management
+
+The `projects` command manages the list of allowed project names when `--enforce-project-names` is used.
+
+```bash
+llm-accounting projects add MyProj
+llm-accounting projects list
+llm-accounting projects update MyProj NewName
+llm-accounting projects delete NewName
+```
+
 ```bash
 # Use SQLite backend (default behavior, --db-backend can be omitted)
 llm-accounting --db-backend sqlite --db-file my_sqlite_db.sqlite stats --daily
@@ -256,9 +286,6 @@ llm-accounting --db-backend postgresql \
     --model gpt-4 \
     --prompt-tokens 10 \
     --cost 0.0001
-
-# Example: Get daily stats using CSV backend with a custom data directory
-llm-accounting --db-backend csv --csv-data-dir /path/to/my/csvs stats --daily
 ```
 
 ### Shell Script Integration
@@ -501,56 +528,6 @@ if os.path.exists(custom_audit_db_filename):
 print("\nExample complete.")
 ```
 
-### CSV Backend
-
-The `CSVBackend` provides a simple, file-based way to store and manage LLM usage data without requiring a database server. It's suitable for local analysis, smaller projects, or when a quick setup is needed.
-
-**Characteristics:**
-
-- **Data Storage**: Stores data in plain CSV files.
-- **Default Directory**: Uses `data/` in the current working directory by default. You can change this with the `--csv-data-dir` CLI option, which maps to the `data_dir` parameter when instantiating `CSVBackend`.
-- **Files Created**:
-  - `accounting_entries.csv`: Stores detailed LLM usage records.
-  - `usage_limits.csv`: Stores defined usage limits.
-  - `audit_log_entries.csv`: Stores audit log events.
-- **Schema/Columns**:
-  - **`accounting_entries.csv`**: `id, model, prompt_tokens, completion_tokens, total_tokens, local_prompt_tokens, local_completion_tokens, local_total_tokens, cost, execution_time, timestamp, caller_name, username, project, cached_tokens, reasoning_tokens`
-  - **`usage_limits.csv`**: `id, scope, limit_type, model, username, caller_name, project_name, max_value, interval_unit, interval_value, created_at, updated_at`
-  - **`audit_log_entries.csv`**: `id, timestamp, app_name, user_name, model, prompt_text, response_text, remote_completion_id, project, log_type`
-
-**Python Usage Example:**
-
-```python
-from llm_accounting import LLMAccounting
-from llm_accounting.backends.csv_backend import CSVBackend
-from datetime import datetime, timedelta
-
-# Initialize CSVBackend, optionally specify data directory
-csv_backend = CSVBackend(data_dir="my_csv_data")
-accounting = LLMAccounting(backend=csv_backend)
-
-# Use accounting as usual
-accounting.track_usage(model="test-csv-model", prompt_tokens=20, cost=0.002)
-print("Usage tracked with CSV backend.")
-
-end_date = datetime.now()
-start_date = end_date - timedelta(days=1)
-stats = accounting.get_period_stats(start_date, end_date)
-print(f"Stats from CSV backend: Total cost: {stats.sum_cost}, Total tokens: {stats.sum_total_tokens}")
-
-accounting.close() # No-op for CSVBackend but good practice
-```
-
-**CLI Usage Examples:**
-
-```bash
-# Track usage using CSV backend with default data directory (data/)
-llm-accounting --db-backend csv track --model my-csv-model --prompt-tokens 100 --cost 0.01
-
-# Get daily stats using CSV backend with a custom data directory
-llm-accounting --db-backend csv --csv-data-dir ./my_csv_files/ stats --daily
-```
-
 ### PostgreSQL Backend
 
 The `PostgreSQLBackend` provides a reference implementation for using a PostgreSQL database with `llm-accounting`. It can be used with any standard PostgreSQL instance, including locally deployed ones, or with hosted/cloud PostgreSQL instances like [Neon](https://neon.tech/).
@@ -581,7 +558,7 @@ pip install llm-accounting[postgresql]
 
 **3. Configuration:**
 
-The `PostgreSQLBackend` primarily expects the database connection string to be available via the `POSTGRESQL_CONNECTION_STRING` environment variable.
+The `PostgreSQLBackend` primarily expects the database connection string to be available via the   `POSTGRESQL_CONNECTION_STRING` environment variable.
 
 ```bash
 export POSTGRESQL_CONNECTION_STRING="postgresql://your_user:your_password@your_host:5432/your_dbname"
@@ -783,11 +760,9 @@ We welcome contributions to LLM Accounting! To ensure a smooth and efficient col
     - Once you have forked the repository, clone your fork to your local machine:
 
         ```bash
-        git clone https://github.com/YOUR_USERNAME/llm-accounting.git
+        git clone https://github.com/matdev83/llm-accounting.git
         cd llm-accounting
         ```
-
-        Replace `YOUR_USERNAME` with your actual GitHub username.
 
 3. **Add Upstream Remote**:
     - Add the original repository as an "upstream" remote to your local clone. This allows you to fetch changes from the main project:
@@ -842,8 +817,8 @@ Thank you for contributing to LLM Accounting!
 
 The project follows a strict Git branch structure to ensure stability and facilitate collaborative development:
 
-- **`main`**: This branch contains stable, 100% test-passing code and is used for releases. Direct pull requests from external contributors to `main` are not allowed. Only project maintainers can merge into `main`.
-- **`dev`**: This is the primary development branch. All contributors, including LLM agents, are expected to base their changes on this branch. To contribute, start by forking the repository, then create a new branch from `dev` for your changes, and submit your pull requests to the `dev` branch.
+- **`main`**: This branch should only contain production-ready, 100% test passing code, merged by project maintainer. Contributors should not issue PRs or push changes directly into main.
+- **`dev`**: Contributors, agents and developers are requested to use the latest dev branch and to publish their PRs based on the dev branch only.
 
 ## License
 
