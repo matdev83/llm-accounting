@@ -368,5 +368,5 @@ Avoid duplicating code or knowledge within the system.
 
 Agents **MUST** adhere to the project's Git branch structure to ensure stability and facilitate collaborative development:
 
-- **`main`**: This branch contains stable, 100% test-passing code and is used for releases. Direct pull requests from external contributors to `main` are not allowed. Only project maintainers can merge into `main`.
-- **`dev`**: This is the primary development branch. All contributors, including LLM agents, are expected to base their changes on this branch. To contribute, start by forking the repository, then create a new branch from `dev` for your changes, and submit your pull requests to the `dev` branch.
+- **`main`**: This branch should only contain production-ready, 100% test passing code, merged by project maintainer. Contributors should not issue PRs or push changes directly into main.
+- **`dev`**: Contributors, agents and developers are requested to use the latest dev branch and to publish their PRs based on the dev branch only.
