@@ -1,7 +1,13 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from llm_accounting.backends.base import BaseBackend, AuditLogEntry, UsageEntry, UsageStats
+from llm_accounting.backends.base import (
+    BaseBackend,
+    AuditLogEntry,
+    UsageEntry,
+    UsageStats,
+    UserRecord,
+)
 from llm_accounting.models.limits import LimitScope, LimitType, UsageLimitDTO
 
 
@@ -83,4 +89,24 @@ class ConcreteTestBackend(BaseBackend):
         pass
 
     def delete_project(self, name: str) -> None:
+        pass
+
+    # user management
+    def create_user(self, user_name: str, ou_name: Optional[str] = None, email: Optional[str] = None) -> None:
+        pass
+
+    def list_users(self) -> List[UserRecord]:
+        return []
+
+    def update_user(
+        self,
+        user_name: str,
+        new_user_name: Optional[str] = None,
+        ou_name: Optional[str] = None,
+        email: Optional[str] = None,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        pass
+
+    def set_user_enabled(self, user_name: str, enabled: bool) -> None:
         pass

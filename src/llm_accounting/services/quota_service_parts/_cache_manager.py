@@ -7,8 +7,10 @@ class QuotaServiceCacheManager:
         self.backend = backend
         self.limits_cache: Optional[List[UsageLimitDTO]] = None
         self.projects_cache: Optional[List[str]] = None
+        self.users_cache: Optional[List[str]] = None
         self._load_limits_from_backend()
         self._load_projects_from_backend()
+        self._load_users_from_backend()
 
     def _load_limits_from_backend(self) -> None:
         """Loads all usage limits from the backend into the cache."""
@@ -17,6 +19,16 @@ class QuotaServiceCacheManager:
     def _load_projects_from_backend(self) -> None:
         """Loads allowed project names from the backend."""
         self.projects_cache = self.backend.list_projects()
+
+    def _load_users_from_backend(self) -> None:
+        """Loads allowed user names from the backend."""
+        if hasattr(self.backend, "list_users"):
+            try:
+                self.users_cache = [u.user_name for u in self.backend.list_users()]
+            except TypeError:
+                self.users_cache = []
+        else:
+            self.users_cache = []
 
     def refresh_limits_cache(self) -> None:
         """Refreshes the limits cache from the backend."""
@@ -27,3 +39,8 @@ class QuotaServiceCacheManager:
         """Refreshes the project name cache from the backend."""
         self.projects_cache = None
         self._load_projects_from_backend()
+
+    def refresh_users_cache(self) -> None:
+        """Refreshes the user name cache from the backend."""
+        self.users_cache = None
+        self._load_users_from_backend()

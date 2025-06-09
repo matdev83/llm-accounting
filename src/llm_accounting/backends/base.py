@@ -96,6 +96,18 @@ class UsageStats:
     avg_execution_time: float = 0.0
 
 
+@dataclass
+class UserRecord:
+    user_name: str
+    ou_name: Optional[str] = None
+    email: Optional[str] = None
+    enabled: bool = True
+    id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    last_enabled_at: Optional[datetime] = None
+    last_disabled_at: Optional[datetime] = None
+
+
 class BaseBackend(ABC):
     """Base class for all usage tracking backends"""
 
@@ -256,4 +268,38 @@ class BaseBackend(ABC):
     @abstractmethod
     def delete_project(self, name: str) -> None:
         """Delete a project from the dictionary."""
+        pass
+
+    # --- User Management ---
+
+    @abstractmethod
+    def create_user(
+        self,
+        user_name: str,
+        ou_name: Optional[str] = None,
+        email: Optional[str] = None,
+    ) -> None:
+        """Create a new allowed user."""
+        pass
+
+    @abstractmethod
+    def list_users(self) -> List[UserRecord]:
+        """Return the list of allowed users."""
+        pass
+
+    @abstractmethod
+    def update_user(
+        self,
+        user_name: str,
+        new_user_name: Optional[str] = None,
+        ou_name: Optional[str] = None,
+        email: Optional[str] = None,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        """Update fields of an existing user."""
+        pass
+
+    @abstractmethod
+    def set_user_enabled(self, user_name: str, enabled: bool) -> None:
+        """Enable or disable a user."""
         pass

@@ -12,6 +12,12 @@ from llm_accounting.cli.commands.projects import (
     run_project_update,
     run_project_delete,
 )
+from llm_accounting.cli.commands.users import (
+    run_user_add,
+    run_user_list,
+    run_user_update,
+    run_user_deactivate,
+)
 
 
 def add_stats_parser(subparsers):
@@ -262,3 +268,28 @@ def add_projects_parser(subparsers):
     del_p = proj_sub.add_parser("delete", help="Delete a project")
     del_p.add_argument("name", type=str)
     del_p.set_defaults(func=run_project_delete)
+
+
+def add_users_parser(subparsers):
+    parser = subparsers.add_parser("users", help="Manage allowed users")
+    user_sub = parser.add_subparsers(dest="users_command", required=True)
+
+    add_u = user_sub.add_parser("add", help="Add a new user")
+    add_u.add_argument("user_name", type=str)
+    add_u.add_argument("--ou-name", type=str, default=None)
+    add_u.add_argument("--email", type=str, default=None)
+    add_u.set_defaults(func=run_user_add)
+
+    list_u = user_sub.add_parser("list", help="List users")
+    list_u.set_defaults(func=run_user_list)
+
+    upd_u = user_sub.add_parser("update", help="Update a user")
+    upd_u.add_argument("user_name", type=str)
+    upd_u.add_argument("--new-user-name", type=str, default=None)
+    upd_u.add_argument("--ou-name", type=str, default=None)
+    upd_u.add_argument("--email", type=str, default=None)
+    upd_u.set_defaults(func=run_user_update)
+
+    deact_u = user_sub.add_parser("deactivate", help="Deactivate a user")
+    deact_u.add_argument("user_name", type=str)
+    deact_u.set_defaults(func=run_user_deactivate)

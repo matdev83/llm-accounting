@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 import logging
 
-from .base import AuditLogEntry, BaseBackend, UsageEntry, UsageStats
+from .base import AuditLogEntry, BaseBackend, UsageEntry, UsageStats, UserRecord
 from ..models.limits import LimitScope, LimitType, UsageLimitDTO
 
 from .mock_backend_parts.connection_manager import MockConnectionManager
@@ -28,6 +28,7 @@ class MockBackend(BaseBackend):
         self.initialized = False
         self.closed = False
         self.projects: List[str] = []
+        self.users: List[str] = []
 
         self._connection_manager = MockConnectionManager(self)
         self._usage_manager = MockUsageManager(self)
@@ -149,3 +150,26 @@ class MockBackend(BaseBackend):
     def delete_project(self, name: str) -> None:
         if name in self.projects:
             self.projects.remove(name)
+
+    # --- User management ---
+
+    def create_user(self, user_name: str, ou_name: Optional[str] = None, email: Optional[str] = None) -> None:
+        self.users.append(user_name)
+
+    def list_users(self) -> List[UserRecord]:
+        return [UserRecord(user_name=u) for u in self.users]
+
+    def update_user(
+        self,
+        user_name: str,
+        new_user_name: Optional[str] = None,
+        ou_name: Optional[str] = None,
+        email: Optional[str] = None,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        if user_name in self.users and new_user_name:
+            idx = self.users.index(user_name)
+            self.users[idx] = new_user_name
+
+    def set_user_enabled(self, user_name: str, enabled: bool) -> None:
+        pass

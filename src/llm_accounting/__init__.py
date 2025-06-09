@@ -54,6 +54,7 @@ class LLMAccounting:
         user_name: Optional[str] = None,
         audit_backend: Optional[BaseBackend] = None,
         enforce_project_names: bool = False,
+        enforce_user_names: bool = False,
     ):
         """Initialize with optional backends.
 
@@ -70,6 +71,7 @@ class LLMAccounting:
         self.user_name = user_name
         self.audit_logger = AuditLogger(self.audit_backend)
         self.enforce_project_names = enforce_project_names
+        self.enforce_user_names = enforce_user_names
 
     def _ensure_valid_project(self, project: Optional[str]) -> None:
         if not self.enforce_project_names or project is None:
@@ -77,6 +79,13 @@ class LLMAccounting:
         valid_projects = set(self.quota_service.list_projects())
         if project not in valid_projects:
             raise ValueError(f"Project name '{project}' is not in allowed projects")
+
+    def _ensure_valid_user(self, user: Optional[str]) -> None:
+        if not self.enforce_user_names or user is None:
+            return
+        valid_users = set(self.quota_service.list_users())
+        if user not in valid_users:
+            raise ValueError(f"User name '{user}' is not in allowed users")
 
     def __enter__(self):
         """Initialize the backend when entering context"""
@@ -118,6 +127,7 @@ class LLMAccounting:
     ) -> None:
         """Track a new LLM usage entry"""
         self._ensure_valid_project(project if project is not None else self.project_name)
+        self._ensure_valid_user(username if username is not None else self.user_name)
         self.backend._ensure_connected()
         entry = UsageEntry(
             model=model,
@@ -158,6 +168,7 @@ class LLMAccounting:
     ) -> List[Tuple[UsageLimitDTO, float]]:
         """Track usage and return remaining quota for all applicable limits."""
         self._ensure_valid_project(project if project is not None else self.project_name)
+        self._ensure_valid_user(username if username is not None else self.user_name)
         self.track_usage(
             model=model,
             prompt_tokens=prompt_tokens,
@@ -222,6 +233,7 @@ class LLMAccounting:
     ) -> Tuple[bool, Optional[str]]:
         """Check if the current request exceeds any defined quotas."""
         self._ensure_valid_project(project_name)
+        self._ensure_valid_user(username)
         self.backend._ensure_connected()
         return self.quota_service.check_quota(
             model=model,
@@ -247,6 +259,7 @@ class LLMAccounting:
     ) -> None:
         """Sets a new usage limit."""
         self._ensure_valid_project(project_name)
+        self._ensure_valid_user(username)
         self.backend._ensure_connected()
         limit = UsageLimitDTO(
             scope=scope.value if isinstance(scope, LimitScope) else scope,

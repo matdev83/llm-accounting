@@ -33,6 +33,10 @@ class QuotaService:
         """Refreshes the projects cache from the backend."""
         self.cache_manager.refresh_projects_cache()
 
+    def refresh_users_cache(self) -> None:
+        """Refreshes the users cache from the backend."""
+        self.cache_manager.refresh_users_cache()
+
     def insert_limit(self, limit: UsageLimitDTO) -> None:
         """Inserts a new usage limit and refreshes the cache."""
         self.backend.insert_usage_limit(limit)
@@ -61,6 +65,32 @@ class QuotaService:
     def delete_project(self, name: str) -> None:
         self.backend.delete_project(name)
         self.refresh_projects_cache()
+
+    # --- User management ---
+
+    def create_user(self, user_name: str, ou_name: Optional[str] = None, email: Optional[str] = None) -> None:
+        self.backend.create_user(user_name, ou_name, email)
+        self.refresh_users_cache()
+
+    def list_users(self) -> List[str]:
+        if self.cache_manager.users_cache is None:
+            self.cache_manager._load_users_from_backend()
+        return self.cache_manager.users_cache
+
+    def update_user(
+        self,
+        user_name: str,
+        new_user_name: Optional[str] = None,
+        ou_name: Optional[str] = None,
+        email: Optional[str] = None,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        self.backend.update_user(user_name, new_user_name, ou_name, email, enabled)
+        self.refresh_users_cache()
+
+    def set_user_enabled(self, user_name: str, enabled: bool) -> None:
+        self.backend.set_user_enabled(user_name, enabled)
+        self.refresh_users_cache()
 
     def check_quota(
         self,

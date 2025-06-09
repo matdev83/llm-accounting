@@ -6,7 +6,7 @@ from importlib.metadata import version as get_version
 
 from .parsers import (add_purge_parser, add_select_parser, add_stats_parser,
                       add_tail_parser, add_track_parser, add_limits_parser,
-                      add_log_event_parser, add_projects_parser)
+                      add_log_event_parser, add_projects_parser, add_users_parser)
 from .utils import console
 
 
@@ -90,6 +90,11 @@ def main():
         help="Reject operations using project names not present in the project dictionary.",
     )
     parser.add_argument(
+        "--enforce-user-names",
+        action="store_true",
+        help="Reject operations using user names not present in the user dictionary.",
+    )
+    parser.add_argument(
         "--audit-db-backend",
         type=str,
         choices=["sqlite", "postgresql"],
@@ -116,6 +121,7 @@ def main():
     add_limits_parser(subparsers)
     add_log_event_parser(subparsers) # Added from feat/cli-log-event branch
     add_projects_parser(subparsers)
+    add_users_parser(subparsers)
 
     args = parser.parse_args()
 
@@ -139,6 +145,8 @@ def main():
         )
         if args.enforce_project_names:
             kwargs["enforce_project_names"] = True
+        if args.enforce_user_names:
+            kwargs["enforce_user_names"] = True
         accounting = get_accounting(**kwargs)
         with accounting:
             args.func(args, accounting)

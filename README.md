@@ -20,6 +20,7 @@ A Python package for tracking and analyzing LLM usage across different models an
 - Comprehensive audit logging for all LLM interactions
 - Retrieve remaining quota information after logging usage
 - Optional enforcement of allowed project names with `projects` management commands
+- Optional enforcement of allowed user names with `users` management commands
 
 ## Installation
 
