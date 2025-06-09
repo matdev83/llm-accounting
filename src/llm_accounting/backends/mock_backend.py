@@ -27,6 +27,7 @@ class MockBackend(BaseBackend):
         self.next_limit_id: int = 1
         self.initialized = False
         self.closed = False
+        self.projects: List[str] = []
 
         self._connection_manager = MockConnectionManager(self)
         self._usage_manager = MockUsageManager(self)
@@ -132,3 +133,19 @@ class MockBackend(BaseBackend):
         logging.debug("MockBackend: Retrieving audit log entries.")
         # In a real mock, you might return a predefined list or filter stored entries
         return []
+
+    # --- Project management ---
+
+    def create_project(self, name: str) -> None:
+        self.projects.append(name)
+
+    def list_projects(self) -> List[str]:
+        return list(self.projects)
+
+    def update_project(self, name: str, new_name: str) -> None:
+        if name in self.projects:
+            self.projects[self.projects.index(name)] = new_name
+
+    def delete_project(self, name: str) -> None:
+        if name in self.projects:
+            self.projects.remove(name)

@@ -5,7 +5,8 @@ import platform
 from importlib.metadata import version as get_version
 
 from .parsers import (add_purge_parser, add_select_parser, add_stats_parser,
-                      add_tail_parser, add_track_parser, add_limits_parser, add_log_event_parser)
+                      add_tail_parser, add_track_parser, add_limits_parser,
+                      add_log_event_parser, add_projects_parser)
 from .utils import console
 
 
@@ -84,6 +85,11 @@ def main():
         help="Default user name to associate with usage entries. Can be overridden by command-specific --username. Defaults to current system user.",
     )
     parser.add_argument(
+        "--enforce-project-names",
+        action="store_true",
+        help="Reject operations using project names not present in the project dictionary.",
+    )
+    parser.add_argument(
         "--audit-db-backend",
         type=str,
         choices=["sqlite", "postgresql"],
@@ -109,6 +115,7 @@ def main():
     add_track_parser(subparsers)
     add_limits_parser(subparsers)
     add_log_event_parser(subparsers) # Added from feat/cli-log-event branch
+    add_projects_parser(subparsers)
 
     args = parser.parse_args()
 
@@ -119,7 +126,7 @@ def main():
     from .utils import get_accounting
 
     try:
-        accounting = get_accounting(
+        kwargs = dict(
             db_backend=args.db_backend,
             db_file=args.db_file,
             postgresql_connection_string=args.postgresql_connection_string,
@@ -130,6 +137,9 @@ def main():
             app_name=args.app_name,
             user_name=args.user_name,
         )
+        if args.enforce_project_names:
+            kwargs["enforce_project_names"] = True
+        accounting = get_accounting(**kwargs)
         with accounting:
             args.func(args, accounting)
     except SystemExit:

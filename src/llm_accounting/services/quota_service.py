@@ -29,6 +29,10 @@ class QuotaService:
         self._denial_cache.clear() # Clear the denial cache
         logger.info("Denial cache cleared due to limits cache refresh.")
 
+    def refresh_projects_cache(self) -> None:
+        """Refreshes the projects cache from the backend."""
+        self.cache_manager.refresh_projects_cache()
+
     def insert_limit(self, limit: UsageLimitDTO) -> None:
         """Inserts a new usage limit and refreshes the cache."""
         self.backend.insert_usage_limit(limit)
@@ -38,6 +42,25 @@ class QuotaService:
         """Deletes a usage limit and refreshes the cache."""
         self.backend.delete_usage_limit(limit_id)
         self.refresh_limits_cache() # Use the existing refresh_limits_cache method
+
+    # --- Project management ---
+
+    def create_project(self, name: str) -> None:
+        self.backend.create_project(name)
+        self.refresh_projects_cache()
+
+    def list_projects(self) -> List[str]:
+        if self.cache_manager.projects_cache is None:
+            self.cache_manager._load_projects_from_backend()
+        return self.cache_manager.projects_cache
+
+    def update_project(self, name: str, new_name: str) -> None:
+        self.backend.update_project(name, new_name)
+        self.refresh_projects_cache()
+
+    def delete_project(self, name: str) -> None:
+        self.backend.delete_project(name)
+        self.refresh_projects_cache()
 
     def check_quota(
         self,

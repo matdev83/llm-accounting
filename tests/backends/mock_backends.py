@@ -116,6 +116,18 @@ class MockBackend(BaseBackend):
         # Minimal implementation to satisfy abstract method
         return 0.0
 
+    def create_project(self, name: str) -> None:
+        pass
+
+    def list_projects(self) -> List[str]:
+        return []
+
+    def update_project(self, name: str, new_name: str) -> None:
+        pass
+
+    def delete_project(self, name: str) -> None:
+        pass
+
 
 class IncompleteBackend(BaseBackend):
     """A mock backend that doesn't implement all required methods for BaseBackend interface testing."""
