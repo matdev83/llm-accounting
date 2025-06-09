@@ -760,11 +760,9 @@ We welcome contributions to LLM Accounting! To ensure a smooth and efficient col
     - Once you have forked the repository, clone your fork to your local machine:
 
         ```bash
-        git clone https://github.com/YOUR_USERNAME/llm-accounting.git
+        git clone https://github.com/matdev83/llm-accounting.git
         cd llm-accounting
         ```
-
-        Replace `YOUR_USERNAME` with your actual GitHub username.
 
 3. **Add Upstream Remote**:
     - Add the original repository as an "upstream" remote to your local clone. This allows you to fetch changes from the main project:
