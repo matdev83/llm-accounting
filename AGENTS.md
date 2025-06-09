@@ -51,6 +51,7 @@ This sub-package defines the various database backends supported by the system.
 - `base.py`: Defines the abstract base classes and interfaces for all backend implementations.
 - `mock_backend.py`: A mock implementation of the backend for testing and development.
 - `postgresql.py`: Implements the PostgreSQL backend.
+- `csv.py`: Implements the CSV backend.
 - `sqlite_queries.py`: Contains SQL query definitions specific to the SQLite backend.
 - `sqlite_utils.py`: Utility functions for the SQLite backend, such as path validation.
 - `sqlite.py`: Implements the SQLite backend.

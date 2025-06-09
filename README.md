@@ -11,7 +11,7 @@ A Python package for tracking and analyzing LLM usage across different models an
 - Record token counts (prompt, completion, total)
 - Track costs and execution times
 - Support for local token counting
-- Pluggable backend system (SQLite and PostgreSQL backends supported)
+- Pluggable backend system (SQLite, CSV, and PostgreSQL backends supported)
 - CLI interface for viewing and tracking usage statistics
 - Support for tracking caller application and username
 - Automatic database schema migration (for supported backends)
