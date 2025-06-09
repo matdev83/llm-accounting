@@ -31,10 +31,10 @@ class SQLiteConnectionManager:
             return f"sqlite:///{actual_db_path}"
 
     def _handle_in_memory_db_setup(self, actual_db_path_for_logging: str) -> None:
-        logger.info(f"Initializing IN-MEMORY SQLite database ({actual_db_path_for_logging}): creating schema using Base.metadata.create_all().")
+        logger.info(f"Initializing IN-MEMORY SQLite database ({actual_db_path_for_logging}): using create_all().")
         assert self.engine is not None
         Base.metadata.create_all(self.engine)
-        logger.info(f"In-memory database ({actual_db_path_for_logging}) schema created.")
+        logger.info(f"In-memory database ({actual_db_path_for_logging}) schema created using create_all().")
 
     def _get_disk_db_path_for_existence_check(self, actual_db_path: str) -> Path:
         path_to_check_existence = actual_db_path

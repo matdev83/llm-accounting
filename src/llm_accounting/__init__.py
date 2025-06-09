@@ -187,11 +187,23 @@ class LLMAccounting:
             project=project,
         )
 
+        # Calculate total tokens if not provided
+        if total_tokens is None:
+            if prompt_tokens is not None and completion_tokens is not None:
+                total_tokens = prompt_tokens + completion_tokens
+            elif local_prompt_tokens is not None and local_completion_tokens is not None:
+                total_tokens = local_prompt_tokens + local_completion_tokens
+            else:
+                total_tokens = 0
+
         return self.quota_service.get_remaining_limits(
             model=model,
             username=username if username is not None else self.user_name,
             caller_name=caller_name if caller_name is not None else self.app_name,
             project_name=project if project is not None else self.project_name,
+            input_tokens=prompt_tokens or local_prompt_tokens or 0,
+            completion_tokens=completion_tokens or local_completion_tokens or 0,
+            cost=cost,
         )
 
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:

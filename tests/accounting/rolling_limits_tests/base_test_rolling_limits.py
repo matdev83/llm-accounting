@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 from freezegun import freeze_time
 
+from llm_accounting import LLMAccounting
 from llm_accounting.backends.sqlite import SQLiteBackend
 from llm_accounting.models.base import Base
 from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval, UsageLimitDTO
@@ -25,8 +26,11 @@ class BaseTestRollingLimits(unittest.TestCase):
         self.db_name_for_test = "memdb_test_rolling_limits"
         self.shared_in_memory_db_path = f"file:{self.db_name_for_test}?mode=memory&cache=shared"
         self.backend = SQLiteBackend(db_path=self.shared_in_memory_db_path)
-        self.backend.initialize()
-
+        
+        # Use LLMAccounting to ensure proper database initialization with migrations
+        self.accounting = LLMAccounting(backend=self.backend)
+        self.accounting.__enter__()
+        
         TestSession = sessionmaker(bind=self.backend.connection_manager.engine)
         self.session = TestSession()
 
@@ -39,6 +43,8 @@ class BaseTestRollingLimits(unittest.TestCase):
     def tearDown(self):
         if self.session:
             self.session.close()
+        if self.accounting:
+            self.accounting.__exit__(None, None, None)
         if self.backend:
             self.backend.close()
 

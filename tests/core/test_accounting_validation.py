@@ -62,7 +62,7 @@ def test_track_usage_without_timestamp(accounting):
         assert entries[0].timestamp is not None
         # Verify timestamp is recent (within last minute)
         # entries[0].timestamp is naive UTC, so compare with naive UTC now.
-        now_naive_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        now_naive_utc = datetime(2023, 1, 1, 0, 0, 0)  # Use frozen time
         assert (now_naive_utc - entries[0].timestamp).total_seconds() < 60
 
 

@@ -114,6 +114,9 @@ class QuotaService:
         username: Optional[str],
         caller_name: Optional[str],
         project_name: Optional[str],
+        input_tokens: int = 0,
+        completion_tokens: int = 0,
+        cost: float = 0.0,
     ) -> List[Tuple[UsageLimitDTO, float]]:
         """Return remaining quota for all limits applicable to the request."""
         if self.cache_manager.limits_cache is None:
@@ -122,7 +125,14 @@ class QuotaService:
         remaining_info: List[Tuple[UsageLimitDTO, float]] = []
         for limit in self.cache_manager.limits_cache:
             remaining = self.limit_evaluator.calculate_remaining_after_usage(
-                limit, model, username, caller_name, project_name
+                limit,
+                model,
+                username,
+                caller_name,
+                project_name,
+                input_tokens,
+                completion_tokens,
+                cost,
             )
             if remaining is not None:
                 remaining_info.append((limit, remaining))

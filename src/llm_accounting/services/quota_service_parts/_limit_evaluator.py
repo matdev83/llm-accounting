@@ -354,6 +354,9 @@ class QuotaServiceLimitEvaluator:
         request_username: Optional[str],
         request_caller_name: Optional[str],
         project_name_for_usage_sum: Optional[str],
+        request_input_tokens: int = 0,
+        request_completion_tokens: int = 0,
+        request_cost: float = 0.0,
     ) -> Optional[float]:
         """Return remaining quota for ``limit`` considering current usage."""
         if self._should_skip_limit(
@@ -393,6 +396,18 @@ class QuotaServiceLimitEvaluator:
             filter_project_null=final_usage_query_filter_project_null,
         )
 
+        # Calculate request value
+        limit_type_enum = LimitType(limit.limit_type)
+        request_value = self._calculate_request_value(
+            limit_type_enum,
+            request_input_tokens,
+            request_completion_tokens,
+            request_cost
+        )
+        if request_value is None:
+            return None
+
+        # Only subtract current usage from max value, since the current request hasn't been recorded yet
         remaining = float(limit.max_value) - current_usage
         return max(remaining, 0.0)
 
