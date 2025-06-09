@@ -558,7 +558,7 @@ pip install llm-accounting[postgresql]
 
 **3. Configuration:**
 
-The `PostgreSQLBackend` primarily expects the database connection string to be available via the  `POSTGRESQL_CONNECTION_STRING` environment variable.
+The `PostgreSQLBackend` primarily expects the database connection string to be available via the   `POSTGRESQL_CONNECTION_STRING` environment variable.
 
 ```bash
 export POSTGRESQL_CONNECTION_STRING="postgresql://your_user:your_password@your_host:5432/your_dbname"
