@@ -140,7 +140,7 @@ Logs a generic event to the audit log. This is useful for recording custom event
 - `--app-name` (string, required): Name of the application.
 - `--user-name` (string, required): Name of the user.
 - `--model` (string, required): Name of the LLM model associated with the event.
-- `--log-type` (string, required): Type of the log entry (e.g., 'info', 'warning', 'error', 'feedback', or a custom type).
+- `--log-type` (string, required): Type of the log entry (e.g., 'prompt', 'response', 'event', or any custom type).
 - `--prompt-text` (string, optional): Text of the prompt, if relevant.
 - `--response-text` (string, optional): Text of the response, if relevant.
 - `--remote-completion-id` (string, optional): ID of the remote completion, if relevant.
@@ -154,7 +154,7 @@ llm-accounting log-event \
     --app-name my-app \
     --user-name testuser \
     --model gpt-4 \
-    --log-type info \
+    --log-type event \
     --prompt-text "User reported positive feedback." \
     --project "Alpha" \
     --timestamp "2024-01-15T10:30:00"
