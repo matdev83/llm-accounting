@@ -1,0 +1,18 @@
+name: "Check Windows Filename Compatibility"
+on: [push, pull_request]
+
+jobs:
+  check-filenames:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for invalid Windows filenames
+        run: |
+          #!/bin/bash
+          # Forbidden chars for Windows filenames: <>:"/\|?*
+          INVALID_FILES=$(git ls-tree -r HEAD --name-only | grep -E '[<>:"\\|?*]' || true)
+          if [[ ! -z "$INVALID_FILES" ]]; then
+            echo "Error: The following files have invalid Windows characters:"
+            echo "$INVALID_FILES"
+            exit 1
+          fi
