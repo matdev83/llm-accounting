@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # --- Revision IDs (obtained from previous steps) ---
 REVISION_INITIAL_TABLES = "82f27c891782"
 REVISION_ADD_NOTES_COLUMN = "ba9718840e75"
-REVISION_ADD_INDICES = "e9b0140ffbfe"
+REVISION_ADD_INDICES = "aa1b2c3d4e5f"
 
 
 # --- Fixtures ---
