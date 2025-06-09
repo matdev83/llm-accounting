@@ -40,7 +40,7 @@ The `src/` directory holds the core logic of the `llm-accounting` library.
 This is the main package for the LLM accounting system.
 
 - `__init__.py`: Initializes the `llm_accounting` package.
-- `audit_log.py`: Manages the auditing of LLM usage, recording events and interactions.
+- `audit_log.py`: Manages the auditing of LLM usage, recording events and interactions. Each audit entry includes a `log_type` field categorizing the entry (e.g., `prompt`, `response`, or custom event names).
 - `db_migrations.py`: Contains functions related to database migrations.
 
 #### `src/llm_accounting/backends/`

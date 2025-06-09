@@ -197,3 +197,17 @@ def test_log_event_timestamp_parse_error(capsys, temp_db_path_with_audit_log_tab
         audit_logger: AuditLogger = accounting.audit_logger
         entries = audit_logger.get_entries(app_name=app_name, user_name=user_name)
     assert len(entries) == 0
+
+
+def test_log_event_missing_log_type(temp_db_path_with_audit_log_table):
+    """CLI should exit with error when --log-type is missing."""
+    db_file = temp_db_path_with_audit_log_table
+    command_args = [
+        "log-event",
+        "--app-name", "app",
+        "--user-name", "user",
+        "--model", "gpt-3.5",
+    ]
+
+    with pytest.raises(SystemExit):
+        run_cli_command(db_file, command_args)
