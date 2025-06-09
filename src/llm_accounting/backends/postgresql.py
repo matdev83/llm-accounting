@@ -11,7 +11,7 @@ from pathlib import Path
 from sqlalchemy import create_engine, inspect
 from llm_accounting.models.base import Base # Corrected based on original
 
-from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry
+from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry, UserRecord
 from ..models.limits import UsageLimitDTO, LimitScope, LimitType
 from ..db_migrations import run_migrations, get_head_revision, stamp_db_head 
 
@@ -22,6 +22,7 @@ from .postgresql_backend_parts.data_deleter import DataDeleter
 from .postgresql_backend_parts.query_executor import QueryExecutor
 from .postgresql_backend_parts.limit_manager import LimitManager
 from .postgresql_backend_parts.project_manager import ProjectManager
+from .postgresql_backend_parts.user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ class PostgreSQLBackend(BaseBackend):
         self.query_executor = QueryExecutor(self)
         self.limit_manager = LimitManager(self, self.data_inserter)
         self.project_manager = ProjectManager(self)
+        self.user_manager = UserManager(self)
 
     def _read_postgres_migration_cache(self, migration_cache_file: Path, current_conn_hash: int) -> Optional[str]:
         if migration_cache_file.exists():
@@ -427,3 +429,25 @@ class PostgreSQLBackend(BaseBackend):
 
     def delete_project(self, name: str) -> None:
         self.project_manager.delete_project(name)
+
+    # --- User management ---
+
+    def create_user(self, user_name: str, ou_name: Optional[str] = None, email: Optional[str] = None) -> None:
+        self.user_manager.create_user(user_name, ou_name, email)
+
+    def list_users(self) -> List[UserRecord]:
+        records = self.user_manager.list_users()
+        return [UserRecord(**r) for r in records]
+
+    def update_user(
+        self,
+        user_name: str,
+        new_user_name: Optional[str] = None,
+        ou_name: Optional[str] = None,
+        email: Optional[str] = None,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        self.user_manager.update_user(user_name, new_user_name, ou_name, email, enabled)
+
+    def set_user_enabled(self, user_name: str, enabled: bool) -> None:
+        self.user_manager.set_user_enabled(user_name, enabled)

@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Any
 
 from sqlalchemy import text
 from ..models.limits import LimitScope, LimitType, UsageLimitDTO
-from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry
+from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry, UserRecord
 from .sqlite_utils import validate_db_filename
 from .sqlite_backend_parts.connection_manager import SQLiteConnectionManager
 from .sqlite_backend_parts.query_executor import SQLiteQueryExecutor
@@ -13,6 +13,7 @@ from .sqlite_backend_parts.usage_manager import SQLiteUsageManager
 from .sqlite_backend_parts.limit_manager import SQLiteLimitManager
 from .sqlite_backend_parts.audit_log_manager import SQLiteAuditLogManager
 from .sqlite_backend_parts.project_manager import SQLiteProjectManager
+from .sqlite_backend_parts.user_manager import SQLiteUserManager
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ class SQLiteBackend(BaseBackend):
         self.limit_manager = SQLiteLimitManager(self.connection_manager)
         self.audit_log_manager = SQLiteAuditLogManager(self.connection_manager)
         self.project_manager = SQLiteProjectManager(self.connection_manager)
+        self.user_manager = SQLiteUserManager(self.connection_manager)
 
     def initialize(self) -> None:
         self.connection_manager.initialize()
@@ -169,3 +171,25 @@ class SQLiteBackend(BaseBackend):
 
     def delete_project(self, name: str) -> None:
         self.project_manager.delete_project(name)
+
+    # --- User management ---
+
+    def create_user(self, user_name: str, ou_name: Optional[str] = None, email: Optional[str] = None) -> None:
+        self.user_manager.create_user(user_name, ou_name, email)
+
+    def list_users(self) -> List[UserRecord]:
+        records = self.user_manager.list_users()
+        return [UserRecord(**r) for r in records]
+
+    def update_user(
+        self,
+        user_name: str,
+        new_user_name: Optional[str] = None,
+        ou_name: Optional[str] = None,
+        email: Optional[str] = None,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        self.user_manager.update_user(user_name, new_user_name, ou_name, email, enabled)
+
+    def set_user_enabled(self, user_name: str, enabled: bool) -> None:
+        self.user_manager.set_user_enabled(user_name, enabled)

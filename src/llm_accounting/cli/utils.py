@@ -37,6 +37,7 @@ def get_accounting(
     app_name: Optional[str] = None,
     user_name: Optional[str] = None,
     enforce_project_names: bool = False,
+    enforce_user_names: bool = False,
 ):
     """Get an LLMAccounting instance with the specified backend"""
     if db_backend == "sqlite":
@@ -90,6 +91,7 @@ def get_accounting(
         app_name=app_name,
         user_name=default_user_name,
         enforce_project_names=enforce_project_names,
+        enforce_user_names=enforce_user_names,
     )
     return acc
 

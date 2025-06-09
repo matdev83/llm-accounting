@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
+from llm_accounting.backends.base import UserRecord
 from typing_extensions import override
 
 
@@ -126,6 +127,25 @@ class MockBackend(BaseBackend):
         pass
 
     def delete_project(self, name: str) -> None:
+        pass
+
+    def create_user(self, user_name: str, ou_name: Optional[str] = None, email: Optional[str] = None) -> None:
+        pass
+
+    def list_users(self) -> List[UserRecord]:
+        return []
+
+    def update_user(
+        self,
+        user_name: str,
+        new_user_name: Optional[str] = None,
+        ou_name: Optional[str] = None,
+        email: Optional[str] = None,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        pass
+
+    def set_user_enabled(self, user_name: str, enabled: bool) -> None:
         pass
 
 
