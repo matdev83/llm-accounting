@@ -28,6 +28,7 @@ class MockBackend(BaseBackend):
         self.initialized = False
         self.closed = False
         self.projects: List[str] = []
+        self.users: List[Dict] = []
 
         self._connection_manager = MockConnectionManager(self)
         self._usage_manager = MockUsageManager(self)
@@ -149,3 +150,23 @@ class MockBackend(BaseBackend):
     def delete_project(self, name: str) -> None:
         if name in self.projects:
             self.projects.remove(name)
+
+    # --- User management ---
+
+    def create_user(self, user_name: str, ou_name: Optional[str] = None, email: Optional[str] = None) -> None:
+        self.users.append({"user_name": user_name, "ou_name": ou_name, "email": email, "enabled": True})
+
+    def list_users(self) -> List[Dict]:
+        return list(self.users)
+
+    def update_user(self, user_name: str, new_name: str) -> None:
+        for u in self.users:
+            if u["user_name"] == user_name:
+                u["user_name"] = new_name
+                break
+
+    def set_user_active(self, user_name: str, active: bool) -> None:
+        for u in self.users:
+            if u["user_name"] == user_name:
+                u["enabled"] = active
+                break

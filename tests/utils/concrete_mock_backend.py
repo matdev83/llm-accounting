@@ -84,3 +84,15 @@ class ConcreteTestBackend(BaseBackend):
 
     def delete_project(self, name: str) -> None:
         pass
+
+    def create_user(self, user_name: str, ou_name: Optional[str] = None, email: Optional[str] = None) -> None:
+        pass
+
+    def list_users(self) -> List[Dict]:
+        return []
+
+    def update_user(self, user_name: str, new_name: str) -> None:
+        pass
+
+    def set_user_active(self, user_name: str, active: bool) -> None:
+        pass

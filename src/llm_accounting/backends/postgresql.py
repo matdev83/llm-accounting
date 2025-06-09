@@ -22,6 +22,7 @@ from .postgresql_backend_parts.data_deleter import DataDeleter
 from .postgresql_backend_parts.query_executor import QueryExecutor
 from .postgresql_backend_parts.limit_manager import LimitManager
 from .postgresql_backend_parts.project_manager import ProjectManager
+from .postgresql_backend_parts.user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ class PostgreSQLBackend(BaseBackend):
         self.query_executor = QueryExecutor(self)
         self.limit_manager = LimitManager(self, self.data_inserter)
         self.project_manager = ProjectManager(self)
+        self.user_manager = UserManager(self)
 
     def _read_postgres_migration_cache(self, migration_cache_file: Path, current_conn_hash: int) -> Optional[str]:
         if migration_cache_file.exists():
@@ -427,3 +429,17 @@ class PostgreSQLBackend(BaseBackend):
 
     def delete_project(self, name: str) -> None:
         self.project_manager.delete_project(name)
+
+    # --- User management ---
+
+    def create_user(self, user_name: str, ou_name: str | None = None, email: str | None = None) -> None:
+        self.user_manager.create_user(user_name, ou_name, email)
+
+    def list_users(self) -> List[dict]:
+        return self.user_manager.list_users()
+
+    def update_user(self, user_name: str, new_name: str) -> None:
+        self.user_manager.update_user(user_name, new_name)
+
+    def set_user_active(self, user_name: str, active: bool) -> None:
+        self.user_manager.set_user_active(user_name, active)

@@ -257,3 +257,25 @@ class BaseBackend(ABC):
     def delete_project(self, name: str) -> None:
         """Delete a project from the dictionary."""
         pass
+
+    # --- User management ---
+
+    @abstractmethod
+    def create_user(self, user_name: str, ou_name: Optional[str] = None, email: Optional[str] = None) -> None:
+        """Create a new allowed user."""
+        pass
+
+    @abstractmethod
+    def list_users(self) -> List[Dict]:
+        """Return the list of allowed users."""
+        pass
+
+    @abstractmethod
+    def update_user(self, user_name: str, new_name: str) -> None:
+        """Rename an existing user."""
+        pass
+
+    @abstractmethod
+    def set_user_active(self, user_name: str, active: bool) -> None:
+        """Activate or deactivate a user."""
+        pass

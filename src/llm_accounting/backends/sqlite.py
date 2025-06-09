@@ -13,6 +13,7 @@ from .sqlite_backend_parts.usage_manager import SQLiteUsageManager
 from .sqlite_backend_parts.limit_manager import SQLiteLimitManager
 from .sqlite_backend_parts.audit_log_manager import SQLiteAuditLogManager
 from .sqlite_backend_parts.project_manager import SQLiteProjectManager
+from .sqlite_backend_parts.user_manager import SQLiteUserManager
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ class SQLiteBackend(BaseBackend):
         self.limit_manager = SQLiteLimitManager(self.connection_manager)
         self.audit_log_manager = SQLiteAuditLogManager(self.connection_manager)
         self.project_manager = SQLiteProjectManager(self.connection_manager)
+        self.user_manager = SQLiteUserManager(self.connection_manager)
 
     def initialize(self) -> None:
         self.connection_manager.initialize()
@@ -169,3 +171,17 @@ class SQLiteBackend(BaseBackend):
 
     def delete_project(self, name: str) -> None:
         self.project_manager.delete_project(name)
+
+    # --- User management ---
+
+    def create_user(self, user_name: str, ou_name: str | None = None, email: str | None = None) -> None:
+        self.user_manager.create_user(user_name, ou_name, email)
+
+    def list_users(self) -> List[dict]:
+        return self.user_manager.list_users()
+
+    def update_user(self, user_name: str, new_name: str) -> None:
+        self.user_manager.update_user(user_name, new_name)
+
+    def set_user_active(self, user_name: str, active: bool) -> None:
+        self.user_manager.set_user_active(user_name, active)

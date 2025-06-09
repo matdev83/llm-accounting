@@ -62,6 +62,28 @@ class QuotaService:
         self.backend.delete_project(name)
         self.refresh_projects_cache()
 
+    # --- User management ---
+
+    def refresh_users_cache(self) -> None:
+        self.cache_manager.refresh_users_cache()
+
+    def create_user(self, user_name: str, ou_name: Optional[str] = None, email: Optional[str] = None) -> None:
+        self.backend.create_user(user_name, ou_name, email)
+        self.refresh_users_cache()
+
+    def list_users(self) -> List[dict]:
+        if self.cache_manager.users_cache is None:
+            self.cache_manager._load_users_from_backend()
+        return self.cache_manager.users_cache
+
+    def update_user(self, user_name: str, new_name: str) -> None:
+        self.backend.update_user(user_name, new_name)
+        self.refresh_users_cache()
+
+    def set_user_active(self, user_name: str, active: bool) -> None:
+        self.backend.set_user_active(user_name, active)
+        self.refresh_users_cache()
+
     def check_quota(
         self,
         model: Optional[str],
