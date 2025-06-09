@@ -235,3 +235,25 @@ class BaseBackend(ABC):
     ) -> List[AuditLogEntry]:
         """Retrieve audit log entries based on filter criteria."""
         pass
+
+    # --- Project Management ---
+
+    @abstractmethod
+    def create_project(self, name: str) -> None:
+        """Create a new allowed project name."""
+        pass
+
+    @abstractmethod
+    def list_projects(self) -> List[str]:
+        """Return the list of allowed project names."""
+        pass
+
+    @abstractmethod
+    def update_project(self, name: str, new_name: str) -> None:
+        """Rename an existing project."""
+        pass
+
+    @abstractmethod
+    def delete_project(self, name: str) -> None:
+        """Delete a project from the dictionary."""
+        pass

@@ -53,6 +53,7 @@ class LLMAccounting:
         app_name: Optional[str] = None,
         user_name: Optional[str] = None,
         audit_backend: Optional[BaseBackend] = None,
+        enforce_project_names: bool = False,
     ):
         """Initialize with optional backends.
 
@@ -68,6 +69,14 @@ class LLMAccounting:
         self.app_name = app_name
         self.user_name = user_name
         self.audit_logger = AuditLogger(self.audit_backend)
+        self.enforce_project_names = enforce_project_names
+
+    def _ensure_valid_project(self, project: Optional[str]) -> None:
+        if not self.enforce_project_names or project is None:
+            return
+        valid_projects = set(self.quota_service.list_projects())
+        if project not in valid_projects:
+            raise ValueError(f"Project name '{project}' is not in allowed projects")
 
     def __enter__(self):
         """Initialize the backend when entering context"""
@@ -108,6 +117,7 @@ class LLMAccounting:
         project: Optional[str] = None,
     ) -> None:
         """Track a new LLM usage entry"""
+        self._ensure_valid_project(project if project is not None else self.project_name)
         self.backend._ensure_connected()
         entry = UsageEntry(
             model=model,
@@ -147,6 +157,7 @@ class LLMAccounting:
         project: Optional[str] = None,
     ) -> List[Tuple[UsageLimitDTO, float]]:
         """Track usage and return remaining quota for all applicable limits."""
+        self._ensure_valid_project(project if project is not None else self.project_name)
         self.track_usage(
             model=model,
             prompt_tokens=prompt_tokens,
@@ -210,6 +221,7 @@ class LLMAccounting:
         completion_tokens: int = 0,
     ) -> Tuple[bool, Optional[str]]:
         """Check if the current request exceeds any defined quotas."""
+        self._ensure_valid_project(project_name)
         self.backend._ensure_connected()
         return self.quota_service.check_quota(
             model=model,
@@ -234,6 +246,7 @@ class LLMAccounting:
         project_name: Optional[str] = None,
     ) -> None:
         """Sets a new usage limit."""
+        self._ensure_valid_project(project_name)
         self.backend._ensure_connected()
         limit = UsageLimitDTO(
             scope=scope.value if isinstance(scope, LimitScope) else scope,

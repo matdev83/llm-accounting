@@ -19,6 +19,7 @@ A Python package for tracking and analyzing LLM usage across different models an
 - Automatic timestamp handling
 - Comprehensive audit logging for all LLM interactions
 - Retrieve remaining quota information after logging usage
+- Optional enforcement of allowed project names with `projects` management commands
 
 ## Installation
 
@@ -113,6 +114,7 @@ The following options can be used with any `llm-accounting` command:
 - `--project-name <name>`: Default project name to associate with usage entries. Can be overridden by command-specific `--project`.
 - `--app-name <name>`: Default application name to associate with usage entries. Can be overridden by command-specific `--caller-name`.
 - `--user-name <name>`: Default user name to associate with usage entries. Can be overridden by command-specific `--username`. Defaults to current system user.
+- `--enforce-project-names`: When set, project names supplied to commands must exist in the project dictionary.
 
 ```bash
 # Track a new usage entry (model name is required, timestamp is optional)
@@ -256,6 +258,17 @@ llm-accounting limits delete --id 1
 You can specify the database backend directly via the CLI using the `--db-backend` option. This allows you to switch between `sqlite` (default) and `postgresql` without modifying code.
 
 Audit logs can optionally use a different backend by providing the `--audit-db-backend` and related options.
+
+### Project Management
+
+The `projects` command manages the list of allowed project names when `--enforce-project-names` is used.
+
+```bash
+llm-accounting projects add MyProj
+llm-accounting projects list
+llm-accounting projects update MyProj NewName
+llm-accounting projects delete NewName
+```
 
 ```bash
 # Use SQLite backend (default behavior, --db-backend can be omitted)

@@ -6,6 +6,12 @@ from llm_accounting.cli.commands.track import run_track
 from llm_accounting.cli.commands.limits import set_limit, list_limits, delete_limit
 from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval
 from llm_accounting.cli.commands.log_event import run_log_event
+from llm_accounting.cli.commands.projects import (
+    run_project_add,
+    run_project_list,
+    run_project_update,
+    run_project_delete,
+)
 
 
 def add_stats_parser(subparsers):
@@ -235,3 +241,24 @@ def add_log_event_parser(subparsers):
     parser.add_argument("--project", type=str, help="Project associated with the event")
     parser.add_argument("--timestamp", type=str, help="Timestamp of the event (YYYY-MM-DD HH:MM:SS or ISO format, default: current time)")
     parser.set_defaults(func=run_log_event)
+
+
+def add_projects_parser(subparsers):
+    parser = subparsers.add_parser("projects", help="Manage allowed projects")
+    proj_sub = parser.add_subparsers(dest="projects_command", required=True)
+
+    add_p = proj_sub.add_parser("add", help="Add a new project")
+    add_p.add_argument("name", type=str)
+    add_p.set_defaults(func=run_project_add)
+
+    list_p = proj_sub.add_parser("list", help="List projects")
+    list_p.set_defaults(func=run_project_list)
+
+    upd_p = proj_sub.add_parser("update", help="Rename a project")
+    upd_p.add_argument("name", type=str)
+    upd_p.add_argument("new_name", type=str)
+    upd_p.set_defaults(func=run_project_update)
+
+    del_p = proj_sub.add_parser("delete", help="Delete a project")
+    del_p.add_argument("name", type=str)
+    del_p.set_defaults(func=run_project_delete)

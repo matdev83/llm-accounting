@@ -12,6 +12,7 @@ from .sqlite_backend_parts.query_executor import SQLiteQueryExecutor
 from .sqlite_backend_parts.usage_manager import SQLiteUsageManager
 from .sqlite_backend_parts.limit_manager import SQLiteLimitManager
 from .sqlite_backend_parts.audit_log_manager import SQLiteAuditLogManager
+from .sqlite_backend_parts.project_manager import SQLiteProjectManager
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class SQLiteBackend(BaseBackend):
         self.usage_manager = SQLiteUsageManager(self.connection_manager)
         self.limit_manager = SQLiteLimitManager(self.connection_manager)
         self.audit_log_manager = SQLiteAuditLogManager(self.connection_manager)
+        self.project_manager = SQLiteProjectManager(self.connection_manager)
 
     def initialize(self) -> None:
         self.connection_manager.initialize()
@@ -153,3 +155,17 @@ class SQLiteBackend(BaseBackend):
         """Retrieve aggregated usage costs for a user."""
         conn = self.connection_manager.get_connection()
         return self.usage_manager.get_usage_costs(conn, user_id, start_date, end_date)
+
+    # --- Project management ---
+
+    def create_project(self, name: str) -> None:
+        self.project_manager.create_project(name)
+        
+    def list_projects(self) -> List[str]:
+        return self.project_manager.list_projects()
+
+    def update_project(self, name: str, new_name: str) -> None:
+        self.project_manager.update_project(name, new_name)
+
+    def delete_project(self, name: str) -> None:
+        self.project_manager.delete_project(name)
