@@ -116,6 +116,7 @@ The following options can be used with any `llm-accounting` command:
 - `--app-name <name>`: Default application name to associate with usage entries. Can be overridden by command-specific `--caller-name`.
 - `--user-name <name>`: Default user name to associate with usage entries. Can be overridden by command-specific `--username`. Defaults to current system user.
 - `--enforce-project-names`: When set, project names supplied to commands must exist in the project dictionary.
+- `--enforce-user-names`: When set, user names supplied to commands must exist in the user dictionary.
 
 ```bash
 # Track a new usage entry (model name is required, timestamp is optional)
@@ -270,6 +271,17 @@ llm-accounting projects add MyProj
 llm-accounting projects list
 llm-accounting projects update MyProj NewName
 llm-accounting projects delete NewName
+```
+
+### User Management
+
+The `users` command manages the list of allowed user names when `--enforce-user-names` is used.
+
+```bash
+llm-accounting users add alice
+llm-accounting users list
+llm-accounting users update alice --new-user-name alice2 --email alice@example.com
+llm-accounting users deactivate alice2
 ```
 
 ```bash
