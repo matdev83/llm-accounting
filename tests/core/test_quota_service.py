@@ -6,13 +6,13 @@ from typing import Optional, Dict, Tuple
 from llm_accounting.models.limits import (LimitScope, LimitType, TimeInterval,
                                           UsageLimitDTO)
 from llm_accounting.services.quota_service import QuotaService
-from llm_accounting.backends.base import BaseBackend
+from llm_accounting.backends.base import TransactionalBackend
 from llm_accounting import LLMAccounting # Added import
 
 @pytest.fixture
 def mock_backend() -> MagicMock:
-    """Provides a MagicMock instance for BaseBackend."""
-    backend = MagicMock(spec=BaseBackend)
+    """Provides a MagicMock instance for TransactionalBackend."""
+    backend = MagicMock(spec=TransactionalBackend)
     backend.get_usage_limits.return_value = []
     return backend
 

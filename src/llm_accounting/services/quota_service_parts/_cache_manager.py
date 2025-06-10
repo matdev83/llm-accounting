@@ -1,9 +1,9 @@
 from typing import Optional, List
-from ...backends.base import BaseBackend
+from ...backends.base import TransactionalBackend
 from ...models.limits import UsageLimitDTO
 
 class QuotaServiceCacheManager:
-    def __init__(self, backend: BaseBackend):
+    def __init__(self, backend: TransactionalBackend):
         self.backend = backend
         self.limits_cache: Optional[List[UsageLimitDTO]] = None
         self.projects_cache: Optional[List[str]] = None

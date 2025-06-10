@@ -2,7 +2,7 @@ import logging
 from typing import Optional, Tuple, Dict, List
 from datetime import datetime, timezone # Import datetime and timezone
 
-from ..backends.base import BaseBackend
+from ..backends.base import TransactionalBackend
 from ..models.limits import LimitScope, UsageLimitDTO
 
 from .quota_service_parts._cache_manager import QuotaServiceCacheManager
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class QuotaService:
-    def __init__(self, backend: BaseBackend):
+    def __init__(self, backend: TransactionalBackend):
         self.backend = backend
         self.cache_manager = QuotaServiceCacheManager(backend)
         self.limit_evaluator = QuotaServiceLimitEvaluator(backend)

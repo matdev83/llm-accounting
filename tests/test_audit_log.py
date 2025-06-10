@@ -4,7 +4,7 @@ from unittest.mock import Mock, call # Added Mock and call
 from typing import List # Added List
 
 from llm_accounting.audit_log import AuditLogger
-from llm_accounting.backends.base import BaseBackend, AuditLogEntry
+from llm_accounting.backends.base import AuditBackend, AuditLogEntry
 
 # EXPECTED_COLUMNS removed
 # Old fixtures (memory_logger, temp_db_path, file_logger) removed
@@ -14,8 +14,8 @@ from llm_accounting.backends.base import BaseBackend, AuditLogEntry
 
 @pytest.fixture
 def mock_backend() -> Mock:
-    """Provides a mock BaseBackend instance."""
-    return Mock(spec=BaseBackend)
+    """Provides a mock AuditBackend instance."""
+    return Mock(spec=AuditBackend)
 
 @pytest.fixture
 def audit_logger_with_mock_backend(mock_backend: Mock) -> AuditLogger:

@@ -1,7 +1,7 @@
 from typing import Optional, List # Added List
 from datetime import datetime, timezone
 
-from .backends.base import BaseBackend, AuditLogEntry # Added BaseBackend, AuditLogEntry
+from .backends.base import AuditBackend, AuditLogEntry
 
 
 # initialize_audit_db_schema function removed
@@ -9,14 +9,14 @@ from .backends.base import BaseBackend, AuditLogEntry # Added BaseBackend, Audit
 
 class AuditLogger:
     """
-    A class for logging audit trail entries, delegating to a BaseBackend.
+    A class for logging audit trail entries, delegating to an AuditBackend.
     """
-    def __init__(self, backend: BaseBackend):
+    def __init__(self, backend: AuditBackend):
         """
         Initializes the AuditLogger with a backend.
 
         Args:
-            backend: An instance of a class that implements BaseBackend.
+            backend: An instance of a class that implements AuditBackend.
         """
         self.backend = backend
         # self.db_path and self.conn removed

@@ -108,8 +108,211 @@ class UserRecord:
     last_disabled_at: Optional[datetime] = None
 
 
-class BaseBackend(ABC):
-    """Base class for all usage tracking backends"""
+class TransactionalBackend(ABC):
+    """Interface for transactional database operations."""
+
+    @abstractmethod
+    def initialize(self) -> None:
+        """Initialize the backend (create tables, etc.)"""
+        pass
+
+    @abstractmethod
+    def insert_usage(self, entry: UsageEntry) -> None:
+        """Insert a new usage entry"""
+        pass
+
+    @abstractmethod
+    def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
+        """Get aggregated statistics for a time period"""
+        pass
+
+    @abstractmethod
+    def get_model_stats(
+        self, start: datetime, end: datetime
+    ) -> List[Tuple[str, UsageStats]]:
+        """Get statistics grouped by model for a time period"""
+        pass
+
+    @abstractmethod
+    def get_model_rankings(
+        self, start: datetime, end: datetime
+    ) -> Dict[str, List[Tuple[str, Any]]]:
+        """Get model rankings by different metrics"""
+        pass
+
+    @abstractmethod
+    def purge(self) -> None:
+        """Delete all usage entries from the backend"""
+        pass
+
+    @abstractmethod
+    def tail(self, n: int = 10) -> List[UsageEntry]:
+        """Get the n most recent usage entries"""
+        pass
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close any open connections"""
+        pass
+
+    @abstractmethod
+    def execute_query(self, query: str) -> list[dict]:
+        """Execute a raw SQL SELECT query and return results"""
+        pass
+
+    @abstractmethod
+    def get_usage_limits(
+        self,
+        scope: Optional[LimitScope] = None,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None,
+        project_name: Optional[str] = None,
+        filter_project_null: Optional[bool] = None,
+        filter_username_null: Optional[bool] = None,
+        filter_caller_name_null: Optional[bool] = None,
+    ) -> List[UsageLimitDTO]:
+        """Retrieve usage limits based on specified filters."""
+        pass
+
+    @abstractmethod
+    def get_accounting_entries_for_quota(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        limit_type: LimitType,
+        interval_unit: Any,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        caller_name: Optional[str] = None,
+        project_name: Optional[str] = None,
+        filter_project_null: Optional[bool] = None,
+    ) -> float:
+        """Retrieve aggregated API request data for quota calculation."""
+        pass
+
+    @abstractmethod
+    def insert_usage_limit(self, limit: UsageLimitDTO) -> None:
+        """Insert a new usage limit entry."""
+        pass
+
+    @abstractmethod
+    def delete_usage_limit(self, limit_id: int) -> None:
+        """Delete a usage limit entry by its ID."""
+        pass
+
+    @abstractmethod
+    def _ensure_connected(self) -> None:
+        """Ensure the backend has an active connection."""
+        pass
+
+    @abstractmethod
+    def get_usage_costs(
+        self,
+        user_id: str,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> float:
+        """Retrieve aggregated usage costs for a user."""
+        pass
+
+    # --- Project Management ---
+
+    @abstractmethod
+    def create_project(self, name: str) -> None:
+        """Create a new allowed project name."""
+        pass
+
+    @abstractmethod
+    def list_projects(self) -> List[str]:
+        """Return the list of allowed project names."""
+        pass
+
+    @abstractmethod
+    def update_project(self, name: str, new_name: str) -> None:
+        """Rename an existing project."""
+        pass
+
+    @abstractmethod
+    def delete_project(self, name: str) -> None:
+        """Delete a project from the dictionary."""
+        pass
+
+    # --- User Management ---
+
+    @abstractmethod
+    def create_user(
+        self,
+        user_name: str,
+        ou_name: Optional[str] = None,
+        email: Optional[str] = None,
+    ) -> None:
+        """Create a new allowed user."""
+        pass
+
+    @abstractmethod
+    def list_users(self) -> List[UserRecord]:
+        """Return the list of allowed users."""
+        pass
+
+    @abstractmethod
+    def update_user(
+        self,
+        user_name: str,
+        new_user_name: Optional[str] = None,
+        ou_name: Optional[str] = None,
+        email: Optional[str] = None,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        """Update fields of an existing user."""
+        pass
+
+    @abstractmethod
+    def set_user_enabled(self, user_name: str, enabled: bool) -> None:
+        """Enable or disable a user."""
+        pass
+
+
+class AuditBackend(ABC):
+    """Interface for non-transactional (audit logging) operations."""
+
+    @abstractmethod
+    def initialize(self) -> None:
+        """Initialize the backend if required."""
+        pass
+
+    @abstractmethod
+    def initialize_audit_log_schema(self) -> None:
+        """Ensure the audit log schema is initialized."""
+        pass
+
+    @abstractmethod
+    def log_audit_event(self, entry: AuditLogEntry) -> None:
+        """Insert a new audit log entry."""
+        pass
+
+    @abstractmethod
+    def get_audit_log_entries(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        app_name: Optional[str] = None,
+        user_name: Optional[str] = None,
+        project: Optional[str] = None,
+        log_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[AuditLogEntry]:
+        """Retrieve audit log entries based on filter criteria."""
+        pass
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close any resources held by the backend."""
+        pass
+
+
+class BaseBackend(TransactionalBackend, AuditBackend, ABC):
+    """Combined interface supporting both transactional and audit operations."""
 
     @abstractmethod
     def initialize(self) -> None:
