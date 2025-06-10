@@ -125,8 +125,8 @@ class DataInserter:
         sql = """
             INSERT INTO audit_log_entries (
                 timestamp, app_name, user_name, model, prompt_text,
-                response_text, remote_completion_id, project, log_type
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                response_text, remote_completion_id, project, session, log_type
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         params = (
             entry.timestamp,  # psycopg2 handles datetime objects for TIMESTAMPTZ
@@ -137,6 +137,7 @@ class DataInserter:
             entry.response_text,
             entry.remote_completion_id,
             entry.project,
+            entry.session,
             entry.log_type,
         )
         
@@ -155,3 +156,13 @@ class DataInserter:
             logger.error(f"An unexpected error occurred while preparing SQL for audit log event: {e}")
             # Re-raise to allow the PostgreSQLBackend method to handle transaction control.
             raise
+
+    def insert_quota_rejection(self, session: str, rejection_message: str, created_at: datetime) -> None:
+        assert self.backend.conn is not None, "Database connection is not established."
+        sql = (
+            "INSERT INTO quota_rejections (created_at, session, rejection_message) "
+            "VALUES (%s, %s, %s)"
+        )
+        params = (created_at, session, rejection_message)
+        with self.backend.conn.cursor() as cur:
+            cur.execute(sql, params)

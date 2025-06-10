@@ -382,6 +382,19 @@ class PostgreSQLBackend(BaseBackend):
                     logger.error(f"Error during rollback attempt: {rb_err}")
             raise RuntimeError(f"Failed to log audit event due to unexpected error: {e}") from e
 
+    def log_quota_rejection(self, session: str, rejection_message: str, created_at: Optional[datetime] = None) -> None:
+        self._ensure_connected()
+        active_conn = self.connection_manager.conn
+        assert active_conn is not None
+        ts = created_at if created_at is not None else datetime.now(timezone.utc)
+        try:
+            self.data_inserter.insert_quota_rejection(session, rejection_message, ts)
+            active_conn.commit()
+        except Exception as e:
+            if active_conn and not active_conn.closed:
+                active_conn.rollback()
+            raise RuntimeError(f"Failed to log quota rejection: {e}") from e
+
     def get_audit_log_entries(
         self,
         start_date: Optional[datetime] = None,

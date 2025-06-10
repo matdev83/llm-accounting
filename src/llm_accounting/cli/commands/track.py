@@ -34,5 +34,6 @@ def run_track(args, accounting: LLMAccounting):
         cached_tokens=args.cached_tokens,
         reasoning_tokens=args.reasoning_tokens,
         project=args.project,
+        session=args.session,
     )
     console.print("[green]Usage entry tracked successfully[/green]")

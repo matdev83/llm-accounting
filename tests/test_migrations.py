@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 REVISION_INITIAL_TABLES = "82f27c891782"
 REVISION_ADD_NOTES_COLUMN = "ba9718840e75"
 REVISION_ADD_INDICES = "aa1b2c3d4e5f"
+REVISION_ADD_SESSION_AND_REJECTIONS = "e5f6c7a8d9b0"
 
 
 # --- Fixtures ---
@@ -118,10 +119,9 @@ def test_sqlite_initial_migration_creates_schema(sqlite_db_url, set_db_url_env, 
     # 4. Verify alembic_version table and its content
     assert "alembic_version" in current_tables, "alembic_version table not found."
     
-    # The `run_migrations` should bring it to head, which is REVISION_ADD_INDICES
-    # because that's now the latest migration we generated.
-    assert get_alembic_revision(engine) == REVISION_ADD_INDICES, \
-        f"Alembic version should be at {REVISION_ADD_INDICES} after initial run_migrations."
+    # The `run_migrations` should bring it to head, which is REVISION_ADD_SESSION_AND_REJECTIONS
+    assert get_alembic_revision(engine) == REVISION_ADD_SESSION_AND_REJECTIONS, \
+        f"Alembic version should be at {REVISION_ADD_SESSION_AND_REJECTIONS} after initial run_migrations."
 
 def test_sqlite_applies_new_migration_and_preserves_data(sqlite_db_url, set_db_url_env, alembic_config):
     logger.info(f"Running test_sqlite_applies_new_migration_and_preserves_data with DB URL: {sqlite_db_url}")
@@ -172,12 +172,12 @@ def test_sqlite_applies_new_migration_and_preserves_data(sqlite_db_url, set_db_u
 
     # 3. Run Migrations Again (this should apply any new migrations including 'add_indices')
     logger.info("Running migrations again to apply remaining migrations.")
-    run_migrations(db_url=sqlite_db_url)  # This should upgrade to head (REVISION_ADD_INDICES)
+    run_migrations(db_url=sqlite_db_url)  # This should upgrade to head (REVISION_ADD_SESSION_AND_REJECTIONS)
 
     # 4. Verify Schema Update
     current_revision_after_second_run = get_alembic_revision(engine)
     logger.info(f"Revision after second run_migrations: {current_revision_after_second_run}")
-    assert current_revision_after_second_run == REVISION_ADD_INDICES
+    assert current_revision_after_second_run == REVISION_ADD_SESSION_AND_REJECTIONS
     
     accounting_columns_after = get_column_names(engine, "accounting_entries")
     logger.info(f"Columns in accounting_entries after 'add_notes' migration: {accounting_columns_after}")
@@ -263,8 +263,8 @@ def test_postgresql_initial_migration_creates_schema(postgresql_engine, set_db_u
         f"Not all expected tables found in PG. Missing: {expected_tables - current_tables}"
     
     assert "alembic_version" in current_tables, "alembic_version table not found in PG."
-    assert get_alembic_revision(postgresql_engine) == REVISION_ADD_INDICES, \
-        f"Alembic version in PG should be at {REVISION_ADD_INDICES}."
+    assert get_alembic_revision(postgresql_engine) == REVISION_ADD_SESSION_AND_REJECTIONS, \
+        f"Alembic version in PG should be at {REVISION_ADD_SESSION_AND_REJECTIONS}."
 
 @pytest.mark.skipif(not TEST_POSTGRESQL_URL, reason="TEST_POSTGRESQL_DB_URL not set")
 def test_postgresql_applies_new_migration_and_preserves_data(postgresql_engine, set_db_url_env, postgresql_alembic_config):
@@ -310,7 +310,7 @@ def test_postgresql_applies_new_migration_and_preserves_data(postgresql_engine, 
     run_migrations(db_url=TEST_POSTGRESQL_URL)
 
     # 4. Verify Schema Update
-    assert get_alembic_revision(postgresql_engine) == REVISION_ADD_INDICES
+    assert get_alembic_revision(postgresql_engine) == REVISION_ADD_SESSION_AND_REJECTIONS
     accounting_columns_after = get_column_names(postgresql_engine, "accounting_entries")
     assert "notes" in accounting_columns_after, "'notes' column not found in PG after migration."
 
@@ -362,5 +362,5 @@ def test_postgresql_applies_new_migration_and_preserves_data(postgresql_engine, 
 # - Tests for SQLite and PostgreSQL follow similar patterns.
 # - PostgreSQL tests are skipped if TEST_POSTGRESQL_DB_URL is not set.
 # - PostgreSQL setup fixture attempts to clean tables for a consistent test environment.
-# - The test for initial migration checks against REVISION_ADD_INDICES because run_migrations() brings to head.
+# - The test for initial migration checks against REVISION_ADD_SESSION_AND_REJECTIONS because run_migrations() brings to head.
 # - The test for applying new migration correctly uses alembic_command.upgrade() to go to a specific prior revision.

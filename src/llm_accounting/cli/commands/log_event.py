@@ -32,7 +32,8 @@ def run_log_event(args, accounting):
             response_text=getattr(args, 'response_text', None),
             remote_completion_id=getattr(args, 'remote_completion_id', None),
             project=getattr(args, 'project', None),
-            timestamp=timestamp  # Pass the parsed datetime object
+            timestamp=timestamp,  # Pass the parsed datetime object
+            session=getattr(args, 'session', None),
         )
         print(f"Successfully logged event for app '{args.app_name}' and user '{args.user_name}'.")
     except Exception as e:

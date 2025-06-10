@@ -12,6 +12,7 @@ from .sqlite_backend_parts.query_executor import SQLiteQueryExecutor
 from .sqlite_backend_parts.usage_manager import SQLiteUsageManager
 from .sqlite_backend_parts.limit_manager import SQLiteLimitManager
 from .sqlite_backend_parts.audit_log_manager import SQLiteAuditLogManager
+from .sqlite_backend_parts.quota_rejection_manager import SQLiteQuotaRejectionManager
 from .sqlite_backend_parts.project_manager import SQLiteProjectManager
 from .sqlite_backend_parts.user_manager import SQLiteUserManager
 
@@ -34,6 +35,7 @@ class SQLiteBackend(BaseBackend):
         self.audit_log_manager = SQLiteAuditLogManager(self.connection_manager)
         self.project_manager = SQLiteProjectManager(self.connection_manager)
         self.user_manager = SQLiteUserManager(self.connection_manager)
+        self.quota_rejection_manager = SQLiteQuotaRejectionManager(self.connection_manager)
 
     def initialize(self) -> None:
         self.connection_manager.initialize()
@@ -137,6 +139,12 @@ class SQLiteBackend(BaseBackend):
 
     def log_audit_event(self, entry: AuditLogEntry) -> None:
         self.audit_log_manager.log_audit_event(entry)
+
+    def log_quota_rejection(self, session: str, rejection_message: str, created_at: Optional[datetime] = None) -> None:
+        conn = self.connection_manager.get_connection()
+        ts = created_at if created_at is not None else datetime.now()
+        self.quota_rejection_manager.log_rejection(conn, session, rejection_message, ts)
+        conn.commit()
 
     def get_audit_log_entries(
         self,
