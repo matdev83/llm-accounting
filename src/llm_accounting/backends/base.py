@@ -20,6 +20,7 @@ class AuditLogEntry:
     remote_completion_id: Optional[str]
     project: Optional[str]
     log_type: str  # e.g., 'prompt', 'response', 'event'
+    session: Optional[str] = None
 
     def __post_init__(self):
         # Ensure timestamp is set, similar to UsageEntry, though it's not Optional here.
@@ -50,6 +51,7 @@ class UsageEntry:
     caller_name: Optional[str] = None
     username: Optional[str] = None
     project: Optional[str] = None
+    session: Optional[str] = None
     # Additional token details
     cached_tokens: Optional[int] = 0 # Keep Optional for flexibility if not always provided
     reasoning_tokens: Optional[int] = 0 # Keep Optional
@@ -95,6 +97,15 @@ class UsageStats:
     avg_cost: float = 0.0
     avg_execution_time: float = 0.0
 
+
+@dataclass
+class QuotaRejectionRecord:
+    """Represents a quota check rejection entry"""
+
+    id: Optional[int]
+    created_at: datetime
+    session: str
+    rejection_message: str
 
 @dataclass
 class UserRecord:
@@ -292,6 +303,11 @@ class AuditBackend(ABC):
         pass
 
     @abstractmethod
+    def log_quota_rejection(self, session: str, rejection_message: str, created_at: Optional[datetime] = None) -> None:
+        """Store information about a rejected quota check."""
+        pass
+
+    @abstractmethod
     def get_audit_log_entries(
         self,
         start_date: Optional[datetime] = None,
@@ -435,6 +451,11 @@ class BaseBackend(TransactionalBackend, AuditBackend, ABC):
     @abstractmethod
     def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
         """Retrieve aggregated usage costs for a user."""
+        pass
+
+    @abstractmethod
+    def log_quota_rejection(self, session: str, rejection_message: str, created_at: Optional[datetime] = None) -> None:
+        """Store information about a rejected quota check."""
         pass
 
     @abstractmethod

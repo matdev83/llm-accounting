@@ -14,6 +14,7 @@ A Python package for tracking and analyzing LLM usage across different models an
 - Pluggable backend system (SQLite, CSV, and PostgreSQL backends supported)
 - CLI interface for viewing and tracking usage statistics
 - Support for tracking caller application and username
+- Optional session identifiers for grouping usage across commands
 - Automatic database schema migration (for supported backends)
 - Strict model name validation
 - Automatic timestamp handling

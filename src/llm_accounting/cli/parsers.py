@@ -138,6 +138,12 @@ def add_track_parser(subparsers):
         default=None,
         help="The project name to associate with this usage entry.",
     )
+    track_parser.add_argument(
+        "--session",
+        type=str,
+        default=None,
+        help="Optional session identifier",
+    )
     track_parser.set_defaults(func=run_track)
 
 
@@ -246,6 +252,7 @@ def add_log_event_parser(subparsers):
     parser.add_argument("--remote-completion-id", type=str, help="Remote ID of the completion")
     parser.add_argument("--project", type=str, help="Project associated with the event")
     parser.add_argument("--timestamp", type=str, help="Timestamp of the event (YYYY-MM-DD HH:MM:SS or ISO format, default: current time)")
+    parser.add_argument("--session", type=str, help="Optional session identifier")
     parser.set_defaults(func=run_log_event)
 
 

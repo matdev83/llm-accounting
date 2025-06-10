@@ -117,6 +117,10 @@ class MockBackend(BaseBackend):
         # Minimal implementation to satisfy abstract method
         return 0.0
 
+    @override
+    def log_quota_rejection(self, session: str, rejection_message: str, created_at: Optional[datetime] = None) -> None:
+        pass
+
     def create_project(self, name: str) -> None:
         pass
 

@@ -132,6 +132,7 @@ class LLMAccounting:
         cached_tokens: int = 0,
         reasoning_tokens: int = 0,
         project: Optional[str] = None,
+        session: Optional[str] = None,
     ) -> None:
         """Track a new LLM usage entry"""
         self._ensure_valid_project(project if project is not None else self.project_name)
@@ -150,6 +151,7 @@ class LLMAccounting:
             timestamp=timestamp,
             caller_name=caller_name if caller_name is not None else self.app_name, # Use instance default
             username=username if username is not None else self.user_name, # Use instance default
+            session=session,
             cached_tokens=cached_tokens,
             reasoning_tokens=reasoning_tokens,
             project=project if project is not None else self.project_name, # Use instance default
@@ -173,6 +175,7 @@ class LLMAccounting:
         cached_tokens: int = 0,
         reasoning_tokens: int = 0,
         project: Optional[str] = None,
+        session: Optional[str] = None,
     ) -> List[Tuple[UsageLimitDTO, float]]:
         """Track usage and return remaining quota for all applicable limits."""
         self._ensure_valid_project(project if project is not None else self.project_name)
@@ -193,6 +196,7 @@ class LLMAccounting:
             cached_tokens=cached_tokens,
             reasoning_tokens=reasoning_tokens,
             project=project,
+            session=session,
         )
 
         # Calculate total tokens if not provided
@@ -250,6 +254,7 @@ class LLMAccounting:
         cost: float = 0.0,
         project_name: Optional[str] = None,
         completion_tokens: int = 0,
+        session: Optional[str] = None,
     ) -> Tuple[bool, Optional[str]]:
         """Check if the current request exceeds any defined quotas."""
         self._ensure_valid_project(project_name)
@@ -262,7 +267,8 @@ class LLMAccounting:
             input_tokens=input_tokens,
             cost=cost,
             project_name=project_name,
-            completion_tokens=completion_tokens
+            completion_tokens=completion_tokens,
+            session=session,
         )
 
     def set_usage_limit(

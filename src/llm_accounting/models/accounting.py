@@ -23,6 +23,7 @@ class AccountingEntry(Base):
     execution_time = Column(Float, nullable=False)
     caller_name = Column(String, nullable=True)
     username = Column(String, nullable=True)
+    session = Column(String, nullable=True)
     cached_tokens = Column(Integer, nullable=False, default=0)
     reasoning_tokens = Column(Integer, nullable=False, default=0)
 

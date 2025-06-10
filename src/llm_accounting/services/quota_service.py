@@ -101,10 +101,18 @@ class QuotaService:
         cost: float,
         completion_tokens: int = 0,
         project_name: Optional[str] = None,
+        session: Optional[str] = None,
     ) -> Tuple[bool, Optional[str]]:
         # Delegate to the enhanced check and discard the retry_after value
         allowed, reason, _ = self.check_quota_enhanced(
-            model, username, caller_name, input_tokens, cost, completion_tokens, project_name
+            model,
+            username,
+            caller_name,
+            input_tokens,
+            cost,
+            completion_tokens,
+            project_name,
+            session=session,
         )
         return allowed, reason
 
@@ -149,6 +157,7 @@ class QuotaService:
         cost: float,
         completion_tokens: int = 0,
         project_name: Optional[str] = None,
+        session: Optional[str] = None,
     ) -> Tuple[bool, Optional[str], Optional[int]]:
         """Check quota with caching and retry-after handling.
 
@@ -204,6 +213,8 @@ class QuotaService:
                 retry_after_seconds = max(0, int((reset_timestamp - now).total_seconds()))
             else:
                 retry_after_seconds = 0
+            if session and reason:
+                self.backend.log_quota_rejection(session, reason, created_at=now)
             return False, reason, retry_after_seconds
         return True, None, None
 

@@ -64,6 +64,9 @@ class ConcreteTestBackend(BaseBackend):
         pass
     def log_audit_event(self, entry: AuditLogEntry) -> None:
         pass
+
+    def log_quota_rejection(self, session: str, rejection_message: str, created_at: Optional[datetime] = None) -> None:
+        pass
     def get_usage_costs(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
         return 0.0
     def get_audit_log_entries(

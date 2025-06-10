@@ -110,3 +110,18 @@ def test_track_usage_with_reasoning_tokens(mock_get_accounting):
         cli_main()
 
     mock_backend_instance.insert_usage.assert_called_once()
+
+
+@patch("llm_accounting.cli.utils.get_accounting")
+def test_track_usage_with_session(mock_get_accounting):
+    mock_backend_instance = MagicMock()
+    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
+    mock_get_accounting.return_value = real_accounting_instance
+
+    with patch.object(sys, 'argv', [
+        'cli_main', 'track', '--model', 'gpt-3.5-turbo', '--cost', '0.02', '--execution-time', '0.5', '--session', 'sess1']):
+        cli_main()
+
+    mock_backend_instance.insert_usage.assert_called_once()
+    args, _ = mock_backend_instance.insert_usage.call_args
+    assert args[0].session == 'sess1'

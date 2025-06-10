@@ -16,6 +16,7 @@ class AuditLogEntryModel(Base):
     response_text = Column(String, nullable=True)
     remote_completion_id = Column(String, nullable=True)
     project = Column(String, nullable=True)
+    session = Column(String, nullable=True)
     log_type = Column(String, nullable=False)
 
     def __repr__(self):
