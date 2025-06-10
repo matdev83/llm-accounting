@@ -2,12 +2,12 @@ import pytest
 from unittest.mock import Mock
 
 from llm_accounting import LLMAccounting
-from llm_accounting.backends.base import BaseBackend
+from llm_accounting.backends.base import TransactionalBackend, AuditBackend
 
 
 def test_separate_audit_backend_usage():
-    usage_backend = Mock(spec=BaseBackend)
-    audit_backend = Mock(spec=BaseBackend)
+    usage_backend = Mock(spec=TransactionalBackend)
+    audit_backend = Mock(spec=AuditBackend)
 
     acc = LLMAccounting(backend=usage_backend, audit_backend=audit_backend)
 

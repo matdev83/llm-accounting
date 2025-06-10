@@ -5,7 +5,7 @@ from freezegun import freeze_time
 from llm_accounting import LLMAccounting
 from llm_accounting.backends.sqlite import SQLiteBackend
 from llm_accounting.models.limits import LimitScope, LimitType, TimeInterval, UsageLimitDTO
-from llm_accounting.backends.base import BaseBackend
+from llm_accounting.backends.base import TransactionalBackend
 from llm_accounting.services.quota_service import QuotaService
 
 
@@ -178,7 +178,7 @@ def test_model_and_project_limits_first_triggered(accounting_instance: LLMAccoun
 @freeze_time("2024-01-01 00:00:40", tz_offset=0)
 def test_denial_cache_ttl_behavior():
     from unittest.mock import MagicMock
-    mock_backend = MagicMock(spec=BaseBackend)
+    mock_backend = MagicMock(spec=TransactionalBackend)
 
     limit = UsageLimitDTO(
         scope=LimitScope.GLOBAL.value,

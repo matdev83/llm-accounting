@@ -15,7 +15,13 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from .audit_log import AuditLogger
-from .backends.base import BaseBackend, UsageEntry, UsageStats
+from .backends.base import (
+    BaseBackend,
+    TransactionalBackend,
+    AuditBackend,
+    UsageEntry,
+    UsageStats,
+)
 from .backends.mock_backend import MockBackend
 from .backends.sqlite import SQLiteBackend
 from .models.limits import LimitScope, LimitType, TimeInterval, UsageLimitDTO
@@ -31,6 +37,8 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "LLMAccounting",
     "BaseBackend",
+    "TransactionalBackend",
+    "AuditBackend",
     "UsageEntry",
     "UsageStats",
     "SQLiteBackend",
@@ -48,11 +56,11 @@ class LLMAccounting:
 
     def __init__(
         self,
-        backend: Optional[BaseBackend] = None,
+        backend: Optional[TransactionalBackend] = None,
         project_name: Optional[str] = None,
         app_name: Optional[str] = None,
         user_name: Optional[str] = None,
-        audit_backend: Optional[BaseBackend] = None,
+        audit_backend: Optional[AuditBackend] = None,
         enforce_project_names: bool = False,
         enforce_user_names: bool = False,
     ):

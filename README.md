@@ -641,20 +641,20 @@ accounting_postgresql_direct.close()
 
 ### Custom Backend Implementation
 
-The `llm-accounting` library is designed with a pluggable backend system, allowing you to integrate with any database or data storage solution by implementing the `BaseBackend` abstract class. This is particularly useful for integrating with existing infrastructure or custom data handling requirements.
+The `llm-accounting` library is designed with a pluggable backend system, allowing you to integrate with any database or data storage solution by implementing the `TransactionalBackend` and `AuditBackend` abstract classes. This separation lets you optimize transactional workloads independently from audit logging while remaining compatible with existing `BaseBackend` implementations.
 
 Here's how you can implement your own custom backend, using the `MockBackend` as a simplified example:
 
-1. **Define your Backend Class**: Create a new class that inherits from `llm_accounting.backends.base.BaseBackend`. You will need to implement all abstract methods defined in `BaseBackend`.
+1. **Define your Backend Class**: Create a new class that inherits from `llm_accounting.backends.base.TransactionalBackend` (and optionally `AuditBackend`). You will need to implement all abstract methods defined in these base classes.
 
     ```python
     # my_custom_backend.py
     from datetime import datetime
     from typing import Dict, List, Tuple, Any, Optional
 
-    from llm_accounting.backends.base import BaseBackend, UsageEntry, UsageStats
+    from llm_accounting.backends.base import TransactionalBackend, UsageEntry, UsageStats
 
-    class MyCustomBackend(BaseBackend):
+    class MyCustomBackend(TransactionalBackend):
         def __init__(self):
             self.usage_storage = [] # Example: a list to store UsageEntry objects
             # Add storage for limits if needed

@@ -2,12 +2,12 @@ import unittest
 from unittest.mock import MagicMock, Mock
 
 from llm_accounting.audit_log import AuditLogger
-from llm_accounting.backends.base import BaseBackend, AuditLogEntry
+from llm_accounting.backends.base import AuditBackend, AuditLogEntry
 
 
 class TestAuditLoggerAPI(unittest.TestCase):
     def setUp(self):
-        self.mock_backend = Mock(spec=BaseBackend)
+        self.mock_backend = Mock(spec=AuditBackend)
         self.logger = AuditLogger(backend=self.mock_backend)
 
     def test_audit_logger_api_methods_exist(self) -> None:

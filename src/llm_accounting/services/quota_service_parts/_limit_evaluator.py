@@ -2,11 +2,11 @@ import logging # Added logging import
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, List
 
-from ...backends.base import BaseBackend
+from ...backends.base import TransactionalBackend
 from ...models.limits import LimitType, TimeInterval, UsageLimitDTO, LimitScope
 
 class QuotaServiceLimitEvaluator:
-    def __init__(self, backend: BaseBackend):
+    def __init__(self, backend: TransactionalBackend):
         self.backend = backend
 
     def _prepare_usage_query_params(self, limit: UsageLimitDTO, limit_scope_enum: LimitScope) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[bool]]:
