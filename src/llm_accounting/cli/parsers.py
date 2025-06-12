@@ -18,6 +18,21 @@ from llm_accounting.cli.commands.users import (
     run_user_update,
     run_user_deactivate,
 )
+from llm_accounting.cli.commands import handle_session_command
+
+
+def add_session_parser(subparsers):
+    """Adds the parser for the 'session' command."""
+    session_parser = subparsers.add_parser(
+        "session",
+        help="Retrieve and display a specific chat session from the audit log."
+    )
+    session_parser.add_argument(
+        "session_id",
+        type=str,
+        help="The ID of the session to retrieve."
+    )
+    session_parser.set_defaults(func=handle_session_command)
 
 
 def add_stats_parser(subparsers):

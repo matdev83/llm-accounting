@@ -37,6 +37,117 @@ def audit_logger_with_mock_backend(mock_backend: Mock) -> AuditLogger:
 # The following test functions are being redefined or newly added in subsequent steps:
 # test_log_prompt, test_log_response, test_log_event_method, test_nullable_fields, test_get_entries
 
+
+# Test data for get_session_entries
+ts1 = datetime(2023, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
+ts2 = datetime(2023, 1, 1, 10, 5, 0, tzinfo=timezone.utc)
+ts3 = datetime(2023, 1, 1, 10, 1, 0, tzinfo=timezone.utc) # Out of order for sorting test
+
+# Corrected AuditLogEntry instantiations to include all fields, providing None for optional ones not specifically set.
+entry1_sessA = AuditLogEntry(
+    id="1", timestamp=ts1, app_name="app", user_name="user", model="model",
+    prompt_text="prompt1", response_text=None, remote_completion_id=None, project="projA",
+    log_type="prompt", session="sessionA"
+)
+entry2_sessA = AuditLogEntry(
+    id="2", timestamp=ts2, app_name="app", user_name="user", model="model",
+    prompt_text=None, response_text="response1", remote_completion_id="cmpl-1", project="projA",
+    log_type="response", session="sessionA"
+)
+entry3_sessB = AuditLogEntry(
+    id="3", timestamp=ts1, app_name="app", user_name="user", model="model",
+    prompt_text="prompt2", response_text=None, remote_completion_id=None, project="projB",
+    log_type="prompt", session="sessionB"
+)
+entry4_sessA_oos = AuditLogEntry( # Out of order
+    id="4", timestamp=ts3, app_name="app", user_name="user", model="model",
+    prompt_text="prompt3_oos", response_text=None, remote_completion_id=None, project="projA",
+    log_type="prompt", session="sessionA"
+)
+entry5_no_sess = AuditLogEntry(
+    id="5", timestamp=ts1, app_name="app", user_name="user", model="model",
+    prompt_text="prompt4_no_sess", response_text=None, remote_completion_id=None, project="projC",
+    log_type="prompt", session=None
+)
+
+
+def test_get_session_entries_valid_session_multiple_entries_sorted(audit_logger_with_mock_backend: AuditLogger):
+    """Test retrieving multiple entries for a session, ensuring they are sorted."""
+    logger = audit_logger_with_mock_backend
+    mock_backend_instance = logger.backend
+
+    mock_backend_instance.get_audit_log_entries.return_value = [
+        entry1_sessA, entry3_sessB, entry2_sessA, entry4_sessA_oos, entry5_no_sess
+    ]
+
+    session_id = "sessionA"
+    result = logger.get_session_entries(session_id)
+
+    assert len(result) == 3
+    assert result[0].id == entry1_sessA.id # ts1
+    assert result[1].id == entry4_sessA_oos.id # ts3 (sorted before ts2)
+    assert result[2].id == entry2_sessA.id # ts2
+    assert all(entry.session == session_id for entry in result)
+    mock_backend_instance.get_audit_log_entries.assert_called_once()
+
+
+def test_get_session_entries_valid_session_single_entry(audit_logger_with_mock_backend: AuditLogger):
+    """Test retrieving a single entry for a session."""
+    logger = audit_logger_with_mock_backend
+    mock_backend_instance = logger.backend
+
+    mock_backend_instance.get_audit_log_entries.return_value = [entry3_sessB, entry5_no_sess]
+
+    session_id = "sessionB"
+    result = logger.get_session_entries(session_id)
+
+    assert len(result) == 1
+    assert result[0].id == entry3_sessB.id
+    assert result[0].session == session_id
+    mock_backend_instance.get_audit_log_entries.assert_called_once()
+
+
+def test_get_session_entries_invalid_session_id(audit_logger_with_mock_backend: AuditLogger):
+    """Test retrieving entries for a non-existent session ID raises ValueError."""
+    logger = audit_logger_with_mock_backend
+    mock_backend_instance = logger.backend
+
+    mock_backend_instance.get_audit_log_entries.return_value = [entry1_sessA, entry3_sessB]
+
+    session_id = "nonExistentSession"
+    with pytest.raises(ValueError, match=f"No audit log entries found for session ID: {session_id}"):
+        logger.get_session_entries(session_id)
+    mock_backend_instance.get_audit_log_entries.assert_called_once()
+
+
+def test_get_session_entries_ignores_none_session(audit_logger_with_mock_backend: AuditLogger):
+    """Test that entries with session=None are ignored."""
+    logger = audit_logger_with_mock_backend
+    mock_backend_instance = logger.backend
+
+    mock_backend_instance.get_audit_log_entries.return_value = [entry1_sessA, entry5_no_sess]
+
+    session_id = "sessionA"
+    result = logger.get_session_entries(session_id)
+
+    assert len(result) == 1
+    assert result[0].id == entry1_sessA.id
+    assert all(entry.session is not None for entry in result)
+    mock_backend_instance.get_audit_log_entries.assert_called_once()
+
+def test_get_session_entries_empty_backend_response(audit_logger_with_mock_backend: AuditLogger):
+    """Test that ValueError is raised if backend returns no entries at all."""
+    logger = audit_logger_with_mock_backend
+    mock_backend_instance = logger.backend
+
+    mock_backend_instance.get_audit_log_entries.return_value = [] # Empty list
+
+    session_id = "anySession"
+    with pytest.raises(ValueError, match=f"No audit log entries found for session ID: {session_id}"):
+        logger.get_session_entries(session_id)
+    mock_backend_instance.get_audit_log_entries.assert_called_once()
+
+
 def test_log_prompt(audit_logger_with_mock_backend: AuditLogger):
     """Tests the log_prompt method using a mock backend."""
     logger = audit_logger_with_mock_backend

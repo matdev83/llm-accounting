@@ -6,7 +6,8 @@ from importlib.metadata import version as get_version
 
 from .parsers import (add_purge_parser, add_select_parser, add_stats_parser,
                       add_tail_parser, add_track_parser, add_limits_parser,
-                      add_log_event_parser, add_projects_parser, add_users_parser)
+                      add_log_event_parser, add_projects_parser, add_users_parser,
+                      add_session_parser)  # Added add_session_parser
 from .utils import console
 
 
@@ -43,6 +44,7 @@ def main():
     parser = argparse.ArgumentParser(
         description=(
             "LLM Accounting CLI - Track and analyze LLM usage. "
+            "Retrieve chat sessions from audit logs. " # Added this phrase
             "Limits support '*' wildcards and max values of 0 (deny) or -1 (unlimited). "
             "Audit logs can use a separate database via --audit-db-* options."
         ),
@@ -122,6 +124,7 @@ def main():
     add_log_event_parser(subparsers) # Added from feat/cli-log-event branch
     add_projects_parser(subparsers)
     add_users_parser(subparsers)
+    add_session_parser(subparsers) # Added session parser
 
     args = parser.parse_args()
 

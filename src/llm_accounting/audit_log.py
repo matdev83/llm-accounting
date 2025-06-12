@@ -135,3 +135,33 @@ class AuditLogger:
             log_type=log_type,
             limit=limit
         )
+
+    def get_session_entries(self, session_id: str) -> List[AuditLogEntry]:
+        """
+        Retrieves all audit log entries for a specific session ID, sorted chronologically.
+
+        Args:
+            session_id: The session ID to filter entries by.
+
+        Returns:
+            A list of AuditLogEntry objects for the given session_id, sorted by timestamp.
+
+        Raises:
+            ValueError: If no entries are found for the given session ID.
+        """
+        # Retrieve all entries. Filtering by user/project first could be an
+        # optimization if session IDs were unique only within that scope,
+        # but without that info, fetching all is safer.
+        all_entries = self.backend.get_audit_log_entries()
+
+        session_entries = [
+            entry for entry in all_entries if entry.session == session_id
+        ]
+
+        if not session_entries:
+            raise ValueError(f"No audit log entries found for session ID: {session_id}")
+
+        # Sort entries by timestamp in ascending (chronological) order
+        session_entries.sort(key=lambda entry: entry.timestamp)
+
+        return session_entries

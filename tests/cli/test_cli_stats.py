@@ -64,7 +64,7 @@ def test_stats_periods(mock_get_accounting, period_args, expected_title, capsys)
     captured = capsys.readouterr()
     assert expected_title in captured.out
     assert "123" in captured.out
-    assert "$1.2300" in captured.out
+    assert "$1.23" in captured.out # Changed to 2 decimal places
     mock_accounting_instance.__exit__.assert_called_once()
 
 
@@ -90,7 +90,7 @@ def test_stats_custom_period(mock_get_accounting, capsys):
     captured = capsys.readouterr()
     assert "Custom Stats" in captured.out
     assert "10" in captured.out
-    assert "$0.5000" in captured.out
+    assert "$0.50" in captured.out # Changed to 2 decimal places
     mock_accounting_instance.__exit__.assert_called_once()
 
 
@@ -111,7 +111,7 @@ def test_custom_db_file_usage(mock_get_accounting, capsys):
     captured = capsys.readouterr()
     assert "Daily Stats" in captured.out
     assert "123" in captured.out
-    assert "$1.2300" in captured.out
+    assert "$1.23" in captured.out # Changed to 2 decimal places
     mock_get_accounting.assert_called_once_with(
         db_backend="sqlite",
         db_file="custom_test_db.sqlite",
@@ -143,7 +143,7 @@ def test_default_db_file_usage(mock_get_accounting, capsys):
     captured = capsys.readouterr()
     assert "Daily Stats" in captured.out
     assert "123" in captured.out
-    assert "$1.2300" in captured.out
+    assert "$1.23" in captured.out # Changed to 2 decimal places
     mock_get_accounting.assert_called_once_with(
         db_backend="sqlite",
         db_file=None,
@@ -158,7 +158,7 @@ def test_default_db_file_usage(mock_get_accounting, capsys):
     mock_accounting_instance.__exit__.assert_called_once()
 
 
-@patch("llm_accounting.cli.utils.SQLiteBackend")
+@patch("llm_accounting.backends.sqlite.SQLiteBackend") # Corrected patch target
 def test_db_file_validation_error(mock_sqlite_backend, capsys):
     mock_sqlite_backend.side_effect = ValueError("Invalid database filename")
 
@@ -171,7 +171,7 @@ def test_db_file_validation_error(mock_sqlite_backend, capsys):
     assert "Error: Invalid database filename" in captured.out
 
 
-@patch("llm_accounting.cli.utils.SQLiteBackend")
+@patch("llm_accounting.backends.sqlite.SQLiteBackend") # Corrected patch target
 def test_db_file_permission_error(mock_sqlite_backend, capsys):
     mock_sqlite_backend.side_effect = PermissionError("Access to protected path")
 

@@ -183,6 +183,9 @@ llm-accounting purge
 
 # Execute custom SQL queries (if backend supports it and it's enabled)
 llm-accounting select --query "SELECT model, COUNT(*) as count FROM accounting_entries GROUP BY model"
+
+# Retrieve and display a specific chat session from the audit log
+llm-accounting session <session_id>
 ```
 
 ### Usage Limits
