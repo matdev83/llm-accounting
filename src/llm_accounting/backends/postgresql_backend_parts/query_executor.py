@@ -1,10 +1,10 @@
 import logging
 from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
-import psycopg2 # For error handling
-import psycopg2.extras # For RealDictCursor
+import psycopg2  # For error handling
+import psycopg2.extras  # For RealDictCursor
 
-from ..base import UsageEntry, UsageStats, AuditLogEntry # Added AuditLogEntry
+from ..base import UsageEntry, UsageStats, AuditLogEntry  # Added AuditLogEntry
 from ...models.limits import UsageLimitDTO, LimitScope, LimitType
 
 from .query_reader import QueryReader
@@ -12,6 +12,7 @@ from .limit_manager import LimitManager
 from .quota_reader import QuotaReader
 
 logger = logging.getLogger(__name__)
+
 
 class QueryExecutor:
     def __init__(self, backend_instance):
@@ -41,11 +42,11 @@ class QueryExecutor:
         return self._limit_manager.get_usage_limits(scope, model, username, caller_name)
 
     def get_accounting_entries_for_quota(self,
-                                   start_time: datetime,
-                                   limit_type: LimitType,
-                                   model: Optional[str] = None,
-                                   username: Optional[str] = None,
-                                   caller_name: Optional[str] = None) -> float:
+                                         start_time: datetime,
+                                         limit_type: LimitType,
+                                         model: Optional[str] = None,
+                                         username: Optional[str] = None,
+                                         caller_name: Optional[str] = None) -> float:
         return self._quota_reader.get_accounting_entries_for_quota(start_time, limit_type, model, username, caller_name)
 
     def execute_query(self, query: str) -> List[Dict[str, Any]]:
@@ -103,14 +104,14 @@ class QueryExecutor:
         if conditions:
             query_parts.append("WHERE " + " AND ".join(conditions))
 
-        query_parts.append("ORDER BY timestamp DESC") # Default ordering
+        query_parts.append("ORDER BY timestamp DESC")  # Default ordering
 
         if limit is not None:
             query_parts.append("LIMIT %s")
             params.append(limit)
 
         final_query = " ".join(query_parts)
-        
+
         results = []
         try:
             # The cursor will be managed (opened and closed) by the 'with' statement.
@@ -122,7 +123,7 @@ class QueryExecutor:
                     results.append(
                         AuditLogEntry(
                             id=row_dict["id"],
-                            timestamp=row_dict["timestamp"], # TIMESTAMPTZ from DB -> timezone-aware datetime
+                            timestamp=row_dict["timestamp"],  # TIMESTAMPTZ from DB -> timezone-aware datetime
                             app_name=row_dict["app_name"],
                             user_name=row_dict["user_name"],
                             model=row_dict["model"],
@@ -137,9 +138,9 @@ class QueryExecutor:
         except psycopg2.Error as e:
             logger.error(f"Error retrieving audit log entries: {e}")
             # Re-raise to allow PostgreSQLBackend to handle transaction control (though this is a read operation)
-            raise 
+            raise
         except Exception as e:
             logger.error(f"An unexpected error occurred retrieving audit log entries: {e}")
             raise
-            
+
         return results

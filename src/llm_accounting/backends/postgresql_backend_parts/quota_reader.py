@@ -1,6 +1,6 @@
 import logging
 import psycopg2
-import psycopg2.extras # For RealDictCursor
+import psycopg2.extras  # For RealDictCursor
 from typing import Optional, List, Any
 from datetime import datetime
 
@@ -8,16 +8,17 @@ from ...models.limits import LimitType
 
 logger = logging.getLogger(__name__)
 
+
 class QuotaReader:
     def __init__(self, backend_instance):
         self.backend = backend_instance
 
     def get_accounting_entries_for_quota(self,
-                                   start_time: datetime,
-                                   limit_type: LimitType,
-                                   model: Optional[str] = None,
-                                   username: Optional[str] = None,
-                                   caller_name: Optional[str] = None) -> float:
+                                         start_time: datetime,
+                                         limit_type: LimitType,
+                                         model: Optional[str] = None,
+                                         username: Optional[str] = None,
+                                         caller_name: Optional[str] = None) -> float:
         """
         Aggregates API request data from `accounting_entries` for quota checking purposes.
 
@@ -43,37 +44,38 @@ class QuotaReader:
             Exception: For any other unexpected errors (and is re-raised).
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None  # Pylance: self.conn is guaranteed to be not None here.
 
-        # Determine the SQL aggregation function based on the limit_type.
-        if limit_type == LimitType.REQUESTS:
-            agg_field = "COUNT(*)"
-        elif limit_type == LimitType.INPUT_TOKENS:
-            agg_field = "COALESCE(SUM(prompt_tokens), 0)" # Sum of prompt tokens, 0 if none.
-        elif limit_type == LimitType.OUTPUT_TOKENS:
-            agg_field = "COALESCE(SUM(completion_tokens), 0)" # Sum of completion tokens, 0 if none.
-        elif limit_type == LimitType.TOTAL_TOKENS:
-            agg_field = "COALESCE(SUM(total_tokens), 0)"
-        elif limit_type == LimitType.COST:
-            agg_field = "COALESCE(SUM(cost), 0.0)" # Sum of costs, 0.0 if none.
-        else:
+        agg_field_map = {
+            LimitType.REQUESTS: "COUNT(*)",
+            LimitType.INPUT_TOKENS: "COALESCE(SUM(prompt_tokens), 0)",
+            LimitType.OUTPUT_TOKENS: "COALESCE(SUM(completion_tokens), 0)",
+            LimitType.TOTAL_TOKENS: "COALESCE(SUM(total_tokens), 0)",
+            LimitType.COST: "COALESCE(SUM(cost), 0.0)",
+        }
+        agg_field = agg_field_map.get(limit_type)
+        if agg_field is None:
             logger.error(f"Unsupported LimitType for quota aggregation: {limit_type}")
             raise ValueError(f"Unsupported LimitType for quota aggregation: {limit_type}")
 
-        base_query = f"SELECT {agg_field} AS aggregated_value FROM accounting_entries"
-        # Build dynamic WHERE clause.
-        conditions = ["timestamp >= %s"] # Always filter by start_time.
-        params: List[Any] = [start_time]
+        base_query = f"SELECT {agg_field} AS aggregated_value FROM accounting_entries"  # nosec B608
+        conditions: List[str] = []
+        params: List[Any] = []
 
-        if model:
-            conditions.append("model_name = %s")
-            params.append(model)
-        if username:
-            conditions.append("username = %s")
-            params.append(username)
-        if caller_name:
-            conditions.append("caller_name = %s")
-            params.append(caller_name)
+        # Always filter by start_time.
+        conditions.append("timestamp >= %s")
+        params.append(start_time)
+
+        filter_map = {
+            "model_name": model,
+            "username": username,
+            "caller_name": caller_name,
+        }
+
+        for column, value in filter_map.items():
+            if value is not None:
+                conditions.append(f"{column} = %s")
+                params.append(value)
 
         query = base_query
         if conditions:
@@ -83,10 +85,8 @@ class QuotaReader:
         try:
             with self.backend.conn.cursor() as cur:
                 cur.execute(query, tuple(params))
-                result = cur.fetchone() # Fetches the single aggregated value.
-                if result and result[0] is not None:
-                    return float(result[0])
-                return 0.0 # Should be covered by COALESCE, but as a fallback.
+                result = cur.fetchone()  # Fetches the single aggregated value.
+                return float(result[0]) if result and result[0] is not None else 0.0
         except psycopg2.Error as e:
             logger.error(f"Error getting accounting entries for quota (type: {limit_type.value}): {e}")
             raise

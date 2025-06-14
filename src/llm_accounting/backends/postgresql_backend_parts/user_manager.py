@@ -2,6 +2,7 @@ import logging
 from typing import List
 from datetime import datetime, timezone
 
+
 class UserManager:
     def __init__(self, backend_instance):
         self.backend = backend_instance
@@ -52,7 +53,7 @@ class UserManager:
                 params.append(ts)
         if not fields:
             return
-        query = "UPDATE users SET " + ", ".join(fields) + " WHERE user_name = %s"
+        query = "UPDATE users SET " + ", ".join(fields) + " WHERE user_name = %s"  # nosec B608
         params.append(user_name)
         self.backend._ensure_connected()
         assert self.backend.conn is not None

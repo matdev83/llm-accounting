@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String
 
 from llm_accounting.models.base import Base
 
+
 class Project(Base):
     __tablename__ = "projects"
     __table_args__ = {"extend_existing": True}

@@ -3,9 +3,10 @@ import psycopg2
 from datetime import datetime
 
 from ...models.limits import UsageLimit
-from ..base import UsageEntry, AuditLogEntry # Added AuditLogEntry
+from ..base import UsageEntry, AuditLogEntry  # Added AuditLogEntry
 
 logger = logging.getLogger(__name__)
+
 
 class DataInserter:
     def __init__(self, backend_instance):
@@ -24,7 +25,7 @@ class DataInserter:
             Exception: For any other unexpected errors (and is re-raised).
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None  # Pylance: self.conn is guaranteed to be not None here.
 
         # SQL INSERT statement for accounting_entries table.
         # Uses %s placeholders for parameters to prevent SQL injection.
@@ -73,7 +74,7 @@ class DataInserter:
             Exception: For any other unexpected errors (and is re-raised).
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None  # Pylance: self.conn is guaranteed to be not None here.
 
         # SQL INSERT statement for usage_limits table.
         # Enum values are accessed using `.value` for storage as strings.
@@ -89,7 +90,7 @@ class DataInserter:
                     limit.scope, limit.limit_type, limit.max_value,
                     limit.interval_unit, limit.interval_value,
                     limit.model, limit.username, limit.caller_name,
-                    limit.project_name, # Added project_name
+                    limit.project_name,  # Added project_name
                     limit.created_at or datetime.now(), limit.updated_at or datetime.now()
                 ))
                 self.backend.conn.commit()
@@ -140,7 +141,7 @@ class DataInserter:
             entry.session,
             entry.log_type,
         )
-        
+
         try:
             # The cursor is obtained from the backend's connection.
             # The 'with' statement ensures the cursor is closed after use.

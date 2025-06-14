@@ -10,7 +10,6 @@ class MockConnectionManager:
 
     def initialize(self) -> None:
         """Mocks the initialization of the backend."""
-        self.parent_backend.initialized = True
         logging.debug("MockBackend initialized.")
 
     def close(self) -> None:

@@ -3,6 +3,7 @@ import psycopg2
 
 logger = logging.getLogger(__name__)
 
+
 class ConnectionManager:
     def __init__(self, backend_instance):
         self.backend = backend_instance
@@ -28,7 +29,7 @@ class ConnectionManager:
             # self.backend._create_schema_if_not_exists()
         except psycopg2.Error as e:
             logger.error(f"Failed to connect to PostgreSQL database: {e}")
-            self.backend.conn = None # Ensure conn is None if connection failed
+            self.backend.conn = None  # Ensure conn is None if connection failed
             # The original psycopg2.Error 'e' is included in the ConnectionError for more detailed debugging.
             raise ConnectionError("Failed to connect to PostgreSQL database "
                                   "(see logs for details).") from e
@@ -55,4 +56,4 @@ class ConnectionManager:
                 self.initialize()
             except ConnectionError as e:
                 logger.error(f"Failed to establish connection in ensure_connected: {e}")
-                raise # Re-raise the connection error
+                raise  # Re-raise the connection error

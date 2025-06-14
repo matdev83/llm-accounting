@@ -8,7 +8,7 @@ def validate_db_filename(filename: str):
     db_path = Path(clean_name)
 
     # Allow in-memory databases
-    if clean_name == ":memory:": # Handles ":memory:" after stripping "file:" and "?..."
+    if clean_name == ":memory:":  # Handles ":memory:" after stripping "file:" and "?..."
         return
 
     # Allow full "file:...&mode=memory..." URIs without further checks on extension or path

@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DB_PATH = "data/accounting.sqlite"
 
+
 class SQLiteBackend(BaseBackend):
     def __init__(self, db_path: Optional[str] = None):
         actual_db_path = db_path if db_path is not None else DEFAULT_DB_PATH
@@ -27,7 +28,6 @@ class SQLiteBackend(BaseBackend):
         self.db_path = actual_db_path
         if not self.db_path.startswith("file:") and self.db_path != ":memory:":
             Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        
         self.connection_manager = SQLiteConnectionManager(self.db_path, DEFAULT_DB_PATH)
         self.query_executor = SQLiteQueryExecutor(self.connection_manager)
         self.usage_manager = SQLiteUsageManager(self.connection_manager)
@@ -70,7 +70,7 @@ class SQLiteBackend(BaseBackend):
         conn = self.connection_manager.get_connection()
         conn.execute(text("DELETE FROM accounting_entries"))
         conn.execute(text("DELETE FROM usage_limits"))
-        conn.execute(text("DELETE FROM audit_log_entries")) 
+        conn.execute(text("DELETE FROM audit_log_entries"))
         conn.commit()
 
     def insert_usage_limit(self, limit: UsageLimitDTO) -> None:
@@ -113,12 +113,12 @@ class SQLiteBackend(BaseBackend):
         start_time: datetime,
         end_time: datetime,
         limit_type: LimitType,
-        interval_unit: Any, # Add interval_unit parameter
+        interval_unit: Any,  # Add interval_unit parameter
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,
         project_name: Optional[str] = None,
-        filter_project_null: Optional[bool] = None, 
+        filter_project_null: Optional[bool] = None,
     ) -> float:
         conn = self.connection_manager.get_connection()
         return self.usage_manager.get_accounting_entries_for_quota(
@@ -170,7 +170,7 @@ class SQLiteBackend(BaseBackend):
 
     def create_project(self, name: str) -> None:
         self.project_manager.create_project(name)
-        
+
     def list_projects(self) -> List[str]:
         return self.project_manager.list_projects()
 

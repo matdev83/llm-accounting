@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import text
 
+
 class SQLiteUserManager:
     def __init__(self, connection_manager):
         self.connection_manager = connection_manager
@@ -52,7 +53,7 @@ class SQLiteUserManager:
             params["ts"] = datetime.now(timezone.utc)
         if not fields:
             return
-        query = "UPDATE users SET " + ", ".join(fields) + " WHERE user_name = :user_name"
+        query = "UPDATE users SET " + ", ".join(fields) + " WHERE user_name = :user_name"  # nosec B608
         conn = self.connection_manager.get_connection()
         conn.execute(text(query), params)
         conn.commit()

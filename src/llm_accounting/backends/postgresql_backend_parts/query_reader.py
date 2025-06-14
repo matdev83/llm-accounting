@@ -9,6 +9,7 @@ from ..base import UsageEntry, UsageStats
 
 logger = logging.getLogger(__name__)
 
+
 class QueryReader:
     def __init__(self, backend_instance):
         self.backend = backend_instance
@@ -35,7 +36,7 @@ class QueryReader:
             Exception: For any other unexpected errors (and is re-raised).
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None  # Pylance: self.conn is guaranteed to be not None here.
 
         # SQL query to aggregate usage statistics.
         # COALESCE ensures that if SUM/AVG returns NULL (e.g., no rows), it's replaced with 0 or 0.0.
@@ -58,13 +59,13 @@ class QueryReader:
                 COALESCE(SUM(execution_time), 0.0) AS sum_execution_time,
                 COALESCE(AVG(execution_time), 0.0) AS avg_execution_time
             FROM accounting_entries
-            WHERE timestamp >= %s AND timestamp <= %s; -- Filters entries within the specified date range.
+            WHERE timestamp >= %s AND timestamp <= %s;  -- Filters entries within the specified date range.
         """
         try:
             # Uses RealDictCursor to get rows as dictionaries, making it easy to unpack into UsageStats.
             with self.backend.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(query, (start, end))
-                row = cur.fetchone() # Fetches the single row of aggregated results.
+                row = cur.fetchone()  # Fetches the single row of aggregated results.
                 if row:
                     # Unpack dictionary directly into UsageStats dataclass.
                     return UsageStats(**row)
@@ -75,8 +76,8 @@ class QueryReader:
                     return UsageStats()
         except psycopg2.Error as e:
             logger.error(f"Error getting period stats: {e}")
-            raise # Re-raise to allow for higher-level error handling.
-        except Exception as e: # Catch any other unexpected exceptions.
+            raise  # Re-raise to allow for higher-level error handling.
+        except Exception as e:  # Catch any other unexpected exceptions.
             logger.error(f"An unexpected error occurred getting period stats: {e}")
             raise
 
@@ -103,7 +104,7 @@ class QueryReader:
             Exception: For any other unexpected errors (and is re-raised).
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None  # Pylance: self.conn is guaranteed to be not None here.
 
         # SQL query to aggregate usage statistics per model.
         # Groups by model_name and orders by model_name for consistent output.
@@ -128,8 +129,8 @@ class QueryReader:
                 COALESCE(AVG(execution_time), 0.0) AS avg_execution_time
             FROM accounting_entries
             WHERE timestamp >= %s AND timestamp <= %s
-            GROUP BY model_name -- Aggregates per model.
-            ORDER BY model_name; -- Ensures consistent ordering.
+            GROUP BY model_name  -- Aggregates per model.
+            ORDER BY model_name;  -- Ensures consistent ordering.
         """
         results = []
         try:
@@ -137,7 +138,7 @@ class QueryReader:
             with self.backend.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(query, (start, end))
                 for row_dict in cur:
-                    model_name = row_dict.pop('model_name') # Extract model_name for the tuple.
+                    model_name = row_dict.pop('model_name')  # Extract model_name for the tuple.
                     # Create UsageStats from the rest of the row dictionary.
                     results.append((model_name, UsageStats(**row_dict)))
             return results
@@ -171,7 +172,7 @@ class QueryReader:
             Exception: For any other unexpected errors (and is re-raised).
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None  # Pylance: self.conn is guaranteed to be not None here.
 
         # Defines the metrics and their corresponding SQL aggregation functions.
         metrics = {
@@ -184,18 +185,18 @@ class QueryReader:
         rankings: Dict[str, List[Tuple[str, Any]]] = {metric: [] for metric in metrics}
 
         try:
-            with self.backend.conn.cursor() as cur: # Using standard cursor, as RealDictCursor not strictly needed for tuple output
+            with self.backend.conn.cursor() as cur:  # Using standard cursor, as RealDictCursor not strictly needed for tuple output
                 for metric_key, agg_func in metrics.items():
                     # model_name is the correct column name in accounting_entries
                     query = f"""
                         SELECT model_name, {agg_func} AS aggregated_value
                         FROM accounting_entries
-                        WHERE timestamp >= %s AND timestamp <= %s AND {agg_func} IS NOT NULL -- Exclude entries where the metric is NULL.
+                        WHERE timestamp >= %s AND timestamp <= %s AND {agg_func} IS NOT NULL  -- Exclude entries where the metric is NULL.
                         GROUP BY model_name
-                        ORDER BY aggregated_value DESC; -- Rank by the aggregated value.
-                    """
+                        ORDER BY aggregated_value DESC;  -- Rank by the aggregated value.
+                    """  # nosec B608
                     cur.execute(query, (start, end))
-                    rankings[metric_key] = cur.fetchall() # fetchall() returns a list of tuples (model_name, value).
+                    rankings[metric_key] = cur.fetchall()  # fetchall() returns a list of tuples (model_name, value).
             return rankings
         except psycopg2.Error as e:
             logger.error(f"Error getting model rankings: {e}")
@@ -221,7 +222,7 @@ class QueryReader:
             Exception: For any other unexpected errors (and is re-raised).
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None  # Pylance: self.conn is guaranteed to be not None here.
 
         # SQL query to select the last N entries.
         # Ordered by timestamp and then ID (as a secondary sort key for determinism if timestamps are identical).
@@ -267,7 +268,7 @@ class QueryReader:
         except psycopg2.Error as e:
             logger.error(f"Error tailing usage entries: {e}")
             raise
-        except Exception as e: # Catch other exceptions, e.g., issues during dataclass instantiation.
+        except Exception as e:  # Catch other exceptions, e.g., issues during dataclass instantiation.
             logger.error(f"An unexpected error occurred tailing usage entries: {e}")
             raise
 
@@ -293,7 +294,7 @@ class QueryReader:
             Exception: For any other unexpected errors (and is re-raised).
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None  # Pylance: self.conn is guaranteed to be not None here.
 
         clean_query = query.strip()
         if ";" in clean_query[:-1]:
@@ -312,7 +313,7 @@ class QueryReader:
             # Using RealDictCursor to get results as dictionaries.
             with self.backend.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(query)
-                results = [dict(row) for row in cur.fetchall()] # Convert RealDictRow objects to standard dicts.
+                results = [dict(row) for row in cur.fetchall()]  # Convert RealDictRow objects to standard dicts.
             logger.info(f"Successfully executed custom query. Rows returned: {len(results)}")
             return results
         except psycopg2.Error as e:
@@ -344,7 +345,7 @@ class QueryReader:
             Exception: For any other unexpected errors (and is re-raised).
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None  # Pylance: self.conn is guaranteed to be not None here.
 
         query = "SELECT COALESCE(SUM(cost), 0.0) FROM accounting_entries WHERE username = %s"
         # Build query with optional date filters.
@@ -356,7 +357,7 @@ class QueryReader:
         if end_date:
             query += " AND timestamp <= %s"
             params.append(end_date)
-        query += ";" # Finalize query.
+        query += ";"  # Finalize query.
 
         try:
             with self.backend.conn.cursor() as cur:

@@ -2,6 +2,7 @@ from typing import Optional, List
 from ...backends.base import TransactionalBackend
 from ...models.limits import UsageLimitDTO
 
+
 class QuotaServiceCacheManager:
     def __init__(self, backend: TransactionalBackend):
         self.backend = backend

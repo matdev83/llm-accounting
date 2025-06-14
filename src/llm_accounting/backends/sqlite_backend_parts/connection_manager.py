@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 MIGRATION_CACHE_PATH = "data/migration_status.json"
 
+
 class SQLiteConnectionManager:
     def __init__(self, db_path: str, default_db_path: str):
         self.db_path = db_path
@@ -25,7 +26,7 @@ class SQLiteConnectionManager:
         elif str(actual_db_path).startswith("file:"):
             db_connection_str = f"sqlite:///{actual_db_path}"
             if "uri=true" not in actual_db_path:
-                db_connection_str += ("&" if "?" in actual_db_path else "?") + "uri=true"
+                db_connection_str += ("&" if "?" in actual_db_path else "?") + "uri=true"  # Ensure uri=true for file: URIs
             return db_connection_str
         else:
             return f"sqlite:///{actual_db_path}"
@@ -45,7 +46,7 @@ class SQLiteConnectionManager:
                 if path_to_check_existence.startswith('///'):
                     path_to_check_existence = path_to_check_existence[2:]
                 elif path_to_check_existence.startswith('/'):
-                     pass
+                    pass  # Correctly formatted absolute path after file:
         return Path(path_to_check_existence)
 
     def _update_migration_cache(self, migration_cache_file: Path, actual_db_path: str, revision: Optional[str]) -> None:
@@ -119,7 +120,7 @@ class SQLiteConnectionManager:
         disk_db_path_obj = self._get_disk_db_path_for_existence_check(actual_db_path)
 
         if not str(actual_db_path).startswith("file:") and not actual_db_path == ":memory:":
-             disk_db_path_obj.parent.mkdir(parents=True, exist_ok=True)
+            disk_db_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
         is_new_disk_db = not (disk_db_path_obj.exists() and disk_db_path_obj.stat().st_size > 0)
         migration_cache_file = Path(MIGRATION_CACHE_PATH)
@@ -152,15 +153,15 @@ class SQLiteConnectionManager:
             logger.warning("Engine not initialized. Attempting to initialize now in _ensure_connected.")
             self.initialize()
             if self.engine is None:
-                 raise ConnectionError("Failed to initialize database engine.")
+                raise ConnectionError("Failed to initialize database engine.")
 
-        if self.conn is None or self.conn.closed: # type: ignore[attr-defined]
+        if self.conn is None or self.conn.closed:  # type: ignore[attr-defined]
             assert self.engine is not None
             logger.debug(f"Establishing new connection for {self.engine.url}")
             self.conn = self.engine.connect()
 
     def close(self) -> None:
-        if self.conn and not self.conn.closed: # type: ignore[attr-defined]
+        if self.conn and not self.conn.closed:  # type: ignore[attr-defined]
             logger.info(f"Closing SQLAlchemy connection for {self.db_path or self.default_db_path}")
             self.conn.close()
 

@@ -25,7 +25,6 @@ class MockBackend(BaseBackend):
         self.entries: List[UsageEntry] = []
         self.limits: List[UsageLimitDTO] = []
         self.next_limit_id: int = 1
-        self.initialized = False
         self.closed = False
         self.projects: List[str] = []
         self.users: List[str] = []

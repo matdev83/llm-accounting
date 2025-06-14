@@ -103,25 +103,27 @@ class UsageLimit(Base):
             f"max_value={self.max_value}, project='{self.project_name}')>"
         )
 
-    def time_delta(self) -> timedelta:
-        interval_val = int(self._interval_value)
-        unit = str(self._interval_unit)
-        delta_map = {
-            TimeInterval.SECOND.value: timedelta(seconds=interval_val),
-            TimeInterval.MINUTE.value: timedelta(minutes=interval_val),
-            TimeInterval.HOUR.value: timedelta(hours=interval_val),
-            TimeInterval.DAY.value: timedelta(days=interval_val),
-            TimeInterval.WEEK.value: timedelta(weeks=interval_val),
-        }
-        if unit == TimeInterval.MONTH.value:
-            raise NotImplementedError(
-                "Exact timedelta for 'month' is complex. QuotaService should handle period start for monthly limits."
-            )
-        
-        if unit not in delta_map:
-            raise ValueError(f"Unsupported time interval unit: {unit}")
-            
-        return delta_map[unit]
+    # TODO: Vulture - Dead code? Verify if used externally or planned for future use before removing.
+    # def time_delta(self) -> timedelta:
+    #     interval_val = int(self._interval_value)
+    #     unit = str(self._interval_unit)
+    #     delta_map = {
+    #         TimeInterval.SECOND.value: timedelta(seconds=interval_val),
+    #         TimeInterval.MINUTE.value: timedelta(minutes=interval_val),
+    #         TimeInterval.HOUR.value: timedelta(hours=interval_val),
+    #         TimeInterval.DAY.value: timedelta(days=interval_val),
+    #         TimeInterval.WEEK.value: timedelta(weeks=interval_val),
+    #     }
+    #     if unit == TimeInterval.MONTH.value:
+    #         raise NotImplementedError(
+    #             "Exact timedelta for 'month' is complex. QuotaService should handle period start for monthly limits."
+    #         )
+    #
+    #     if unit not in delta_map:
+    #         raise ValueError(f"Unsupported time interval unit: {unit}")
+    #
+    #     return delta_map[unit]
+
 
 # Event listener to create the index with IF NOT EXISTS for SQLite
 for _idx_col in ["project_name", "model", "username", "caller_name"]:

@@ -3,13 +3,6 @@
 This package provides core functionality for tracking and managing API usage quotas
 and rate limits across multiple services.
 """
-# Note: The duplicated docstring below was present in the original file.
-"""Main package initialization for LLM Accounting system.
-
-This package provides core functionality for tracking and managing API usage quotas
-and rate limits across multiple services.
-"""
-
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
@@ -33,6 +26,7 @@ logging.getLogger('llm_accounting').addHandler(logging.NullHandler())
 
 # Initialize logger for the current module after all imports and configurations.
 logger = logging.getLogger(__name__)
+
 
 __all__ = [
     "LLMAccounting",
@@ -104,7 +98,7 @@ class LLMAccounting:
         self.audit_backend.initialize_audit_log_schema()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, _exc_tb):
         """Close the backend when exiting context"""
         logger.info("Exiting LLMAccounting context. Closing backend.")
         self.backend.close()
@@ -127,8 +121,8 @@ class LLMAccounting:
         cost: float = 0.0,
         execution_time: float = 0.0,
         timestamp: Optional[datetime] = None,
-        caller_name: Optional[str] = None, # Changed to Optional[str]
-        username: Optional[str] = None, # Changed to Optional[str]
+        caller_name: Optional[str] = None,  # Changed to Optional[str]
+        username: Optional[str] = None,  # Changed to Optional[str]
         cached_tokens: int = 0,
         reasoning_tokens: int = 0,
         project: Optional[str] = None,
@@ -149,36 +143,37 @@ class LLMAccounting:
             cost=cost,
             execution_time=execution_time,
             timestamp=timestamp,
-            caller_name=caller_name if caller_name is not None else self.app_name, # Use instance default
-            username=username if username is not None else self.user_name, # Use instance default
+            caller_name=caller_name if caller_name is not None else self.app_name,  # Use instance default
+            username=username if username is not None else self.user_name,  # Use instance default
             session=session,
             cached_tokens=cached_tokens,
             reasoning_tokens=reasoning_tokens,
-            project=project if project is not None else self.project_name, # Use instance default
+            project=project if project is not None else self.project_name,  # Use instance default
         )
         self.backend.insert_usage(entry)
 
-    def track_usage_with_remaining_limits(
-        self,
-        model: str,
-        prompt_tokens: Optional[int] = None,
-        completion_tokens: Optional[int] = None,
-        total_tokens: Optional[int] = None,
-        local_prompt_tokens: Optional[int] = None,
-        local_completion_tokens: Optional[int] = None,
-        local_total_tokens: Optional[int] = None,
-        cost: float = 0.0,
-        execution_time: float = 0.0,
-        timestamp: Optional[datetime] = None,
-        caller_name: Optional[str] = None,
-        username: Optional[str] = None,
-        cached_tokens: int = 0,
-        reasoning_tokens: int = 0,
-        project: Optional[str] = None,
-        session: Optional[str] = None,
-    ) -> List[Tuple[UsageLimitDTO, float]]:
-        """Track usage and return remaining quota for all applicable limits."""
-        self._ensure_valid_project(project if project is not None else self.project_name)
+    # TODO: Vulture - Dead code? Verify if used externally or planned for future use before removing.
+    # def track_usage_with_remaining_limits(
+    #     self,
+    #     model: str,
+    #     prompt_tokens: Optional[int] = None,
+    #     completion_tokens: Optional[int] = None,
+    #     total_tokens: Optional[int] = None,
+    #     local_prompt_tokens: Optional[int] = None,
+    #     local_completion_tokens: Optional[int] = None,
+    #     local_total_tokens: Optional[int] = None,
+    #     cost: float = 0.0,
+    #     execution_time: float = 0.0,
+    #     timestamp: Optional[datetime] = None,
+    #     caller_name: Optional[str] = None,
+    #     username: Optional[str] = None,
+    #     cached_tokens: int = 0,
+    #     reasoning_tokens: int = 0,
+    #     project: Optional[str] = None,
+    #     session: Optional[str] = None,
+    # ) -> List[Tuple[UsageLimitDTO, float]]:
+    #     """Track usage and return remaining quota for all applicable limits."""
+    #     self._ensure_valid_project(project if project is not None else self.project_name)
         self._ensure_valid_user(username if username is not None else self.user_name)
         self.track_usage(
             model=model,
@@ -323,11 +318,12 @@ class LLMAccounting:
         self.backend._ensure_connected()
         self.quota_service.delete_limit(limit_id)
 
-    def get_db_path(self) -> Optional[str]:
-        """
-        Returns the database path if the backend is a SQLiteBackend.
-        Otherwise, returns None.
-        """
-        if isinstance(self.backend, SQLiteBackend):
-            return self.backend.db_path
-        return None
+    # TODO: Vulture - Dead code? Verify if used externally or planned for future use before removing.
+    # def get_db_path(self) -> Optional[str]:
+    #     """
+    #     Returns the database path if the backend is a SQLiteBackend.
+    #     Otherwise, returns None.
+    #     """
+    #     if isinstance(self.backend, SQLiteBackend):
+    #         return self.backend.db_path
+    #     return None

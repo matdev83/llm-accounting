@@ -5,6 +5,7 @@ from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
+
 class SQLiteQueryExecutor:
     def __init__(self, connection_manager):
         self.connection_manager = connection_manager

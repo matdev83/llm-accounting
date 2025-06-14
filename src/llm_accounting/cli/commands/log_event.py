@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from llm_accounting.audit_log import AuditLogger
 
+
 def run_log_event(args, accounting):
     """Logs an audit event."""
     audit_logger: AuditLogger = accounting.audit_logger
@@ -11,13 +12,13 @@ def run_log_event(args, accounting):
             timestamp = datetime.fromisoformat(args.timestamp)
             if timestamp.tzinfo is None:
                 timestamp = timestamp.replace(tzinfo=timezone.utc)
-            else: # If it is timezone-aware, convert to UTC
+            else:  # If it is timezone-aware, convert to UTC
                 timestamp = timestamp.astimezone(timezone.utc)
         except ValueError:
             try:
                 # Attempt to parse common format 'YYYY-MM-DD HH:MM:SS'
                 timestamp = datetime.strptime(args.timestamp, '%Y-%m-%d %H:%M:%S')
-                timestamp = timestamp.replace(tzinfo=timezone.utc) # Assume UTC
+                timestamp = timestamp.replace(tzinfo=timezone.utc)  # Assume UTC
             except ValueError:
                 print(f"Error: Could not parse provided timestamp '{args.timestamp}'. Please use ISO format or 'YYYY-MM-DD HH:MM:SS'.")
                 return

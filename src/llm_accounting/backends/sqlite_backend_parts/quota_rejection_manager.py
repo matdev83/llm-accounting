@@ -1,10 +1,10 @@
 import logging
 from datetime import datetime
-from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 logger = logging.getLogger(__name__)
+
 
 class SQLiteQuotaRejectionManager:
     def __init__(self, connection_manager):
@@ -24,5 +24,6 @@ class SQLiteQuotaRejectionManager:
             },
         )
 
-    def initialize_schema(self) -> None:
-        logger.info("Quota rejection schema is initialized as part of migrations")
+    # TODO: Vulture - verify and remove if truly dead code.
+    # def initialize_schema(self) -> None:
+    #     logger.info("Quota rejection schema is initialized as part of migrations")
