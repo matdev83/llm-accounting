@@ -27,9 +27,9 @@ class AuditLogEntry:
         # This is more of a placeholder if we decide to add default logic later.
         if self.timestamp is None:
             # This case should ideally not be hit if timestamp is always provided.
-            # from datetime import timezone # Import here if not at top level
+            # from datetime import timezone  # Import here if not at top level
             # self.timestamp = datetime.now(timezone.utc)
-            pass # Keep as is, timestamp is non-optional
+            pass  # Keep as is, timestamp is non-optional
 
 
 @dataclass
@@ -38,7 +38,7 @@ class UsageEntry:
 
     model: str  # Changed to non-optional, __post_init__ handles validation
     # id will be added by CSVBackend, other backends handle it via DB
-    id: Optional[int] = None 
+    id: Optional[int] = None
     prompt_tokens: Optional[int] = None
     completion_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
@@ -53,27 +53,30 @@ class UsageEntry:
     project: Optional[str] = None
     session: Optional[str] = None
     # Additional token details
-    cached_tokens: Optional[int] = 0 # Keep Optional for flexibility if not always provided
-    reasoning_tokens: Optional[int] = 0 # Keep Optional
+    cached_tokens: Optional[int] = 0  # Keep Optional for flexibility if not always provided
+    reasoning_tokens: Optional[int] = 0  # Keep Optional
 
     def __post_init__(self):
         if not hasattr(self, 'model') or not self.model or self.model.strip() == "":
             raise ValueError("Model name must be a non-empty string")
-        if not hasattr(self, 'timestamp') or self.timestamp is None: # Ensure timestamp exists
+        if not hasattr(self, 'timestamp') or self.timestamp is None:  # Ensure timestamp exists
             self.timestamp = datetime.now()
         # Ensure numeric fields that default to None but are summed are 0 if None for safety,
         # though CSVBackend already handles None to 0 conversion.
         # This is more for direct DTO usage if that occurs.
-        if self.prompt_tokens is None: self.prompt_tokens = 0
-        if self.completion_tokens is None: self.completion_tokens = 0
-        if self.total_tokens is None: self.total_tokens = 0
-        if self.local_prompt_tokens is None: self.local_prompt_tokens = 0
-        if self.local_completion_tokens is None: self.local_completion_tokens = 0
-        if self.local_total_tokens is None: self.local_total_tokens = 0
-        if self.cached_tokens is None: self.cached_tokens = 0
-        if self.reasoning_tokens is None: self.reasoning_tokens = 0
-        if self.cost is None: self.cost = 0.0
-        if self.execution_time is None: self.execution_time = 0.0
+        token_fields = [
+            "prompt_tokens", "completion_tokens", "total_tokens",
+            "local_prompt_tokens", "local_completion_tokens", "local_total_tokens",
+            "cached_tokens", "reasoning_tokens"
+        ]
+        for field_name in token_fields:
+            if getattr(self, field_name) is None:
+                setattr(self, field_name, 0)
+
+        if self.cost is None:
+            self.cost = 0.0
+        if self.execution_time is None:
+            self.execution_time = 0.0
 
 
 @dataclass
@@ -99,15 +102,6 @@ class UsageStats:
 
 
 @dataclass
-class QuotaRejectionRecord:
-    """Represents a quota check rejection entry"""
-
-    id: Optional[int]
-    created_at: datetime
-    session: str
-    rejection_message: str
-
-@dataclass
 class UserRecord:
     user_name: str
     ou_name: Optional[str] = None
@@ -115,8 +109,9 @@ class UserRecord:
     enabled: bool = True
     id: Optional[int] = None
     created_at: Optional[datetime] = None
-    last_enabled_at: Optional[datetime] = None
-    last_disabled_at: Optional[datetime] = None
+    # TODO: Vulture - verify and remove if truly dead code. These fields might be useful for future auditing.
+    # last_enabled_at: Optional[datetime] = None
+    # last_disabled_at: Optional[datetime] = None
 
 
 class TransactionalBackend(ABC):
@@ -405,7 +400,7 @@ class BaseBackend(TransactionalBackend, AuditBackend, ABC):
         start_time: datetime,
         end_time: datetime,
         limit_type: LimitType,
-        interval_unit: Any, # Use Any for now to avoid circular import with TimeInterval
+        interval_unit: Any,  # Use Any for now to avoid circular import with TimeInterval
         model: Optional[str] = None,
         username: Optional[str] = None,
         caller_name: Optional[str] = None,

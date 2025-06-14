@@ -3,6 +3,7 @@ from sqlalchemy import Column, DateTime, Integer, String
 
 from llm_accounting.models.base import Base
 
+
 class QuotaRejection(Base):
     __tablename__ = "quota_rejections"
     __table_args__ = {"extend_existing": True}

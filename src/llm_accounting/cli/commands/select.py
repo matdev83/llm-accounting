@@ -1,17 +1,18 @@
 from rich.table import Table
 import sys
-import re # For project name validation
-from typing import List, Dict, Any # For type hints
+import re  # For project name validation
+from typing import List, Dict, Any  # For type hints
 
 from llm_accounting import LLMAccounting
 from ..utils import console
 
 # --- START NEW HELPER FUNCTIONS ---
 
+
 def _construct_query(args) -> str:
     query_to_execute = ""
     if args.query:
-        if args.project: # Project flag is ignored if a full query is given
+        if args.project:  # Project flag is ignored if a full query is given
             console.print("[yellow]Warning: --project argument is ignored when --query is specified.[/yellow]")
         query_to_execute = args.query
     else:
@@ -36,6 +37,7 @@ def _construct_query(args) -> str:
 
     return query_to_execute
 
+
 def _display_results(results: List[Dict[str, Any]], format_type: str) -> None:
     if not results:
         console.print("[yellow]No results found[/yellow]")
@@ -43,20 +45,24 @@ def _display_results(results: List[Dict[str, Any]], format_type: str) -> None:
 
     if format_type == "table":
         table = Table(title="Query Results")
-        headers = results[0].keys()
-        for col in headers:
-            table.add_column(col, style="cyan")
+        headers = list(results[0].keys()) # Ensure consistent order
 
-        for row in results:
-            table.add_row(*[str(row.get(header)) if row.get(header) is not None else "N/A" for header in headers])
-        console.print(table)
-    elif format_type == "csv":
-        headers = results[0].keys()
-        print(",".join(headers))
-        for row in results:
-            print(",".join([str(row.get(header)) if row.get(header) is not None else "" for header in headers]))
+        if format_type == "table":
+            table = Table(title="Query Results")
+            for col_name in headers:
+                table.add_column(col_name, style="cyan")
+            for row_dict in results:
+                row_values = [str(row_dict.get(h, "N/A")) for h in headers]
+                table.add_row(*row_values)
+            console.print(table)
+        elif format_type == "csv":
+            console.print(",".join(headers)) # Use console.print for consistency, though print works
+            for row_dict in results:
+                row_values = [str(row_dict.get(h, "")) for h in headers] # Use empty string for missing CSV values
+                console.print(",".join(row_values)) # Use console.print
 
 # --- END NEW HELPER FUNCTIONS ---
+
 
 def run_select(args, accounting: LLMAccounting):
     """Execute a custom SELECT query or filter entries on the database"""
@@ -64,15 +70,15 @@ def run_select(args, accounting: LLMAccounting):
 
     if not query_to_execute:
         console.print("[red]No query to execute. Provide --query or filter criteria like --project.[/red]")
-        sys.exit(1) # Exit if _construct_query somehow returns an empty string (should not happen with current logic)
+        sys.exit(1)  # Exit if _construct_query somehow returns an empty string (should not happen with current logic)
 
     try:
         results = accounting.backend.execute_query(query_to_execute)
     except ValueError as ve:
-        console.print(f"[red]Error executing query: {ve}[/red]") # Corrected message
+        console.print(f"[red]Error executing query: {ve}[/red]")  # Corrected message
         sys.exit(1)
     except Exception as e:
-        console.print(f"[red]Error executing query: {e}[/red]") # General error
+        console.print(f"[red]Error executing query: {e}[/red]")  # General error
         sys.exit(1)
 
     _display_results(results, args.format)

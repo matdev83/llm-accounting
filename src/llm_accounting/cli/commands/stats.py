@@ -1,16 +1,17 @@
 import sys
 from datetime import datetime, timedelta
-from typing import List, Tuple, Any # Added for type hints
+from typing import List, Tuple, Any  # Added for type hints
 
 from rich.table import Table
 
 from llm_accounting import LLMAccounting
-from llm_accounting.backends.base import UsageStats # Added for type hints
+from llm_accounting.backends.base import UsageStats  # Added for type hints
 
 from ..utils import console, format_float, format_time, format_tokens
 
 
 # --- START NEW HELPER FUNCTIONS ---
+
 
 def _determine_periods_to_process(args, now: datetime) -> List[Tuple[str, datetime, datetime]]:
     periods_to_process = []
@@ -46,6 +47,7 @@ def _determine_periods_to_process(args, now: datetime) -> List[Tuple[str, dateti
         sys.exit(1)
     return periods_to_process
 
+
 def _display_overall_totals_table(stats: UsageStats) -> None:
     table = Table(title="Overall Totals")
     table.add_column("Metric", style="cyan")
@@ -57,6 +59,7 @@ def _display_overall_totals_table(stats: UsageStats) -> None:
     table.add_row("Total Cost", f"${format_float(stats.sum_cost)}")
     table.add_row("Total Execution Time", format_time(stats.sum_execution_time))
     console.print(table)
+
 
 def _display_averages_table(stats: UsageStats) -> None:
     table = Table(title="Averages")
@@ -78,6 +81,7 @@ def _display_averages_table(stats: UsageStats) -> None:
     table.add_row("Average Cost", f"${format_float(stats.avg_cost)}")
     table.add_row("Average Execution Time", format_time(stats.avg_execution_time))
     console.print(table)
+
 
 def _display_model_breakdown_table(model_stats: List[Tuple[str, UsageStats]]) -> None:
     if not model_stats:
@@ -102,6 +106,7 @@ def _display_model_breakdown_table(model_stats: List[Tuple[str, UsageStats]]) ->
         )
     console.print(table)
 
+
 def _display_rankings_table(metric: str, models_data: List[Tuple[str, Any]]) -> None:
     if not models_data:
         return
@@ -113,16 +118,17 @@ def _display_rankings_table(metric: str, models_data: List[Tuple[str, Any]]) -> 
 
     for i, (model, total) in enumerate(models_data, 1):
         # Assuming metric keys from backend are like 'cost', 'execution_time', 'prompt_tokens' etc.
-        if "cost" in metric.lower(): # Make check more robust
+        if "cost" in metric.lower():  # Make check more robust
             value = f"${format_float(total)}"
         elif "execution_time" in metric.lower():
             value = format_time(total)
-        else: # Default to token formatting for other metrics like prompt_tokens, completion_tokens, total_tokens
+        else:  # Default to token formatting for other metrics like prompt_tokens, completion_tokens, total_tokens
             value = format_tokens(int(total) if total is not None else 0)
         table.add_row(str(i), model, value)
     console.print(table)
 
 # --- END NEW HELPER FUNCTIONS ---
+
 
 def run_stats(args, accounting: LLMAccounting):
     """Show usage statistics"""

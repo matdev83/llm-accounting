@@ -2,6 +2,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class SchemaManager:
     def __init__(self, backend_instance):
         self.backend = backend_instance

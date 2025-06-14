@@ -37,6 +37,7 @@ def _check_privileged_user():
         console.print("[red]Error: Running the CLI as root is not allowed for security reasons.[/red]")
         sys.exit(1)
 
+
 def main():
     _check_privileged_user()
     package_version = get_version('llm-accounting')
@@ -119,7 +120,7 @@ def main():
     add_select_parser(subparsers)
     add_track_parser(subparsers)
     add_limits_parser(subparsers)
-    add_log_event_parser(subparsers) # Added from feat/cli-log-event branch
+    add_log_event_parser(subparsers)  # Added from feat/cli-log-event branch
     add_projects_parser(subparsers)
     add_users_parser(subparsers)
 

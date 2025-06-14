@@ -2,16 +2,17 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from sqlalchemy import text
-from sqlalchemy.engine import Connection # Import Connection for type hinting
+from sqlalchemy.engine import Connection  # Import Connection for type hinting
 from ..base import UsageEntry, UsageStats
 from ..sqlite_queries import (get_model_rankings_query, get_model_stats_query,
-                             get_period_stats_query, insert_usage_query,
-                             tail_query)
+                              get_period_stats_query, insert_usage_query,
+                              tail_query)
 from llm_accounting.models.limits import LimitType
 
 logger = logging.getLogger(__name__)
 
 # Removed first definition of SQLiteUsageManager and redundant Connection import
+
 
 class SQLiteUsageManager:
     def __init__(self, connection_manager):
@@ -65,7 +66,7 @@ class SQLiteUsageManager:
 
         end_time_operator = "<="
 
-        query_base = f"SELECT {select_clause} FROM accounting_entries WHERE timestamp >= :start_time AND timestamp {end_time_operator} :end_time"
+        query_base = f"SELECT {select_clause} FROM accounting_entries WHERE timestamp >= :start_time AND timestamp {end_time_operator} :end_time"  # nosec B608
 
         params_dict: Dict[str, Any] = {
             "start_time": start_time.replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S.%f'),

@@ -1,7 +1,7 @@
 import logging
 from typing import List
 from sqlalchemy import text
-from sqlalchemy.engine import Connection
+
 
 class SQLiteProjectManager:
     def __init__(self, connection_manager):

@@ -6,6 +6,7 @@ from llm_accounting.models.limits import LimitScope, UsageLimitDTO
 
 logger = logging.getLogger(__name__)
 
+
 class SQLiteLimitManager:
     def __init__(self, connection_manager):
         self.connection_manager = connection_manager
@@ -61,7 +62,7 @@ class SQLiteLimitManager:
         if model:
             conditions.append("model = :model")
             params_dict["model"] = model
-        
+
         if username is not None:
             conditions.append("username = :username")
             params_dict["username"] = username
@@ -88,7 +89,7 @@ class SQLiteLimitManager:
 
         if conditions:
             query_base += " AND " + " AND ".join(conditions)
-        
+
         result = conn.execute(text(query_base), params_dict)
         limits = []
         for row in result.fetchall():

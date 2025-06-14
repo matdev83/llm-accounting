@@ -133,7 +133,7 @@ def add_track_parser(subparsers):
         help="Number of tokens used for model reasoning",
     )
     track_parser.add_argument(
-        "--project", # This is for tracking usage, distinct from --project-name for limits
+        "--project",  # This is for tracking usage, distinct from --project-name for limits
         type=str,
         default=None,
         help="The project name to associate with this usage entry.",
@@ -152,7 +152,7 @@ def add_limits_parser(subparsers):
         "limits", help="Manage usage limits (set, list, delete)"
     )
     limits_subparsers = limits_parser.add_subparsers(
-        dest="limits_command", help="Limits commands", required=True # Make subcommand required
+        dest="limits_command", help="Limits commands", required=True  # Make subcommand required
     )
 
     # Set limit subparser
@@ -160,7 +160,7 @@ def add_limits_parser(subparsers):
     set_parser.add_argument(
         "--scope",
         type=str,
-        choices=[e.value for e in LimitScope], # LimitScope enum now includes PROJECT
+        choices=[e.value for e in LimitScope],  # LimitScope enum now includes PROJECT
         required=True,
         help="Scope of the limit (GLOBAL, MODEL, USER, CALLER, PROJECT)",
     )

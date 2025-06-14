@@ -6,6 +6,7 @@ from ..base import AuditLogEntry
 
 logger = logging.getLogger(__name__)
 
+
 class SQLiteAuditLogManager:
     def __init__(self, connection_manager):
         self.connection_manager = connection_manager
@@ -36,7 +37,7 @@ class SQLiteAuditLogManager:
         try:
             conn.execute(text(query), params)
             conn.commit()
-        except Exception as e:
+        except Exception as e:  # Rollback handled by ConnectionManager context
             logger.error(f"Failed to log audit event: {e}")
             raise
 
@@ -69,7 +70,7 @@ class SQLiteAuditLogManager:
         if user_name:
             conditions.append("user_name = :user_name")
             params_dict["user_name"] = user_name
-        
+
         if project is not None:
             conditions.append("project = :project")
             params_dict["project"] = project
@@ -90,7 +91,7 @@ class SQLiteAuditLogManager:
         if limit is not None:
             query_base += " LIMIT :limit"
             params_dict["limit"] = limit
-        
+
         results = []
         try:
             result_proxy = conn.execute(text(query_base), params_dict)
@@ -113,5 +114,5 @@ class SQLiteAuditLogManager:
         except Exception as e:
             logger.error(f"Failed to get audit log entries: {e}")
             raise
-            
+
         return results

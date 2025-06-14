@@ -3,6 +3,7 @@ import psycopg2
 
 logger = logging.getLogger(__name__)
 
+
 class DataDeleter:
     def __init__(self, backend_instance):
         self.backend = backend_instance
@@ -20,7 +21,7 @@ class DataDeleter:
             Exception: For any other unexpected errors (and is re-raised).
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None  # Pylance: self.conn is guaranteed to be not None here.
 
         sql = "DELETE FROM usage_limits WHERE id = %s;"
         try:
@@ -53,7 +54,7 @@ class DataDeleter:
             Exception: For any other unexpected errors (and is re-raised).
         """
         self.backend._ensure_connected()
-        assert self.backend.conn is not None # Pylance: self.conn is guaranteed to be not None here.
+        assert self.backend.conn is not None  # Pylance: self.conn is guaranteed to be not None here.
 
         tables_to_purge = ["accounting_entries", "usage_limits"]
         try:
@@ -62,13 +63,13 @@ class DataDeleter:
                     # Using f-string for table name is generally safe if table names are controlled internally.
                     # TRUNCATE TABLE could be faster but might have locking implications or issues with foreign keys if they existed.
                     # DELETE FROM is safer in general-purpose code.
-                    cur.execute(f"DELETE FROM {table};")
-                self.backend.conn.commit() # Commit transaction after all deletes are successful.
+                    cur.execute(f"DELETE FROM {table};")  # nosec B608
+                self.backend.conn.commit()  # Commit transaction after all deletes are successful.
             logger.info(f"Successfully purged data from tables: {', '.join(tables_to_purge)}.")
         except psycopg2.Error as e:
             logger.error(f"Error purging data: {e}")
             if self.backend.conn and not self.backend.conn.closed:
-                self.backend.conn.rollback() # Rollback if any delete operation fails.
+                self.backend.conn.rollback()  # Rollback if any delete operation fails.
             raise
         except Exception as e:
             logger.error(f"An unexpected error occurred purging data: {e}")

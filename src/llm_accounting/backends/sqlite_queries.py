@@ -1,8 +1,8 @@
 import logging
-from datetime import datetime, timezone # Import timezone
-from typing import Dict, List, Optional, Tuple # Optional was missing
+from datetime import datetime, timezone  # Import timezone
+from typing import Dict, List, Optional, Tuple  # Optional was missing
 from sqlalchemy import text
-from sqlalchemy.engine import Connection # For type hinting
+from sqlalchemy.engine import Connection  # For type hinting
 
 from llm_accounting.backends.base import UsageEntry, UsageStats
 
@@ -15,7 +15,7 @@ def insert_usage_query(conn: Connection, entry: UsageEntry) -> None:
     formatted_timestamp: Optional[str] = None
     if entry.timestamp:
         # Convert to UTC, then make naive, then format
-        utc_timestamp = entry.timestamp.astimezone(timezone.utc) # Corrected
+        utc_timestamp = entry.timestamp.astimezone(timezone.utc)  # Corrected
         naive_utc_timestamp = utc_timestamp.replace(tzinfo=None)
         # Use full microsecond precision for storage
         formatted_timestamp = naive_utc_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -39,7 +39,7 @@ def insert_usage_query(conn: Connection, entry: UsageEntry) -> None:
     }
     logger.debug(f"Inserting usage with timestamp: {formatted_timestamp}")
     logger.debug(f"Insert parameters: {params}")
-    
+
     sql = text("""
         INSERT INTO accounting_entries (
             timestamp, model, prompt_tokens, completion_tokens, total_tokens,
@@ -80,43 +80,23 @@ def get_period_stats_query(
         FROM accounting_entries
         WHERE timestamp BETWEEN :start_time AND :end_time
     """)
-    
+
     # Ensure start and end times are naive UTC and formatted consistently for querying
-    fmt = '%Y-%m-%d %H:%M:%S.%f' # Use full microsecond precision
+    fmt = '%Y-%m-%d %H:%M:%S.%f'  # Use full microsecond precision
     start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
     end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
-    
+
     result = conn.execute(sql, {"start_time": start_naive_utc_str, "end_time": end_naive_utc_str})
     row = result.fetchone()
 
-    if not row or row.sum_cost is None: # Check if any aggregation happened (e.g. sum_cost is a good indicator)
-        return UsageStats(
-            sum_prompt_tokens=0, sum_completion_tokens=0, sum_total_tokens=0,
-            sum_local_prompt_tokens=0, sum_local_completion_tokens=0, sum_local_total_tokens=0,
-            sum_cost=0.0, sum_execution_time=0.0,
-            avg_prompt_tokens=0.0, avg_completion_tokens=0.0, avg_total_tokens=0.0,
-            avg_local_prompt_tokens=0.0, avg_local_completion_tokens=0.0, avg_local_total_tokens=0.0,
-            avg_cost=0.0, avg_execution_time=0.0,
-        )
+    if not row or row.sum_cost is None:  # Check if any aggregation happened (e.g. sum_cost is a good indicator)
+        # Return default UsageStats if no data
+        return UsageStats()
 
-    return UsageStats(
-        sum_prompt_tokens=row.sum_prompt_tokens or 0,
-        sum_completion_tokens=row.sum_completion_tokens or 0,
-        sum_total_tokens=row.sum_total_tokens or 0,
-        sum_local_prompt_tokens=row.sum_local_prompt_tokens or 0,
-        sum_local_completion_tokens=row.sum_local_completion_tokens or 0,
-        sum_local_total_tokens=row.sum_local_total_tokens or 0,
-        sum_cost=row.sum_cost or 0.0,
-        sum_execution_time=row.sum_execution_time or 0.0,
-        avg_prompt_tokens=row.avg_prompt_tokens or 0.0,
-        avg_completion_tokens=row.avg_completion_tokens or 0.0,
-        avg_total_tokens=row.avg_total_tokens or 0.0,
-        avg_local_prompt_tokens=row.avg_local_prompt_tokens or 0.0,
-        avg_local_completion_tokens=row.avg_local_completion_tokens or 0.0,
-        avg_local_total_tokens=row.avg_local_total_tokens or 0.0,
-        avg_cost=row.avg_cost or 0.0,
-        avg_execution_time=row.avg_execution_time or 0.0,
-    )
+    # Create a dictionary from the row, defaulting None values appropriately for UsageStats
+    stats_data = {key: (value or 0) if isinstance(getattr(UsageStats, key, None), int) else (value or 0.0)
+                  for key, value in row._mapping.items()}
+    return UsageStats(**stats_data)
 
 
 def get_model_stats_query(
@@ -146,39 +126,21 @@ def get_model_stats_query(
         WHERE timestamp BETWEEN :start_time AND :end_time
         GROUP BY model
     """)
-    
+
     # Ensure start and end times are naive UTC and formatted consistently for querying
-    fmt = '%Y-%m-%d %H:%M:%S.%f' # Use full microsecond precision
+    fmt = '%Y-%m-%d %H:%M:%S.%f'  # Use full microsecond precision
     start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
     end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
 
     result = conn.execute(sql, {"start_time": start_naive_utc_str, "end_time": end_naive_utc_str})
     rows = result.fetchall()
 
-    return [
-        (
-            str(row.model), # Ensure model is string
-            UsageStats(
-                sum_prompt_tokens=row.sum_prompt_tokens or 0,
-                sum_completion_tokens=row.sum_completion_tokens or 0,
-                sum_total_tokens=row.sum_total_tokens or 0,
-                sum_local_prompt_tokens=row.sum_local_prompt_tokens or 0,
-                sum_local_completion_tokens=row.sum_local_completion_tokens or 0,
-                sum_local_total_tokens=row.sum_local_total_tokens or 0,
-                sum_cost=row.sum_cost or 0.0,
-                sum_execution_time=row.sum_execution_time or 0.0,
-                avg_prompt_tokens=row.avg_prompt_tokens or 0.0,
-                avg_completion_tokens=row.avg_completion_tokens or 0.0,
-                avg_total_tokens=row.avg_total_tokens or 0.0,
-                avg_local_prompt_tokens=row.avg_local_prompt_tokens or 0.0,
-                avg_local_completion_tokens=row.avg_local_completion_tokens or 0.0,
-                avg_local_total_tokens=row.avg_local_total_tokens or 0.0,
-                avg_cost=row.avg_cost or 0.0,
-                avg_execution_time=row.avg_execution_time or 0.0,
-            ),
-        )
-        for row in rows
-    ]
+    model_stats = []
+    for row in rows:
+        stats_data = {key: (value or 0) if isinstance(getattr(UsageStats, key, None), int) else (value or 0.0)
+                      for key, value in row._mapping.items() if key != 'model'}
+        model_stats.append((str(row.model), UsageStats(**stats_data)))
+    return model_stats
 
 
 def get_model_rankings_query(
@@ -186,7 +148,7 @@ def get_model_rankings_query(
 ) -> Dict[str, List[Tuple[str, float]]]:
     """Get model rankings based on different metrics from the database using named parameters."""
     # Ensure start and end times are naive UTC and formatted consistently for querying
-    fmt = '%Y-%m-%d %H:%M:%S.%f' # Use full microsecond precision
+    fmt = '%Y-%m-%d %H:%M:%S.%f'  # Use full microsecond precision
     start_naive_utc_str = start.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
     end_naive_utc_str = end.astimezone(timezone.utc).replace(tzinfo=None).strftime(fmt)
     params = {"start_time": start_naive_utc_str, "end_time": end_naive_utc_str}
@@ -225,7 +187,7 @@ def tail_query(conn: Connection, n: int = 10) -> List[UsageEntry]:
         ORDER BY timestamp DESC, id DESC
         LIMIT :limit_n
     """)
-    
+
     result = conn.execute(sql, {"limit_n": n})
     rows = result.fetchall()
 
@@ -240,7 +202,7 @@ def tail_query(conn: Connection, n: int = 10) -> List[UsageEntry]:
             local_total_tokens=row.local_total_tokens,
             cost=row.cost,
             execution_time=row.execution_time,
-            timestamp=datetime.fromisoformat(row.timestamp), # Ensure timestamp is datetime object
+            timestamp=datetime.fromisoformat(row.timestamp),  # Ensure timestamp is datetime object
             caller_name=row.caller_name,
             username=row.username,
             cached_tokens=row.cached_tokens,

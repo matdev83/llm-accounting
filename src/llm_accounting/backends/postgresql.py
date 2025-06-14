@@ -4,16 +4,16 @@ import psycopg2
 import psycopg2.extras
 import psycopg2.extensions
 from typing import Optional, List, Tuple, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 
 from sqlalchemy import create_engine, inspect
-from llm_accounting.models.base import Base # Corrected based on original
+from llm_accounting.models.base import Base  # Corrected based on original
 
 from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry, UserRecord
 from ..models.limits import UsageLimitDTO, LimitScope, LimitType
-from ..db_migrations import run_migrations, get_head_revision, stamp_db_head 
+from ..db_migrations import run_migrations, get_head_revision, stamp_db_head
 
 from .postgresql_backend_parts.connection_manager import ConnectionManager
 from .postgresql_backend_parts.schema_manager import SchemaManager
@@ -28,8 +28,9 @@ logger = logging.getLogger(__name__)
 
 POSTGRES_MIGRATION_CACHE_PATH = "data/postgres_migration_status.json"
 
+
 class PostgreSQLBackend(BaseBackend):
-    conn: Optional[psycopg2.extensions.connection] = None # Retained for type hinting, but managed by ConnectionManager
+    conn: Optional[psycopg2.extensions.connection] = None  # Retained for type hinting, but managed by ConnectionManager
 
     def __init__(self, postgresql_connection_string: Optional[str] = None):
         if postgresql_connection_string:
@@ -49,7 +50,7 @@ class PostgreSQLBackend(BaseBackend):
         logger.info("PostgreSQLBackend initialized with connection string.")
 
         self.connection_manager = ConnectionManager(self)
-        self.schema_manager = SchemaManager(self)
+        # self.schema_manager = SchemaManager(self) # Vulture: unused attribute
         self.data_inserter = DataInserter(self)
         self.data_deleter = DataDeleter(self)
         self.query_executor = QueryExecutor(self)
@@ -160,9 +161,8 @@ class PostgreSQLBackend(BaseBackend):
         current_conn_hash = hash(self.connection_string)
 
         self.cached_postgres_revision = self._read_postgres_migration_cache(migration_cache_file, current_conn_hash)
-        
-        self.connection_manager.initialize() 
-        self.conn = self.connection_manager.conn # Keep self.conn in sync for other methods if they use it directly
+        self.connection_manager.initialize()
+        self.conn = self.connection_manager.conn  # Keep self.conn in sync for other methods if they use it directly
         logger.info("psycopg2 connection initialized via ConnectionManager.")
 
         if not self.engine:
@@ -181,12 +181,11 @@ class PostgreSQLBackend(BaseBackend):
             self._setup_new_postgres_db(migration_cache_file, current_conn_hash)
         else:
             self._setup_existing_postgres_db(migration_cache_file, current_conn_hash)
-        
         logger.info("PostgreSQLBackend initialization complete.")
 
     def close(self) -> None:
         self.connection_manager.close()
-        self.conn = None # Clear the direct reference
+        self.conn = None  # Clear the direct reference
         if self.engine:
             logger.info("Disposing SQLAlchemy engine.")
             self.engine.dispose()
@@ -253,39 +252,45 @@ class PostgreSQLBackend(BaseBackend):
         if active_conn is None:
             raise ConnectionError("Database connection is not established.")
 
-        if limit_type == LimitType.REQUESTS:
-            agg_field = "COUNT(*)"
-        elif limit_type == LimitType.INPUT_TOKENS:
-            agg_field = "COALESCE(SUM(prompt_tokens), 0)"
-        elif limit_type == LimitType.OUTPUT_TOKENS:
-            agg_field = "COALESCE(SUM(completion_tokens), 0)"
-        elif limit_type == LimitType.COST:
-            agg_field = "COALESCE(SUM(cost), 0.0)"
-        else:
+        agg_field_map = {
+            LimitType.REQUESTS: "COUNT(*)",
+            LimitType.INPUT_TOKENS: "COALESCE(SUM(prompt_tokens), 0)",
+            LimitType.OUTPUT_TOKENS: "COALESCE(SUM(completion_tokens), 0)",
+            LimitType.COST: "COALESCE(SUM(cost), 0.0)",
+            # Add other limit types here if necessary
+        }
+        agg_field = agg_field_map.get(limit_type)
+        if agg_field is None:
             logger.error(f"Unsupported LimitType for quota aggregation: {limit_type}")
             raise ValueError(f"Unsupported LimitType for quota aggregation: {limit_type}")
 
-        base_query = f"SELECT {agg_field} AS aggregated_value FROM accounting_entries"
-        conditions = ["timestamp >= %s"]
-        params: List[Any] = [start_time]
+        base_query = f"SELECT {agg_field} AS aggregated_value FROM accounting_entries"  # nosec B608
+        conditions: List[str] = []
+        params: List[Any] = []
 
-        if model:
-            conditions.append("model_name = %s")
-            params.append(model)
-        if username:
-            conditions.append("username = %s")
-            params.append(username)
-        if caller_name:
-            conditions.append("caller_name = %s")
-            params.append(caller_name)
-        
-        if project_name is not None:
-            conditions.append("project = %s")
-            params.append(project_name)
+        # Always filter by start_time
+        conditions.append("timestamp >= %s")
+        params.append(start_time)
+
+        filter_map = {
+            "model_name": model,
+            "username": username,
+            "caller_name": caller_name,
+            "project": project_name,
+        }
+
+        for column, value in filter_map.items():
+            if value is not None:
+                conditions.append(f"{column} = %s")
+                params.append(value)
+
         if filter_project_null is True:
             conditions.append("project IS NULL")
-        if filter_project_null is False:
-            conditions.append("project IS NOT NULL")
+        elif filter_project_null is False:
+            # This condition is only added if project_name is None,
+            # otherwise the specific project_name filter takes precedence.
+            if project_name is None:
+                conditions.append("project IS NOT NULL")
 
         query = base_query
         if conditions:
@@ -296,16 +301,16 @@ class PostgreSQLBackend(BaseBackend):
             with active_conn.cursor() as cur:
                 cur.execute(query, tuple(params))
                 result = cur.fetchone()
-                if result and result[0] is not None:
-                    return float(result[0])
-                return 0.0
+                return float(result[0]) if result and result[0] is not None else 0.0
         except psycopg2.Error as e:
             logger.error(f"Error getting accounting entries for quota (type: {limit_type.value}): {e}")
-            active_conn.rollback() # Rollback on error
+            if active_conn and not active_conn.closed:
+                active_conn.rollback()
             raise
         except Exception as e:
             logger.error(f"An unexpected error occurred getting accounting entries for quota (type: {limit_type.value}): {e}")
-            active_conn.rollback() # Rollback on error
+            if active_conn and not active_conn.closed:
+                active_conn.rollback()
             raise
 
     def execute_query(self, query: str) -> List[Dict[str, Any]]:
@@ -349,7 +354,7 @@ class PostgreSQLBackend(BaseBackend):
 
     def _ensure_connected(self) -> None:
         self.connection_manager.ensure_connected()
-        self.conn = self.connection_manager.conn # Keep self.conn in sync
+        self.conn = self.connection_manager.conn  # Keep self.conn in sync
 
     def initialize_audit_log_schema(self) -> None:
         self._ensure_connected()
