@@ -14,6 +14,7 @@ class User(Base):
     ou_name = Column(String(255), nullable=True)
     email = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    # These fields are used by some migrations and tests; keep them for now.
     last_enabled_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     last_disabled_at = Column(DateTime, nullable=True)
     enabled = Column(Boolean, nullable=False, default=True)

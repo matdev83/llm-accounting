@@ -209,6 +209,7 @@ class LLMAccounting:
             cost=cost,
         )
 
+
     def get_period_stats(self, start: datetime, end: datetime) -> UsageStats:
         """Get aggregated statistics for a time period"""
         self.backend._ensure_connected()
