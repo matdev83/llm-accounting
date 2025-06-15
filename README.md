@@ -118,6 +118,7 @@ The following options can be used with any `llm-accounting` command:
 - `--user-name <name>`: Default user name to associate with usage entries. Can be overridden by command-specific `--username`. Defaults to current system user.
 - `--enforce-project-names`: When set, project names supplied to commands must exist in the project dictionary.
 - `--enforce-user-names`: When set, user names supplied to commands must exist in the user dictionary.
+The CLI output is formatted using [Rich](https://rich.readthedocs.io/), allowing standard output capture by testing frameworks like `capsys`.
 
 ```bash
 # Track a new usage entry (model name is required, timestamp is optional)
