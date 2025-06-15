@@ -1,6 +1,6 @@
 import logging
 from typing import List
-from datetime import datetime, timezone
+
 
 from sqlalchemy import text
 
@@ -25,7 +25,7 @@ class SQLiteUserManager:
         conn = self.connection_manager.get_connection()
         result = conn.execute(
             text(
-                "SELECT id, user_name, ou_name, email, created_at, last_enabled_at, last_disabled_at, enabled "
+                "SELECT id, user_name, ou_name, email, created_at, enabled "
                 "FROM users ORDER BY user_name"
             )
         )
@@ -46,11 +46,6 @@ class SQLiteUserManager:
         if enabled is not None:
             fields.append("enabled = :enabled")
             params["enabled"] = 1 if enabled else 0
-            if enabled:
-                fields.append("last_enabled_at = :ts")
-            else:
-                fields.append("last_disabled_at = :ts")
-            params["ts"] = datetime.now(timezone.utc)
         if not fields:
             return
         query = "UPDATE users SET " + ", ".join(fields) + " WHERE user_name = :user_name"  # nosec B608

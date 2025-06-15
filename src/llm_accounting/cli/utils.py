@@ -3,6 +3,8 @@ import platform
 from rich.console import Console
 from typing import Optional
 
+from ..backends.base import BaseBackend
+
 from llm_accounting import LLMAccounting
 
 from ..backends.sqlite import SQLiteBackend
