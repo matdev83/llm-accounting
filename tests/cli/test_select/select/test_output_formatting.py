@@ -35,4 +35,4 @@ def test_select_output_formatting(mock_get_accounting_util, test_db): # Removed 
     assert "user1" in captured_output
     assert "Query Results" in captured_output # Table title
     # Check for Rich table specific characters if needed, e.g., "┏", "┃", "┗"
-    assert "┏" in captured_output # A character indicating Rich table rendering
+    assert "┌" in captured_output # A character indicating Rich table rendering
