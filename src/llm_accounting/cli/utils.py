@@ -10,9 +10,8 @@ from llm_accounting.backends.base import BaseBackend
 from ..backends.sqlite import SQLiteBackend
 from ..backends.postgresql import PostgreSQLBackend
 
-# Force console to stdout for consistent testing with capsys
-import sys
-console = Console(file=sys.stdout)
+# Use default sys.stdout so test frameworks like capsys can capture output
+console = Console()
 
 
 def format_float(value: float) -> str:
