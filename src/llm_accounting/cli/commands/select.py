@@ -46,7 +46,8 @@ def _display_results(results: List[Dict[str, Any]], format_type: str) -> None:
         console.print("[yellow]No results found[/yellow]")
         return
 
-    headers = list(results[0].keys())
+    headers = list(results[0].keys())  # Ensure consistent order
+
     if format_type == "table":
         table = Table(title="Query Results")
         for col_name in headers:

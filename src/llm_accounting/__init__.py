@@ -171,11 +171,8 @@ class LLMAccounting:
         project: Optional[str] = None,
         session: Optional[str] = None,
     ) -> List[Tuple[UsageLimitDTO, float]]:
-        """Track usage and return remaining quota for all applicable limits."""
-        self._ensure_valid_project(project if project is not None else self.project_name)
-        self._ensure_valid_user(username if username is not None else self.user_name)
-        self.backend._ensure_connected() # Added to ensure connection like in track_usage
-        entry = UsageEntry( # Duplicating entry creation from track_usage
+        """Track usage and return remaining quota for applicable limits."""
+        self.track_usage(
             model=model,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
@@ -193,9 +190,7 @@ class LLMAccounting:
             reasoning_tokens=reasoning_tokens,
             project=project if project is not None else self.project_name,
         )
-        self.backend.insert_usage(entry)
 
-        # Calculate total tokens if not provided
         if total_tokens is None:
             if prompt_tokens is not None and completion_tokens is not None:
                 total_tokens = prompt_tokens + completion_tokens
