@@ -152,30 +152,30 @@ class LLMAccounting:
         )
         self.backend.insert_usage(entry)
 
-    # TODO: Vulture - Dead code? Verify if used externally or planned for future use before removing.
-    # def track_usage_with_remaining_limits(
-    #     self,
-    #     model: str,
-    #     prompt_tokens: Optional[int] = None,
-    #     completion_tokens: Optional[int] = None,
-    #     total_tokens: Optional[int] = None,
-    #     local_prompt_tokens: Optional[int] = None,
-    #     local_completion_tokens: Optional[int] = None,
-    #     local_total_tokens: Optional[int] = None,
-    #     cost: float = 0.0,
-    #     execution_time: float = 0.0,
-    #     timestamp: Optional[datetime] = None,
-    #     caller_name: Optional[str] = None,
-    #     username: Optional[str] = None,
-    #     cached_tokens: int = 0,
-    #     reasoning_tokens: int = 0,
-    #     project: Optional[str] = None,
-    #     session: Optional[str] = None,
-    # ) -> List[Tuple[UsageLimitDTO, float]]:
-    #     """Track usage and return remaining quota for all applicable limits."""
-    #     self._ensure_valid_project(project if project is not None else self.project_name)
+    def track_usage_with_remaining_limits(
+        self,
+        model: str,
+        prompt_tokens: Optional[int] = None,
+        completion_tokens: Optional[int] = None,
+        total_tokens: Optional[int] = None,
+        local_prompt_tokens: Optional[int] = None,
+        local_completion_tokens: Optional[int] = None,
+        local_total_tokens: Optional[int] = None,
+        cost: float = 0.0,
+        execution_time: float = 0.0,
+        timestamp: Optional[datetime] = None,
+        caller_name: Optional[str] = None,
+        username: Optional[str] = None,
+        cached_tokens: int = 0,
+        reasoning_tokens: int = 0,
+        project: Optional[str] = None,
+        session: Optional[str] = None,
+    ) -> List[Tuple[UsageLimitDTO, float]]:
+        """Track usage and return remaining quota for all applicable limits."""
+        self._ensure_valid_project(project if project is not None else self.project_name)
         self._ensure_valid_user(username if username is not None else self.user_name)
-        self.track_usage(
+        self.backend._ensure_connected() # Added to ensure connection like in track_usage
+        entry = UsageEntry( # Duplicating entry creation from track_usage
             model=model,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
@@ -186,13 +186,14 @@ class LLMAccounting:
             cost=cost,
             execution_time=execution_time,
             timestamp=timestamp,
-            caller_name=caller_name,
-            username=username,
+            caller_name=caller_name if caller_name is not None else self.app_name,
+            username=username if username is not None else self.user_name,
+            session=session,
             cached_tokens=cached_tokens,
             reasoning_tokens=reasoning_tokens,
-            project=project,
-            session=session,
+            project=project if project is not None else self.project_name,
         )
+        self.backend.insert_usage(entry)
 
         # Calculate total tokens if not provided
         if total_tokens is None:
@@ -318,12 +319,11 @@ class LLMAccounting:
         self.backend._ensure_connected()
         self.quota_service.delete_limit(limit_id)
 
-    # TODO: Vulture - Dead code? Verify if used externally or planned for future use before removing.
-    # def get_db_path(self) -> Optional[str]:
-    #     """
-    #     Returns the database path if the backend is a SQLiteBackend.
-    #     Otherwise, returns None.
-    #     """
-    #     if isinstance(self.backend, SQLiteBackend):
-    #         return self.backend.db_path
-    #     return None
+    def get_db_path(self) -> Optional[str]:
+        """
+        Returns the database path if the backend is a SQLiteBackend.
+        Otherwise, returns None.
+        """
+        if isinstance(self.backend, SQLiteBackend):
+            return self.backend.db_path
+        return None

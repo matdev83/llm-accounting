@@ -14,9 +14,8 @@ class User(Base):
     ou_name = Column(String(255), nullable=True)
     email = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-    # TODO: Vulture - verify and remove if truly dead code. These fields might be useful for future auditing.
-    # last_enabled_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-    # last_disabled_at = Column(DateTime, nullable=True)
+    last_enabled_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    last_disabled_at = Column(DateTime, nullable=True)
     enabled = Column(Boolean, nullable=False, default=True)
 
     def __repr__(self) -> str:
