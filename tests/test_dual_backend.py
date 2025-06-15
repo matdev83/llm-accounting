@@ -7,6 +7,10 @@ from llm_accounting.backends.base import TransactionalBackend, AuditBackend
 
 def test_separate_audit_backend_usage():
     usage_backend = Mock(spec=TransactionalBackend)
+    # Configure list_users on the mock to return an empty list (iterable)
+    usage_backend.list_users.return_value = []
+    usage_backend.list_projects.return_value = [] # Also for projects cache
+
     audit_backend = Mock(spec=AuditBackend)
 
     acc = LLMAccounting(backend=usage_backend, audit_backend=audit_backend)

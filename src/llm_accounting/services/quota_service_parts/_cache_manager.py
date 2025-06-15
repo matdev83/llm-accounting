@@ -24,10 +24,8 @@ class QuotaServiceCacheManager:
     def _load_users_from_backend(self) -> None:
         """Loads allowed user names from the backend."""
         if hasattr(self.backend, "list_users"):
-            try:
-                self.users_cache = [u.user_name for u in self.backend.list_users()]
-            except TypeError:
-                self.users_cache = []
+            # Removed try-except TypeError to let potential errors propagate
+            self.users_cache = [u.user_name for u in self.backend.list_users()]
         else:
             self.users_cache = []
 

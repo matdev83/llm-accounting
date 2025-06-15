@@ -15,25 +15,18 @@ def _check_privileged_user():
     Checks if the current user is a privileged user (root on Linux/macOS, admin on Windows).
     Exits the program with an error message if the user is privileged.
     """
-    # Skip the privileged user check when running under pytest or when an
-    # explicit override is set. The CI environment and the provided test suite
-    # execute the CLI while the process runs as root.  Without this guard the
-    # CLI would exit immediately causing the tests to fail.
     if os.environ.get("PYTEST_CURRENT_TEST") is not None or os.environ.get("LLM_ACCOUNTING_ALLOW_ROOT"):
         return
 
     if platform.system() == "Windows":
         try:
-            # Check if user has admin privileges on Windows
             import ctypes
             if ctypes.windll.shell32.IsUserAnAdmin():
                 console.print("[red]Error: Running the CLI as an administrator is not allowed for security reasons.[/red]")
                 sys.exit(1)
         except AttributeError:
-            # Handle cases where ctypes might not be available or IsUserAnAdmin fails
             pass
     elif hasattr(os, 'geteuid') and os.geteuid() == 0:  # type: ignore
-        # Check for root user on Linux/macOS
         console.print("[red]Error: Running the CLI as root is not allowed for security reasons.[/red]")
         sys.exit(1)
 
@@ -120,7 +113,7 @@ def main():
     add_select_parser(subparsers)
     add_track_parser(subparsers)
     add_limits_parser(subparsers)
-    add_log_event_parser(subparsers)  # Added from feat/cli-log-event branch
+    add_log_event_parser(subparsers)
     add_projects_parser(subparsers)
     add_users_parser(subparsers)
 
@@ -152,7 +145,6 @@ def main():
         with accounting:
             args.func(args, accounting)
     except SystemExit:
-        # Allow SystemExit to propagate, especially for pytest.raises
         raise
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")

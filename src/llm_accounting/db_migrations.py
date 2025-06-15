@@ -4,7 +4,7 @@ from alembic import command as alembic_command
 from sqlalchemy.engine.url import make_url
 from sqlalchemy import text, Connection  # Added Connection
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from alembic.script import ScriptDirectory
 # EnvironmentContext might still be used by other parts of Alembic or if some logic path needs it,

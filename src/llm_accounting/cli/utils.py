@@ -5,10 +5,14 @@ from typing import Optional
 
 from llm_accounting import LLMAccounting
 
+from llm_accounting.backends.base import BaseBackend
+
 from ..backends.sqlite import SQLiteBackend
 from ..backends.postgresql import PostgreSQLBackend
 
-console = Console()
+# Force console to stdout for consistent testing with capsys
+import sys
+console = Console(file=sys.stdout)
 
 
 def format_float(value: float) -> str:

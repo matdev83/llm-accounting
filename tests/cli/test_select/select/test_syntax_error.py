@@ -1,26 +1,35 @@
 import sys
-from io import StringIO
-from unittest.mock import MagicMock, patch
-
 import pytest
-
-from llm_accounting import LLMAccounting
+from unittest.mock import patch, MagicMock
+from llm_accounting import LLMAccounting # For type hinting
+from llm_accounting.backends.sqlite import SQLiteBackend # For spec
 from llm_accounting.cli.main import main as cli_main
-
+import io
+from rich.console import Console
 
 @patch("llm_accounting.cli.utils.get_accounting")
-def test_select_syntax_error(mock_get_accounting, test_db, capsys):
+def test_select_syntax_error(mock_get_accounting_util, test_db): # Removed capsys
     """Test handling of SQL syntax errors"""
-    mock_backend_instance = MagicMock()
-    real_accounting_instance = LLMAccounting(backend=mock_backend_instance)
-    mock_get_accounting.return_value = real_accounting_instance
-    mock_backend_instance.execute_query.side_effect = Exception("no such column: invalid_syntax")
+    string_io = io.StringIO()
+    test_console = Console(file=string_io)
 
-    with patch.object(sys, 'argv', ['cli_main', "select", "--query", "SELECT model FROM accounting_entries WHERE invalid_syntax"]):
-        with pytest.raises(SystemExit) as pytest_wrapped_e:
-            cli_main()
+    mock_backend_instance = test_db
+    # Configure the mock backend to simulate a syntax error during query execution
+    mock_backend_instance.execute_query = MagicMock(side_effect=Exception("no such column: invalid_syntax"))
+
+    mock_llm_accounting_instance = MagicMock(spec=LLMAccounting)
+    mock_llm_accounting_instance.backend = mock_backend_instance
+    mock_llm_accounting_instance.__enter__.return_value = mock_llm_accounting_instance
+    mock_llm_accounting_instance.__exit__.return_value = None
+    mock_get_accounting_util.return_value = mock_llm_accounting_instance
+
+    with patch('llm_accounting.cli.commands.select.console', test_console):
+        with patch.object(sys, 'argv', ['cli_main', "select", "--query", "SELECT model FROM accounting_entries WHERE invalid_syntax"]):
+            with pytest.raises(SystemExit) as pytest_wrapped_e:
+                cli_main()
 
     assert pytest_wrapped_e.type == SystemExit
     assert pytest_wrapped_e.value.code == 1
-    captured = capsys.readouterr()
-    assert "no such column: invalid_syntax" in captured.out.lower()
+
+    captured_output = string_io.getvalue()
+    assert "Error executing query: no such column: invalid_syntax" in captured_output.strip()

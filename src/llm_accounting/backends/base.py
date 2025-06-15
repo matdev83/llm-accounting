@@ -109,9 +109,8 @@ class UserRecord:
     enabled: bool = True
     id: Optional[int] = None
     created_at: Optional[datetime] = None
-    # TODO: Vulture - verify and remove if truly dead code. These fields might be useful for future auditing.
-    # last_enabled_at: Optional[datetime] = None
-    # last_disabled_at: Optional[datetime] = None
+    last_enabled_at: Optional[datetime] = None
+    last_disabled_at: Optional[datetime] = None
 
 
 class TransactionalBackend(ABC):
