@@ -43,23 +43,21 @@ def _display_results(results: List[Dict[str, Any]], format_type: str) -> None:
         console.print("[yellow]No results found[/yellow]")
         return
 
+    headers = list(results[0].keys())
+
     if format_type == "table":
         table = Table(title="Query Results")
-        headers = list(results[0].keys()) # Ensure consistent order
-
-        if format_type == "table":
-            table = Table(title="Query Results")
-            for col_name in headers:
-                table.add_column(col_name, style="cyan")
-            for row_dict in results:
-                row_values = [str(row_dict.get(h, "N/A")) for h in headers]
-                table.add_row(*row_values)
-            console.print(table)
-        elif format_type == "csv":
-            console.print(",".join(headers)) # Use console.print for consistency, though print works
-            for row_dict in results:
-                row_values = [str(row_dict.get(h, "")) for h in headers] # Use empty string for missing CSV values
-                console.print(",".join(row_values)) # Use console.print
+        for col_name in headers:
+            table.add_column(col_name, style="cyan")
+        for row_dict in results:
+            row_values = [str(row_dict.get(h, "N/A")) for h in headers]
+            table.add_row(*row_values)
+        console.print(table)
+    elif format_type == "csv":
+        print(",".join(headers))
+        for row_dict in results:
+            row_values = ["" if row_dict.get(h) is None else str(row_dict.get(h, "")) for h in headers]
+            print(",".join(row_values))
 
 # --- END NEW HELPER FUNCTIONS ---
 

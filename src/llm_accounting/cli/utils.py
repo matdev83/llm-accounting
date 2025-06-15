@@ -7,6 +7,7 @@ from llm_accounting import LLMAccounting
 
 from ..backends.sqlite import SQLiteBackend
 from ..backends.postgresql import PostgreSQLBackend
+from ..backends.base import BaseBackend
 
 console = Console()
 

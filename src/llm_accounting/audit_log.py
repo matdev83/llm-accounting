@@ -56,6 +56,73 @@ class AuditLogger:
         )
         self.backend.log_audit_event(audit_entry)
 
+    def log_prompt(
+        self,
+        app_name: str,
+        user_name: str,
+        model: str,
+        prompt_text: str,
+        project: Optional[str] = None,
+        timestamp: Optional[datetime] = None,
+        session: Optional[str] = None,
+    ) -> None:
+        """Log a prompt event."""
+        self.log_event(
+            app_name=app_name,
+            user_name=user_name,
+            model=model,
+            log_type="prompt",
+            prompt_text=prompt_text,
+            project=project,
+            timestamp=timestamp,
+            session=session,
+        )
+
+    def log_response(
+        self,
+        app_name: str,
+        user_name: str,
+        model: str,
+        response_text: str,
+        remote_completion_id: Optional[str] = None,
+        project: Optional[str] = None,
+        timestamp: Optional[datetime] = None,
+        session: Optional[str] = None,
+    ) -> None:
+        """Log a response event."""
+        self.log_event(
+            app_name=app_name,
+            user_name=user_name,
+            model=model,
+            log_type="response",
+            response_text=response_text,
+            remote_completion_id=remote_completion_id,
+            project=project,
+            timestamp=timestamp,
+            session=session,
+        )
+
+    def get_entries(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        app_name: Optional[str] = None,
+        user_name: Optional[str] = None,
+        project: Optional[str] = None,
+        log_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[AuditLogEntry]:
+        """Retrieve audit log entries from the backend."""
+        return self.backend.get_audit_log_entries(
+            start_date=start_date,
+            end_date=end_date,
+            app_name=app_name,
+            user_name=user_name,
+            project=project,
+            log_type=log_type,
+            limit=limit,
+        )
+
     # TODO: Vulture - Dead code? Verify if used externally or planned for future use before removing.
     # def log_prompt(
     #     self,
