@@ -42,32 +42,28 @@ def _construct_query(args) -> str:
 
 
 def _display_results(results: List[Dict[str, Any]], format_type: str) -> None:
-    console.print("--- DEBUG: _display_results entered ---") # New debug print
     if not results:
         console.print("[yellow]No results found[/yellow]")
         return
 
+    headers = list(results[0].keys())
     if format_type == "table":
         table = Table(title="Query Results")
-        headers = list(results[0].keys())
-        if format_type == "table":
-            table = Table(title="Query Results")
-            for col_name in headers:
-                table.add_column(col_name, style="cyan")
-            for row_dict in results:
-                row_values = [str(row_dict.get(h, "N/A")) for h in headers]
-                table.add_row(*row_values)
-            console.print(table)
-        elif format_type == "csv":
-            console.print(",".join(headers))
-            for row_dict in results:
-                row_values = [str(row_dict.get(h, "")) for h in headers]
-                console.print(",".join(row_values))
+        for col_name in headers:
+            table.add_column(col_name, style="cyan")
+        for row_dict in results:
+            row_values = [str(row_dict.get(h, "N/A")) for h in headers]
+            table.add_row(*row_values)
+        console.print(table)
+    elif format_type == "csv":
+        console.print(",".join(headers), soft_wrap=True)
+        for row_dict in results:
+            row_values = ["" if row_dict.get(h) is None else str(row_dict.get(h, "")) for h in headers]
+            console.print(",".join(row_values), soft_wrap=True)
 
 
 def run_select(args, accounting: LLMAccounting):
-    console.print("--- DEBUG: run_select entered ---")
-    console.print(f"--- DEBUG: Args before _construct_query: {args!r} ---")
+    # Execute the select query and display results
     query_to_execute = _construct_query(args)
 
     if not query_to_execute:
@@ -75,9 +71,7 @@ def run_select(args, accounting: LLMAccounting):
         sys.exit(1)
 
     try:
-        console.print(f"--- DEBUG: Executing query: {query_to_execute} ---")
         results = accounting.backend.execute_query(query_to_execute)
-        console.print(f"--- DEBUG: Query results: {results} ---")
     except ValueError as ve:
         console.print(f"[red]Error executing query: {ve}[/red]")
         sys.exit(1)
