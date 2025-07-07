@@ -14,6 +14,7 @@ from llm_accounting.models.base import Base  # Corrected based on original
 from .base import BaseBackend, UsageEntry, UsageStats, AuditLogEntry, UserRecord
 from ..models.limits import UsageLimitDTO, LimitScope, LimitType
 from ..db_migrations import run_migrations, get_head_revision, stamp_db_head
+from ..version_cache import should_run_migrations, update_migration_cache_after_success
 
 from .postgresql_backend_parts.connection_manager import ConnectionManager
 from .postgresql_backend_parts.schema_manager import SchemaManager
@@ -26,7 +27,7 @@ from .postgresql_backend_parts.user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 
-POSTGRES_MIGRATION_CACHE_PATH = "data/postgres_migration_status.json"
+POSTGRES_MIGRATION_CACHE_PATH = "data/postgresql_migration_cache.json"
 
 
 class PostgreSQLBackend(BaseBackend):
@@ -46,8 +47,7 @@ class PostgreSQLBackend(BaseBackend):
         # self.conn is primarily managed by ConnectionManager now.
         # self.engine is initialized in the initialize() method.
         self.engine = None
-        self.cached_postgres_revision: Optional[str] = None
-        logger.info("PostgreSQLBackend initialized with connection string.")
+        logger.debug("PostgreSQLBackend initialized with connection string.")
 
         self.connection_manager = ConnectionManager(self)
         # self.schema_manager = SchemaManager(self) # Vulture: unused attribute
@@ -58,32 +58,7 @@ class PostgreSQLBackend(BaseBackend):
         self.project_manager = ProjectManager(self)
         self.user_manager = UserManager(self)
 
-    def _read_postgres_migration_cache(self, migration_cache_file: Path, current_conn_hash: int) -> Optional[str]:
-        if migration_cache_file.exists():
-            try:
-                with open(migration_cache_file, "r") as f:
-                    cache_data = json.load(f)
-                if cache_data.get("connection_string_hash") == current_conn_hash:
-                    revision = cache_data.get("revision")
-                    logger.info(f"Found cached PostgreSQL migration revision: {revision} for current connection.")
-                    return revision
-                else:
-                    logger.info("PostgreSQL connection string hash mismatch in cache. Ignoring cached revision.")
-            except (IOError, json.JSONDecodeError) as e:
-                logger.warning(f"Could not read PostgreSQL migration cache file {migration_cache_file}: {e}")
-        return None
 
-    def _update_postgres_migration_cache(self, migration_cache_file: Path, current_conn_hash: int, revision: Optional[str]) -> None:
-        if not revision:
-            logger.warning("No revision provided to update PostgreSQL migration cache.")
-            return
-        try:
-            migration_cache_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(migration_cache_file, "w") as f_cache:
-                json.dump({"connection_string_hash": current_conn_hash, "revision": revision}, f_cache)
-            logger.info(f"PostgreSQL migration cache updated with revision: {revision}")
-        except IOError as e:
-            logger.warning(f"Could not write PostgreSQL migration cache file {migration_cache_file}: {e}")
 
     def _determine_if_new_or_empty_db(self) -> bool:
         if not self.engine:
@@ -94,51 +69,48 @@ class PostgreSQLBackend(BaseBackend):
         existing_tables = inspector.get_table_names()
 
         if 'alembic_version' not in existing_tables:
-            logger.info("Database appears new or unmanaged by Alembic ('alembic_version' table missing).")
+            logger.debug("Database appears new or unmanaged by Alembic ('alembic_version' table missing).")
             return True
 
         model_table_names = {table_obj.name for table_obj in Base.metadata.sorted_tables}
         missing_model_tables = model_table_names - set(existing_tables)
         if missing_model_tables:
-            logger.info(f"Alembic version table exists, but some model tables are missing: {missing_model_tables}. Treating as needing full schema setup.")
+            logger.debug(f"Alembic version table exists, but some model tables are missing: {missing_model_tables}. Treating as needing full schema setup.")
             return True
 
         return False
 
-    def _setup_new_postgres_db(self, migration_cache_file: Path, current_conn_hash: int) -> None:
+    def _setup_new_postgres_db(self, migration_cache_file: Path) -> None:
         logger.info("Proceeding with new/empty database setup for PostgreSQL.")
         assert self.engine is not None
         Base.metadata.create_all(self.engine)
-        logger.info("Schema creation from SQLAlchemy models complete for new PostgreSQL database.")
+        logger.debug("Schema creation from SQLAlchemy models complete for new PostgreSQL database.")
 
         stamped_revision = stamp_db_head(self.connection_string)
-        self._update_postgres_migration_cache(migration_cache_file, current_conn_hash, stamped_revision)
+        if stamped_revision:
+            update_migration_cache_after_success(migration_cache_file, stamped_revision)
 
-    def _setup_existing_postgres_db(self, migration_cache_file: Path, current_conn_hash: int) -> None:
-        logger.info("Proceeding with existing PostgreSQL database setup.")
+    def _setup_existing_postgres_db(self, migration_cache_file: Path) -> None:
+        logger.debug("Proceeding with existing PostgreSQL database setup.")
         assert self.engine is not None
 
         current_head_script_revision = get_head_revision(self.connection_string)
-        logger.info(f"Determined current head script revision for PostgreSQL: {current_head_script_revision}")
+        logger.debug(f"Determined current head script revision for PostgreSQL: {current_head_script_revision}")
 
-        run_migrations_needed = False
-        if self.cached_postgres_revision is None:
-            logger.info("No cached PostgreSQL revision found. Migrations will be checked.")
-            run_migrations_needed = True
-        elif current_head_script_revision is None:
+        if current_head_script_revision is None:
             logger.warning("Could not determine head script revision for PostgreSQL. Running migrations as a precaution.")
             run_migrations_needed = True
-        elif self.cached_postgres_revision != current_head_script_revision:
-            logger.info(f"Cached PostgreSQL revision {self.cached_postgres_revision} differs from head script revision {current_head_script_revision}. Migrations will run.")
-            run_migrations_needed = True
         else:
-            logger.info(f"Cached PostgreSQL revision {self.cached_postgres_revision} matches head script revision. Migrations will be skipped.")
+            run_migrations_needed = should_run_migrations(migration_cache_file, current_head_script_revision)
 
         if run_migrations_needed:
             logger.info("Running migrations for existing PostgreSQL database.")
             new_db_revision_after_migration = run_migrations(db_url=self.connection_string)
-            logger.info(f"Migrations completed for PostgreSQL. Reported database revision: {new_db_revision_after_migration}")
-            self._update_postgres_migration_cache(migration_cache_file, current_conn_hash, new_db_revision_after_migration)
+            logger.debug(f"Migrations completed for PostgreSQL. Reported database revision: {new_db_revision_after_migration}")
+            if new_db_revision_after_migration:
+                update_migration_cache_after_success(migration_cache_file, new_db_revision_after_migration)
+        else:
+            logger.debug("Migrations skipped for PostgreSQL based on package version cache.")
 
         inspector_after_ops = inspect(self.engine)
         existing_tables_after_ops = inspector_after_ops.get_table_names()
@@ -148,29 +120,27 @@ class PostgreSQLBackend(BaseBackend):
         ]
 
         if missing_model_tables_after_ops:
-            logger.info(f"Model tables missing after migrations/checks: {missing_model_tables_after_ops}. Running Base.metadata.create_all().")
+            logger.debug(f"Model tables missing after migrations/checks: {missing_model_tables_after_ops}. Running Base.metadata.create_all().")
             Base.metadata.create_all(self.engine)
-            logger.info("Schema update from SQLAlchemy models complete after migrations/checks for PostgreSQL.")
+            logger.debug("Schema update from SQLAlchemy models complete after migrations/checks for PostgreSQL.")
         else:
-            logger.info("All model tables exist after migrations/checks for PostgreSQL. Skipping Base.metadata.create_all().")
+            logger.debug("All model tables exist after migrations/checks for PostgreSQL. Skipping Base.metadata.create_all().")
 
     def initialize(self) -> None:
-        logger.info(f"Initializing PostgreSQLBackend (connection: {self.connection_string[:50]}...)")
+        logger.debug(f"Initializing PostgreSQLBackend (connection: {self.connection_string[:50]}...)")
 
         migration_cache_file = Path(POSTGRES_MIGRATION_CACHE_PATH)
-        current_conn_hash = hash(self.connection_string)
 
-        self.cached_postgres_revision = self._read_postgres_migration_cache(migration_cache_file, current_conn_hash)
         self.connection_manager.initialize()
         self.conn = self.connection_manager.conn  # Keep self.conn in sync for other methods if they use it directly
-        logger.info("psycopg2 connection initialized via ConnectionManager.")
+        logger.debug("psycopg2 connection initialized via ConnectionManager.")
 
         if not self.engine:
             if not self.connection_string:
                 raise ValueError("Cannot initialize SQLAlchemy engine: Connection string is missing.")
             try:
                 self.engine = create_engine(self.connection_string, future=True)
-                logger.info("SQLAlchemy engine created successfully.")
+                logger.debug("SQLAlchemy engine created successfully.")
             except Exception as e:
                 logger.error(f"Failed to create SQLAlchemy engine: {e}")
                 raise
@@ -178,16 +148,16 @@ class PostgreSQLBackend(BaseBackend):
         is_new_db = self._determine_if_new_or_empty_db()
 
         if is_new_db:
-            self._setup_new_postgres_db(migration_cache_file, current_conn_hash)
+            self._setup_new_postgres_db(migration_cache_file)
         else:
-            self._setup_existing_postgres_db(migration_cache_file, current_conn_hash)
-        logger.info("PostgreSQLBackend initialization complete.")
+            self._setup_existing_postgres_db(migration_cache_file)
+        logger.debug("PostgreSQLBackend initialization complete.")
 
     def close(self) -> None:
         self.connection_manager.close()
         self.conn = None  # Clear the direct reference
         if self.engine:
-            logger.info("Disposing SQLAlchemy engine.")
+            logger.debug("Disposing SQLAlchemy engine.")
             self.engine.dispose()
             self.engine = None
 

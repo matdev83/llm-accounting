@@ -9,7 +9,7 @@ from sqlalchemy import MetaData
 from llm_accounting.backends.postgresql import PostgreSQLBackend
 from llm_accounting.models import accounting, audit, limits 
 
-MOCK_PG_CACHE_FILE_PATH = Path("tests/temp_test_data_pg_migrations/data/postgres_migration_status.json")
+MOCK_PG_CACHE_FILE_PATH = Path("tests/temp_test_data_pg_migrations/data/postgresql_migration_cache.json")
 POSTGRES_BACKEND_LOGGER_NAME = 'llm_accounting.backends.postgresql' # Define logger name
 
 class TestPostgreSQLMigrationsCache(unittest.TestCase):
@@ -32,6 +32,10 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
         self.patcher_stamp_db_head = patch('llm_accounting.backends.postgresql.stamp_db_head')
         self.patcher_conn_manager = patch('llm_accounting.backends.postgresql.ConnectionManager')
         
+        # Patch the new version cache functions
+        self.patcher_should_run_migrations = patch('llm_accounting.backends.postgresql.should_run_migrations')
+        self.patcher_update_migration_cache = patch('llm_accounting.backends.postgresql.update_migration_cache_after_success')
+        
         self.mock_cache_path = self.patcher_cache_path.start()
         self.mock_create_engine = self.patcher_create_engine.start()
         self.mock_inspect_sqlalchemy = self.patcher_inspect.start()
@@ -40,6 +44,10 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
         self.mock_get_head_revision = self.patcher_get_head_revision.start()
         self.mock_stamp_db_head = self.patcher_stamp_db_head.start()
         self.MockConnectionManager = self.patcher_conn_manager.start()
+        
+        # Start the new version cache mocks
+        self.mock_should_run_migrations = self.patcher_should_run_migrations.start()
+        self.mock_update_migration_cache = self.patcher_update_migration_cache.start()
 
         self.mock_engine = MagicMock()
         self.mock_create_engine.return_value = self.mock_engine
@@ -60,6 +68,8 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
         self.dummy_connection_string = "postgresql://user:pass@host:port/dbname"
         self.backend = PostgreSQLBackend(self.dummy_connection_string)
 
+        # Set up mock return values for version cache functions
+        
         # Ensure the specific logger is enabled for these tests
         logger_instance = logging.getLogger(POSTGRES_BACKEND_LOGGER_NAME)
         logger_instance.disabled = False
@@ -74,6 +84,11 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
         self.patcher_get_head_revision.stop()
         self.patcher_stamp_db_head.stop()
         self.patcher_conn_manager.stop()
+        
+        # Stop the new version cache mocks
+        self.patcher_should_run_migrations.stop()
+        self.patcher_update_migration_cache.stop()
+        
         if self.test_dir.exists(): shutil.rmtree(self.test_dir)
 
     def test_new_database_creates_schema_stamps_and_caches(self):
@@ -88,31 +103,29 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
         self.mock_base_metadata.create_all.assert_called_once_with(self.mock_engine) 
         self.mock_stamp_db_head.assert_called_once_with(self.dummy_connection_string)
         self.mock_run_migrations.assert_not_called()
-        self.assertTrue(self.controlled_cache_path.exists())
-        with open(self.controlled_cache_path, 'r') as f: cache_data = json.load(f)
-        self.assertEqual(cache_data.get("connection_string_hash"), hash(self.dummy_connection_string))
-        self.assertEqual(cache_data.get("revision"), stamped_rev)
+        self.mock_update_migration_cache.assert_called_once_with(self.controlled_cache_path, stamped_rev)
 
     def test_existing_db_cache_up_to_date_skips_migrations(self):
         self.mock_inspector.get_table_names.return_value = list(self.model_table_names_with_alembic)
         current_rev = "pg_head_rev_1"
         self.mock_get_head_revision.return_value = current_rev
-        self.controlled_cache_dir.mkdir(parents=True, exist_ok=True)
-        with open(self.controlled_cache_path, 'w') as f:
-            json.dump({"connection_string_hash": hash(self.dummy_connection_string), "revision": current_rev}, f)
         
-        with self.assertLogs(logger=POSTGRES_BACKEND_LOGGER_NAME, level='INFO') as cm:
+        # Mock should_run_migrations to return False (cache is up to date)
+        self.mock_should_run_migrations.return_value = False
+        
+        with self.assertLogs(logger=POSTGRES_BACKEND_LOGGER_NAME, level='DEBUG') as cm:
             self.backend.initialize()
 
-        self.assertTrue(len(cm.output) > 0, f"Expected INFO logs for PostgreSQL, but none were captured. Logger '{POSTGRES_BACKEND_LOGGER_NAME}' handlers: {logging.getLogger(POSTGRES_BACKEND_LOGGER_NAME).handlers}")
+        self.assertTrue(len(cm.output) > 0, f"Expected DEBUG logs for PostgreSQL, but none were captured. Logger '{POSTGRES_BACKEND_LOGGER_NAME}' handlers: {logging.getLogger(POSTGRES_BACKEND_LOGGER_NAME).handlers}")
 
-        expected_log_msg = f"Cached PostgreSQL revision {current_rev} matches head script revision. Migrations will be skipped."
+        expected_log_msg = "Migrations skipped for PostgreSQL based on package version cache."
         self.assertTrue(any(expected_log_msg in message for message in cm.output), f"Expected log '{expected_log_msg}' missing. Logs: {cm.output}")
 
         self.mock_run_migrations.assert_not_called()
         self.mock_stamp_db_head.assert_not_called()
         self.assertEqual(self.mock_inspector.get_table_names.call_count, 2) 
-        self.mock_base_metadata.create_all.assert_not_called() 
+        self.mock_base_metadata.create_all.assert_not_called()
+        self.mock_should_run_migrations.assert_called_once_with(self.controlled_cache_path, current_rev) 
 
     def test_existing_db_cache_outdated_runs_migrations(self):
         self.mock_inspector.get_table_names.return_value = list(self.model_table_names_with_alembic)
@@ -120,51 +133,50 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
         new_head_rev = "pg_new_head_rev"
         self.mock_get_head_revision.return_value = new_head_rev
         self.mock_run_migrations.return_value = new_head_rev
-        self.controlled_cache_dir.mkdir(parents=True, exist_ok=True)
-        with open(self.controlled_cache_path, 'w') as f:
-            json.dump({"connection_string_hash": hash(self.dummy_connection_string), "revision": old_rev}, f)
+        
+        # Mock should_run_migrations to return True (cache is outdated)
+        self.mock_should_run_migrations.return_value = True
 
         self.backend.initialize()
 
         self.mock_run_migrations.assert_called_once_with(db_url=self.dummy_connection_string)
         self.mock_stamp_db_head.assert_not_called()
-        self.assertTrue(self.controlled_cache_path.exists())
-        with open(self.controlled_cache_path, 'r') as f: cache_data = json.load(f)
-        self.assertEqual(cache_data.get("revision"), new_head_rev)
-        self.mock_base_metadata.create_all.assert_not_called() 
+        self.mock_update_migration_cache.assert_called_once_with(self.controlled_cache_path, new_head_rev)
+        self.mock_base_metadata.create_all.assert_not_called()
+        self.mock_should_run_migrations.assert_called_once_with(self.controlled_cache_path, new_head_rev) 
 
     def test_existing_db_cache_missing_runs_migrations(self):
         self.mock_inspector.get_table_names.return_value = list(self.model_table_names_with_alembic)
         current_head_rev = "pg_head_rev_2"
         self.mock_get_head_revision.return_value = current_head_rev
         self.mock_run_migrations.return_value = current_head_rev
+        
+        # Mock should_run_migrations to return True (cache is missing)
+        self.mock_should_run_migrations.return_value = True
 
         self.backend.initialize()
 
         self.mock_run_migrations.assert_called_once_with(db_url=self.dummy_connection_string)
         self.mock_stamp_db_head.assert_not_called()
-        self.assertTrue(self.controlled_cache_path.exists())
-        with open(self.controlled_cache_path, 'r') as f: cache_data = json.load(f)
-        self.assertEqual(cache_data.get("revision"), current_head_rev)
+        self.mock_update_migration_cache.assert_called_once_with(self.controlled_cache_path, current_head_rev)
         self.mock_base_metadata.create_all.assert_not_called()
+        self.mock_should_run_migrations.assert_called_once_with(self.controlled_cache_path, current_head_rev)
 
-    def test_existing_db_cache_for_different_connection_string(self):
+    def test_existing_db_cache_for_different_package_version(self):
         self.mock_inspector.get_table_names.return_value = list(self.model_table_names_with_alembic)
         current_head_rev = "pg_current_head"
         self.mock_get_head_revision.return_value = current_head_rev
         self.mock_run_migrations.return_value = current_head_rev
-        self.controlled_cache_dir.mkdir(parents=True, exist_ok=True)
-        with open(self.controlled_cache_path, 'w') as f:
-            json.dump({"connection_string_hash": hash("other_connection_string"), "revision": "pg_other_rev"}, f)
+        
+        # Mock should_run_migrations to return True (different package version)
+        self.mock_should_run_migrations.return_value = True
         
         self.backend.initialize()
 
         self.mock_run_migrations.assert_called_once_with(db_url=self.dummy_connection_string)
-        self.assertTrue(self.controlled_cache_path.exists())
-        with open(self.controlled_cache_path, 'r') as f: cache_data = json.load(f)
-        self.assertEqual(cache_data.get("connection_string_hash"), hash(self.dummy_connection_string))
-        self.assertEqual(cache_data.get("revision"), current_head_rev)
+        self.mock_update_migration_cache.assert_called_once_with(self.controlled_cache_path, current_head_rev)
         self.mock_base_metadata.create_all.assert_not_called()
+        self.mock_should_run_migrations.assert_called_once_with(self.controlled_cache_path, current_head_rev)
 
     def test_existing_db_migrated_but_model_table_missing_runs_create_all(self):
         self.assertTrue(self.defined_model_table_names, "Model table names should not be empty for this test.")
@@ -179,15 +191,16 @@ class TestPostgreSQLMigrationsCache(unittest.TestCase):
         
         current_rev = "pg_head_rev_ok"
         self.mock_get_head_revision.return_value = current_rev
-        self.controlled_cache_dir.mkdir(parents=True, exist_ok=True)
-        with open(self.controlled_cache_path, 'w') as f:
-            json.dump({"connection_string_hash": hash(self.dummy_connection_string), "revision": current_rev}, f)
+        
+        # Mock should_run_migrations to return False (cache is up to date)
+        self.mock_should_run_migrations.return_value = False
 
         self.backend.initialize()
 
         self.mock_run_migrations.assert_not_called() 
         self.mock_stamp_db_head.assert_not_called()
         self.mock_base_metadata.create_all.assert_called_once_with(self.mock_engine)
+        self.mock_should_run_migrations.assert_called_once_with(self.controlled_cache_path, current_rev)
 
 if __name__ == '__main__':
     unittest.main()
