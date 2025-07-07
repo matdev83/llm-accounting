@@ -7,13 +7,9 @@ from ..backends.base import BaseBackend
 
 from llm_accounting import LLMAccounting
 
-from llm_accounting.backends.base import BaseBackend
+from llm_accounting.backends.sqlite import SQLiteBackend
+from llm_accounting.backends.postgresql import PostgreSQLBackend
 
-from ..backends.sqlite import SQLiteBackend
-from ..backends.postgresql import PostgreSQLBackend
-from ..backends.base import BaseBackend
-
-# Use default sys.stdout so test frameworks like capsys can capture output
 console = Console()
 
 

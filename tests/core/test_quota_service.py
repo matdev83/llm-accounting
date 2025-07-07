@@ -624,8 +624,9 @@ def test_check_quota_enhanced_denial_cached(mock_backend: MagicMock):
         assert reason == "Denied by test limit"
         assert retry_after == 60 # Initial retry_after
         mock_evaluate_enhanced.assert_called_once()
-        assert (("gpt-4", "test_user", "test_caller", None) in quota_service._denial_cache)
-        assert quota_service._denial_cache[("gpt-4", "test_user", "test_caller", None)] == ("Denied by test limit", reset_time)
+        cache_key = ("gpt-4", "test_user", "test_caller", None)
+        assert (cache_key in quota_service._denial_cache)
+        assert quota_service._denial_cache[cache_key] == ("Denied by test limit", reset_time)
 
         mock_evaluate_enhanced.reset_mock() # Reset mock call count
 

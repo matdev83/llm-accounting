@@ -356,7 +356,7 @@ def test_postgresql_applies_new_migration_and_preserves_data(postgresql_engine, 
 #    The tests are written to be mostly self-contained if the DB URL and permissions are correct.
 
 # Final check on imports and structure:
-# - alembic_config fixture relies on sqlite_db_url by default but postgresql_alembic_config uses TEST_POSTGRESQL_URL.
+# - alembic_config fixture relies on sqlite_db_url by default but postgresql_alembic_config uses TEST_POSTGRESQL_DB_URL.
 # - set_db_url_env fixture is used to set LLM_ACCOUNTING_DB_URL for run_migrations().
 # - Helper functions for table/column names and revision are defined.
 # - Tests for SQLite and PostgreSQL follow similar patterns.

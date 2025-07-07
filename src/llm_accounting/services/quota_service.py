@@ -381,28 +381,28 @@ class QuotaService:
     #     if not username or not caller_name:
     #         return True, None, None
 
-        # For CALLER scope limits that *are* specific to a user (limit.username is not None)
-        limits_to_evaluate = [
-            limit
-            for limit in self.cache_manager.limits_cache
-            if LimitScope(limit.scope) == LimitScope.CALLER
-            and (
-                limit.username == username
-                or limit.username == "*"
-                or limit.username is None
-            )
-            and (
-                limit.caller_name == caller_name
-                or limit.caller_name == "*"
-                or limit.caller_name is None
-            )
-        ]
-        limits_to_evaluate.sort(
-            key=lambda limit_dto: (
-                1 if limit_dto.username in (None, "*") else 0,
-                1 if limit_dto.caller_name in (None, "*") else 0,
-            )
-        )
-        return self.limit_evaluator._evaluate_limits_enhanced(
-            limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
-        )
+    #     # For CALLER scope limits that *are* specific to a user (limit.username is not None)
+    #     limits_to_evaluate = [
+    #         limit
+    #         for limit in self.cache_manager.limits_cache
+    #         if LimitScope(limit.scope) == LimitScope.CALLER
+    #         and (
+    #             limit.username == username
+    #             or limit.username == "*"
+    #             or limit.username is None
+    #         )
+    #         and (
+    #             limit.caller_name == caller_name
+    #             or limit.caller_name == "*"
+    #             or limit.caller_name is None
+    #         )
+    #     ]
+    #     limits_to_evaluate.sort(
+    #         key=lambda limit_dto: (
+    #             1 if limit_dto.username in (None, "*") else 0,
+    #             1 if limit_dto.caller_name in (None, "*") else 0,
+    #         )
+    #     )
+    #     return self.limit_evaluator._evaluate_limits_enhanced(
+    #         limits_to_evaluate, model, username, caller_name, project_name, input_tokens, cost, completion_tokens
+    #     )

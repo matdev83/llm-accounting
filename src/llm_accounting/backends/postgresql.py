@@ -59,7 +59,6 @@ class PostgreSQLBackend(BaseBackend):
         self.user_manager = UserManager(self)
 
 
-
     def _determine_if_new_or_empty_db(self) -> bool:
         if not self.engine:
             logger.error("Engine not initialized before _determine_if_new_or_empty_db call.")
